@@ -15,6 +15,11 @@ Cas asked to step back and avoid complexity. Phase 1 goal: create a workspace wi
 - **D0.5 Fitness stays, with partial data handled.** Weights per workspace, default quality only. The leaderboard shows cost and latency per contender where known and "N/A" where unknown. The cost and latency terms of fitness apply only when every contender in that role has them; otherwise fitness is quality only and the leaderboard says so.
 - **D0.6 Deferred from Phase 1:** report tokens and agent self-report, the coding-harness and app templates, platform-run objective checks and screenshot capture, MCP, the stale-attempt cron.
 
+### Topic 2: Records, versioning and runs
+
+- **D2.3 Used records are read-only.** Once a task or contender has been in a run it cannot be edited; "duplicate and edit" creates a new version. Role rubrics may change, but each verdict stores a snapshot of the rubric it was scored against.
+- **D2.4 Repetitions** default to 1 per run, maximum 5, set per run.
+
 ### Topic 1: Phase 1 scope edges
 
 - **D1.4 Phase 2 fields exist from T0.** T0 creates the Phase 2 fields as nullable and unused in Phase 1: `workspaces.composer_contender`, `tasks.composed_prompt`, `runs.schedule`, verdict method `outcome` and `verdicts.due_at`. Later phases then add behaviour without a schema change.
