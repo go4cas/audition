@@ -33,6 +33,13 @@ Cas asked for judging simple enough for non-technical users.
 - **D3.4 The owner can always override.** On any AI-judged output, the owner can change the stars; the owner's scores then count and the AI's are kept in history.
 - **D3.5 Champion suggestion.** The leaderboard averages each contender's scores per role across all runs. Once a contender has at least 5 scored attempts (minimum set per workspace) and averages above the role's pass mark, the top one is marked "Suggested champion" and the owner confirms it. Below the minimum: "not enough data yet".
 
+### Topic 4: Users, costs and files
+
+- **D4.1 Single owner.** Audition is not multi-tenant. Phase 1 has one owner account (MFA available); no other logins.
+- **D4.2 Tokens first, cost optional.** Every output records tokens in/out (measured for API; optionally typed in for pasted outputs) and latency. Cost is optional: an API contender may carry price per million input and output tokens, and cost is derived from them; otherwise "N/A". The fitness efficiency term uses tokens (not cost); cost is display-only. Refines D0.5.
+- **D4.3 Spending guard.** Each contender has a max-output-tokens limit; the run screen shows the number of calls before starting. Cost estimates come later.
+- **D4.4 Uploads.** Text, images, PDF and zip, up to 25 MB per file.
+
 ### Topic 1: Phase 1 scope edges
 
 - **D1.4 Phase 2 fields exist from T0.** T0 creates the Phase 2 fields as nullable and unused in Phase 1: `workspaces.composer_contender`, `tasks.composed_prompt`, `runs.schedule`, verdict method `outcome` and `verdicts.due_at`. Later phases then add behaviour without a schema change.
