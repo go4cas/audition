@@ -1,25 +1,31 @@
 # Audition — High-Level Spec
 
-Nov 5, 2026 · Cas
+Nov 5, 2026 · Cas · updated with the interview decisions in `docs/NOTES.md`
 
 ## Overview
 
-Audition is a self-hosted, domain-neutral platform that decides which AI contender is best for each role in a workflow, judged by your own standards. A contender is a model, an agent harness or an app, plus its configuration. The platform runs on **Vaultbase**, the single-binary backend (TypeScript on Bun), pinned to a tested version.
+Audition is a self-hosted, domain-neutral platform that decides which AI contender is best for each role in a workflow, judged by your own standards. A contender is a model, an agent harness or an app, plus its exact configuration. The platform runs on **Vaultbase**, the single-binary backend (TypeScript on Bun), pinned to a tested version.
 
-The output is a routing table: the current champion (casting) for each role, readable by people in the UI and by agents over MCP.
+How it works, in one line: create a workspace (for example Software Factory), define its stages, roles and tasks, pick contenders for a role, run the tasks, judge the outputs side by side without knowing who made them, and confirm the best contender per role.
+
+The output is a routing table: the current champion (casting) for each role, shown in the UI.
 
 **Goals**
 
 - **Generic.** Any domain: software delivery, marketing, stock market reviews, travel research. The software factory is the hardest test case, not the purpose.
 - **Repeatable.** Tasks are fixed and rerun against new contenders over time.
-- **Fair.** The same prompt for every contender, blind judging, several repetitions per task, and a fitness score that weighs quality against cost and latency.
-- **Simple.** Few concepts, no framework, and Vaultbase does the backend work.
+- **Fair.** The same prompt for every contender, blind judging, more outputs through "Run again", and a fitness score that weighs quality against tokens and time.
+- **Simple.** Few concepts, plain words on screen, usable by non-technical people. No framework, and Vaultbase does the backend work.
 
-**Not in v1**
+**Not in Phase 1**
 
 - Automated harness runners and sandboxes (Phase 3).
+- Agents reporting back on their own, and MCP access. You copy the prompt out and paste the result back.
+- Pairwise (A versus B) judging. Phase 1 judges with star ratings only.
+- Audition running checks itself (build, tests, lint, screenshots). Agents report those results in their reply.
+- Audition generating images itself. Image contenders return images by upload.
 - Public benchmarks, or statistics beyond confidence ranges.
-- Multi-user teams and SaaS tenancy.
+- Multiple users, teams and SaaS tenancy. There is one owner.
 - A visual workflow builder.
 
 ## Concepts
@@ -32,87 +38,107 @@ The core model uses ten domain-neutral terms. Nothing in the core mentions softw
 | Stage | Optional grouping of roles within a workspace | Research, Implementation |
 | Role | A job a contender is cast into; owns the rubric | Back-end engineer, Copywriter |
 | Task | A fixed, repeatable test job for a role | "Build this settings screen from this spec" |
-| Connection | An endpoint plus its encrypted credential | Anthropic API key, a manual app |
-| Contender | A connection plus model plus config, in one execution mode | Opus with a given system prompt; Claude Code via handoff |
-| Run | Selected tasks × contenders × repetitions, with a judging method | 3 tasks, 4 contenders, 3 repetitions |
-| Attempt | One contender doing one task once; holds the artifact and metrics | A draft post, a repo branch, an image |
-| Verdict | A judgement on one attempt, or on a pair | Rubric score 0.82; A beats B |
-| Casting | The confirmed champion for a role | UI work → Contender X |
+| Connection | Where contenders run: a provider plus its encrypted key, or "Manual" for copy and paste | Anthropic API key; Manual |
+| Contender | One exact configuration: connection plus model plus settings | "Opus 5.5, high reasoning, temperature 0.6"; "Claude Code, Opus, plan mode" |
+| Run | One role, some of its tasks and some contenders, with one judge | 3 tasks × 4 contenders = 12 outputs |
+| Attempt | One contender doing one task once. Screens call it an **output** | A draft post, a branch plus build results, an image |
+| Verdict | Star ratings for one output, per rubric criterion | Accuracy ★★★★, Tone ★★★ → 3.6 |
+| Casting | The confirmed champion for a role | UI engineer → Contender X |
 
-**Utility roles** are platform jobs assigned to ordinary contenders in workspace settings: **Judge** (scores against rubrics) and **Composer** (optionally drafts handoff prompts, Phase 2).
+How they relate: a workspace holds stages (optional), a stage holds roles, and a role owns the rubric and holds tasks. Separately, a connection holds contenders. Contenders are picked per run, not attached to tasks. A run creates one attempt per task × contender. Verdicts judge attempts, and the leaderboard rolls verdicts up per role × contender.
+
+**Connections and contenders are global**, shared across all workspaces. Two settings are two contenders: "Opus 5.5 High 0.6" and "Opus 5.5 Medium 0.2" compete separately. Each contender has a friendly name, and the leaderboard can group rows by model.
+
+**Utility roles** are platform jobs given to ordinary contenders in workspace settings: **Judge** (rates outputs against the rubric) and **Composer** (drafts handoff prompts, later phase).
 
 ## Data model
 
-Thirteen Vaultbase collections. Each one is a real SQL table. Field names are indicative; T0 settles them in the schema.
+Thirteen Vaultbase collections. Each one is a real SQL table. Field names are indicative; T0 settles them in the schema. Fields marked *later* exist from T0 as nullable and unused in Phase 1, so later phases add behaviour without a schema change.
 
 | Collection | Kind | Key fields |
 | --- | --- | --- |
-| users | auth | Owner account with MFA. Guest voters come later, through anonymous sessions (Phase 2). |
-| workspaces | base | name, description, judge_contender → contenders, composer_contender → contenders, default_judging (json), fitness_weights (json) |
+| users | auth | The single owner account, with MFA available. No other logins in Phase 1. |
+| workspaces | base | name, description, judge_contender → contenders, default_judge (me / ai), min_outputs (default 5), fitness_weights (json: quality, tokens, time; default quality only), composer_contender → contenders (*later*) |
 | stages | base | workspace, name, order. Optional. |
-| roles | base | workspace, stage (optional), name, description, rubric (json: criteria with name, weight, guidance), pass_threshold, default_output_type |
-| tasks | base | role, title, prompt (editor), output_type (text / image / file / code), attachments (files), rubric_override (json), composed_prompt (frozen), base_ref (repo + commit, coding tasks only), status (draft / frozen) |
-| connections | base | name, provider (anthropic / openai-compatible / google / manual), base_url, api_key (**encrypted**), notes |
-| contenders | base | connection, name, mode (api / handoff / runner), model, config (json: system prompt, temperature, limits), handoff_template, enabled |
-| handoff_templates | base | name, kind (generic / coding-harness / app), body with {{vars}}, return_instructions |
-| runs | base | workspace, role, tasks (multi), contenders (multi), repetitions, judging (json), schedule (cron, Phase 2), status |
-| attempts | base | run, task, contender, repetition, status, prompt_sent, output, output_files, metrics (cost, latency, tokens in/out), metrics_source (measured / self-reported / manual), report_token (**encrypted**, single use), error |
-| verdicts | base | attempt, opponent (optional), method (rubric / pairwise / outcome), judge_kind (human / ai), judge_contender, scores (json per criterion), winner, rationale, due_at (outcome verdicts), status |
+| roles | base | workspace, stage (optional), name, description, rubric (json: criteria with name, weight, guidance), pass_mark (stars, 1 to 5), default_output_type |
+| tasks | base | role, title, prompt (editor), output_type (text / image / file / code), attachments (files), base_ref (repo + commit, coding tasks only), locked, previous_version → tasks, composed_prompt (*later*) |
+| connections | base | name, provider (anthropic / openai-compatible / mock / manual), base_url, api_key (**encrypted**), notes |
+| contenders | base | connection, name, mode (api / handoff; runner *later*), model, group (for leaderboard grouping), config (json: system prompt, reasoning level, temperature), max_output_tokens, price_in_per_mtok (optional), price_out_per_mtok (optional), locked, previous_version → contenders, enabled |
+| handoff_templates | base | name, kind (generic; coding-harness and app *later*), body with {{vars}}, return_instructions. Phase 1 seeds one generic template. |
+| runs | base | workspace, role, tasks (multi), contenders (multi), judge (me / ai), rerun_of → runs (optional), status, schedule (cron, *later*) |
+| attempts | base | run, task, contender, status, prompt_sent, output, output_files, tokens_in, tokens_out, duration_ms, cost (derived, empty when unknown), metrics_source (measured / manual), error |
+| verdicts | base | attempt, method (rubric; pairwise and outcome *later*), judge_kind (human / ai), judge_contender, scores (json: stars and a one-line reason per criterion), rubric_snapshot (json), score (weighted, 1 to 5), status, opponent, winner, due_at (all three *later*) |
 | castings | base | role, contender, since, rationale, suggested_by (system / human), confirmed |
-| leaderboard | view | SQL over attempts and verdicts, per role × contender: attempts, mean score, win rate, mean cost, mean latency, fitness, confidence |
+| leaderboard | view | SQL over attempts and verdicts, per role × contender: outputs scored, mean score, confidence range, mean tokens, mean time, mean cost (or N/A), fitness |
 
-Two rules hold throughout. **Tasks freeze** once a run uses them, so later edits create a new task version (record history keeps the trail). **Attempts never change contender or task** after they are created.
+Three rules hold throughout.
+
+- **Used records are read-only.** Once a task or contender has been in a run, it is locked. "Duplicate and edit" creates a new version that points back to the old one. Role rubrics can change, because every verdict stores a snapshot of the rubric it was scored against.
+- **Attempts never change contender or task** after they are created.
+- **Nothing is overwritten.** "Run again" adds outputs; it never replaces old ones.
 
 ## Execution modes
 
-Every contender runs in one of three modes. The attempt record is the same in all three; only who executes it changes.
+Every contender runs in one of two Phase 1 modes. The attempt record is the same in both; only who executes it changes.
 
-| Mode | Who executes | Phase | Metrics |
+| Mode | Who executes | Phase | Tokens and time |
 | --- | --- | --- | --- |
-| API | The platform calls the provider directly | 1 | Measured |
-| Handoff | You paste a generated prompt into a harness or app; the result comes back | 1 | Self-reported or manual |
+| API | Audition calls the provider directly | 1 | Measured |
+| Handoff | You copy the prompt into a harness or app, then paste the result back | 1 | Typed in by you, optional |
 | Runner | An external automated runner executes and reports back | 3 | Reported by the runner |
 
-**Attempt lifecycle:** queued → generated (handoff only) → in progress → submitted → judged. Any state can move to *failed*, with the error recorded.
+**Attempt lifecycle.** API: queued → in progress → submitted → judged. Handoff: waiting for you → submitted → judged. Any state can move to *failed*, with the error recorded.
+
+**Starting a run**
+
+1. You pick a role, some of its tasks, some contenders, and the judge (Me or AI; the workspace default is preselected).
+2. Before you start, the run screen shows how many provider calls it will make (API outputs, plus AI judging calls). This is the spending guard, together with each contender's max output tokens. Cost estimates come later.
+3. Starting the run creates one attempt per task × contender.
 
 **API pipeline**
 
-1. Starting a run creates one attempt per task × contender × repetition.
-2. Each attempt goes onto a queue; a worker calls the provider through `helpers.http` with retries.
-3. The worker stores the output, files and measured cost, latency and tokens, then queues AI judging if the run asks for it.
+1. Each API attempt goes onto a queue; a worker calls the provider through `helpers.http` with retries, passing the contender's max output tokens.
+2. The worker stores the output, any files, and the measured tokens in and out and time taken. When the contender has prices per million tokens, Audition derives the cost; otherwise cost is empty and shows "N/A".
+3. If the run's judge is AI, the worker then queues AI judging for that output.
 
-**Handoff**
+**Handoff (manual return)**
 
-1. The platform renders the contender's template once and issues a single-use report token scoped to that attempt.
-2. The UI shows copy-ready blocks. The **generic** template gives a prompt plus return instructions. The **coding-harness** template gives three blocks: pre-goal shell commands (a fresh worktree from the task's `base_ref`), the `/goal` prompt, and the kickoff prompt, which ends with the report-back step. The **app** template (ChatGPT, Perplexity and similar) gives a prompt to paste.
-3. The result comes back one of two ways. **Self-report:** the agent posts its summary, artifacts and metrics to a report route, or through MCP, using the token. **Manual:** you paste the output or upload files.
-4. A cron job flags attempts left in progress too long.
+1. Audition renders the generic template once per task. The rendered prompt is identical for every contender on that task.
+2. The handoff screen shows one copy-ready block: the role and its description, the task prompt (naming the repo and commit when the task has one), the rubric, and "When done, reply with…" instructions. For code and UI tasks, those instructions ask for a summary, the branch or diff, build, test and lint results, and screenshots as files.
+3. You paste the reply into Audition and upload any files. You can also type in tokens and time taken, if the tool showed them. Submitting moves the attempt to submitted. A submitted output cannot be replaced; use "Run again" for a fresh one.
 
-**Fairness rule:** the prompt is rendered once per task and is identical for every contender. Coding tasks all start from the same commit.
+Uploads accept text, images, PDFs and zip files, up to 25 MB per file.
+
+**Fairness rule:** the prompt is rendered once per task and is identical for every contender. Coding tasks name the same repo and commit for every contender.
+
+**Run again.** A finished run has a "Run again" button. It creates a new run with the same role, tasks, contenders and judge, linked to the original. The leaderboard averages every scored output across runs.
 
 ## Judging, fitness and casting
 
-Verdicts are separate records, so one attempt can collect several: an AI rubric score now, a human pairwise pick later, an outcome verdict next month.
+Phase 1 has one judging method: **star ratings against the role's rubric**.
 
-| Method | Needs | Judged by | Phase |
-| --- | --- | --- | --- |
-| Rubric score (absolute) | 1+ contenders | Human or AI | 1 |
-| Pairwise pick | 2+ contenders, same task and repetition | Human or AI | 1 |
-| Outcome (delayed) | Something measurable later, with a due date | Human or AI | 2 |
+- **The rubric.** Each role has a few criteria, each with a weight (percentages that add up to 100) and a line of guidance. The judge gives each output 1 to 5 stars per criterion, and Audition computes the weighted score, from 1 to 5.
+- **One judging screen per task.** It shows all of a run's outputs for that task side by side, unlabelled and in shuffled order ("Output A, B, C"). Text is shown side by side; images are shown in a grid. The best output is the one with the highest score.
+- **Blind.** The data behind the judging screen never includes contender fields.
+- **One judge per run: Me or AI.** The AI judge is the contender chosen in workspace settings. It returns stars plus a one-line reason per criterion, as structured JSON. Audition warns when the judge shares a provider with a contender it is judging.
+- **The owner can always override.** On any output the AI judged, you can change the stars. Your verdict then counts, and the AI's verdict stays in the history.
+- **Code and UI outputs.** Build, test and lint results and screenshots arrive inside the output. The judging screen shows the text and images together and labels these results as the agent's own claim, because Audition runs no checks.
 
-- **Blind human judging.** The judging screen shows outputs without contender names, in shuffled order. The API that feeds it never returns contender fields.
-- **AI judge.** It scores against the role's rubric and returns structured JSON per criterion with a short rationale. The platform warns when the judge shares a provider with a contender it is judging.
-- **Output types.** Text is shown side by side. Images are shown in a thumbnail grid. Code and UI attempts are judged on objective checks first (build, tests, lint, accessibility), then screenshots.
+Verdicts are separate records, so later phases can add pairwise picks and delayed outcome verdicts to the same attempts.
 
 **Fitness** is calculated per role × contender across all runs, never per run:
 
 ```
-fitness = w_q · Q − w_c · C − w_l · L
+fitness = w_q · Q − w_t · T − w_d · D
 ```
 
-Q is quality from 0 to 1 (rubric scores, or ratings derived from pairwise wins). C is normalised cost and L normalised latency. The weights are set per workspace. Self-reported metrics count for less than measured ones. The leaderboard shows the number of attempts and a confidence range next to each score.
+Q is quality from 0 to 1: the mean weighted score, mapped so 1 star is 0 and 5 stars is 1. T is mean tokens (in plus out) and D is mean time taken, each divided by the largest mean among the role's contenders, so both run from 0 to 1. The weights are set per workspace; the default is quality only (w_q = 1, w_t = w_d = 0).
 
-**Casting.** The system suggests a champion once a contender has enough attempts for a role (a minimum set per workspace). You confirm it. Confirmed castings are readable over MCP, so a factory or Levare can ask who should do a role right now.
+A tokens or time term applies only when every contender in the role has that data. Otherwise fitness falls back to the terms that are available, and the leaderboard says which terms it used. Cost is shown for information and never enters fitness.
+
+**Leaderboard.** One row per role × contender, optionally grouped by model: outputs scored, mean score, a confidence range, mean tokens, mean time, mean cost (or N/A), and fitness.
+
+**Champion suggestion.** A contender qualifies when it has at least the workspace's minimum number of scored outputs (default 5) and its mean score is above the role's pass mark. The qualifying contender with the highest fitness is marked "Suggested champion", and you confirm it to create the casting. Below the minimum, the leaderboard shows "not enough data yet".
 
 ## Vaultbase platform
 
@@ -121,18 +147,18 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 | Need | Vaultbase feature | Phase |
 | --- | --- | --- |
 | Owner sign-in | Auth collection with MFA | 1 |
-| Provider keys, report tokens | Encrypted fields (AES-GCM) | 1 |
+| Provider keys | Encrypted fields (AES-GCM) | 1 |
 | Fan-out of attempts | After-create hook on runs → queue workers | 1 |
 | Provider calls | `helpers.http` with retries, behind the SSRF egress guard | 1 |
 | Handoff rendering | `helpers.template` | 1 |
-| Report-back endpoint | Custom route with per-IP rate limit | 1 |
 | Live run progress | Realtime subscriptions on attempts | 1 |
-| Artifacts | Files with MIME and size validation and thumbnails | 1 |
+| Uploads and outputs | Files with MIME and size validation and thumbnails | 1 |
 | Leaderboard | View collection plus aggregations | 1 |
-| Task and rubric versions | Record history | 1 |
-| Routing table for agents | MCP with scoped, read-only tokens | 1 |
+| Task and contender versions | Record history | 1 |
 | Every judgement and casting | Audit log | 1 |
-| Stale-attempt sweep | Cron | 1 |
+| Agent report-back endpoint | Custom route with per-IP rate limit | Later |
+| Routing table for agents | MCP with scoped, read-only tokens | Later |
+| Stale-attempt sweep | Cron | Later |
 | Scheduled runs, outcome verdicts | Cron | 2 |
 | Run-complete and casting alerts | Push and email | 2 |
 | Guest voters | Anonymous sessions | 2 |
@@ -145,21 +171,20 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 - **Pin the version.** Use the latest 0.37.x release, record its version and checksum in the repo, and upgrade only on purpose after reading the changelog's upgrade notes. Vaultbase is pre-1.0.
 - **Logic lives in the repo.** Hooks, routes, cron and queue workers are TypeScript files in `vb_hooks/`, not code typed into the admin UI.
 - **The schema lives in the repo** as code or a snapshot that a fresh instance can apply. T0 picks the mechanism after reading the docs.
-- **UI:** vanilla JavaScript, no framework, built with Bun, zero runtime dependencies. Restrained, modern look; works at phone width.
+- **UI:** vanilla JavaScript, no framework, built with Bun, zero runtime dependencies. Restrained, modern look; works at phone width. Plain words on screen ("outputs", not "attempts").
 - **Production:** the VPS behind Cloudflare, following Vaultbase's Cloudflare recipe. That deployment comes after Phase 1 is proven locally.
 
 ## Security
 
-The only secrets Audition holds are provider API keys and short-lived report tokens. It never stores account passwords.
+The only secrets Audition holds are provider API keys. It never stores account passwords for providers or harnesses.
 
-- **Keys are write-only to clients.** API keys sit in encrypted fields and only server-side hooks read them. No API response, realtime event or MCP tool returns them.
-- **Harness credentials stay on the harness machine.** Handoff and runner contenders hold no credentials in Audition.
-- **Report tokens** are single-use, scoped to one attempt, expire, and are stored encrypted. A reused, expired or foreign token is rejected and logged.
-- **API rules:** in v1, the owner alone can access everything. The blind judging endpoint never returns contender fields.
-- **MCP tokens are scoped.** Read-only for castings and the leaderboard. The only write scope is attempt reports.
+- **Keys are write-only to clients.** API keys sit in encrypted fields and only server-side hooks read them. No API response or realtime event returns them.
+- **Harness credentials stay on the harness machine.** Handoff contenders hold no credentials in Audition.
+- **API rules:** the single owner alone can access everything. The blind judging endpoint never returns contender fields.
+- **Uploads** are checked for type (text, images, PDF, zip) and size (25 MB per file).
 - **Egress:** the SSRF guard allows only the configured provider hosts.
-- **Rate limits** apply to the report route and the auth routes.
-- **Development and cloud sessions use the mock provider only.** No real provider keys ever enter the repo, tests or Claude Code cloud sessions.
+- **Rate limits** apply to the auth routes.
+- **Development and cloud sessions use the mock provider only.** No real provider keys ever enter the repo, tests or Claude Code cloud sessions. The real-provider check runs on the owner's own machine.
 
 ## Phases
 
@@ -167,9 +192,11 @@ Phase 1 proves the whole loop — tasks → runs → judging → casting — wit
 
 | Phase | Scope | Done when |
 | --- | --- | --- |
-| 1 — Core loop | Workspaces, stages, roles, tasks; connections and contenders; API and handoff modes; rubric and pairwise judging by human and AI; leaderboard; casting; MCP read of castings | All four reference workspaces run end to end against the mock provider, then against one real provider locally |
+| 1 — Core loop | Workspaces, stages, roles, tasks; connections and contenders; API mode and handoff by copy and paste with one generic template; star-rubric judging by Me or AI with owner override; Run again; leaderboard with tokens, time and optional cost; champion suggestion and casting; single owner | All four reference workspaces run end to end against the mock provider. Then Cas runs one real check with Anthropic on their own machine, outside any Claude session, after T5 merges. |
 | 2 — Living arena | Composer utility role; scheduled runs; outcome verdicts; push and email alerts; guest voters; vector match of new tasks to roles; Levare reads castings | A scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
 | 3 — Runners | Automated runners for harness contenders, with sandboxes outside Vaultbase reporting through signed webhooks | A coding task runs on two harnesses with no manual step |
+
+**Deferred from Phase 1, phase not yet set:** agent report tokens and self-report; MCP, including MCP reads of castings; the coding-harness and app templates; pairwise judging; platform-run checks and screenshot capture; the stale-attempt cron; API adapters for image models; cost estimates before a run.
 
 ## Phase 1 thread plan
 
@@ -188,12 +215,12 @@ Each thread is done only when its acceptance criteria pass on a fresh Vaultbase 
 
 | Thread | Scope | Done when |
 | --- | --- | --- |
-| T0 Foundations | Repo layout and Bun scripts; download and checksum the pinned Vaultbase binary; start and stop scripts; schema and API rules as code; seed script for the four reference workspaces; a deterministic mock provider (text and image); a test harness that boots a fresh instance per run | From a fresh clone, one command boots Vaultbase, applies the schema, seeds, and `bun test` passes schema and rule tests. The open questions marked for T0 are answered in `docs/NOTES.md`. |
-| T1 API execution | Run → attempt fan-out; queue worker; provider adapters (Anthropic, OpenAI-compatible, mock); measured metrics; retries and failure handling | A run of 2 tasks × 3 contenders × 2 repetitions against the mock produces 12 submitted attempts with metrics. Injected failures are recorded as failed attempts and nothing crashes. |
-| T2 Handoff | Generic, coding-harness and app templates; rendering; report token issue and checks; report route plus the MCP path; manual submission; stale-attempt cron | Each template kind renders correctly from a seeded task. A valid token submits exactly once. Reused, expired and foreign tokens are rejected. A stale attempt is flagged. |
-| T3 Judging and fitness | AI rubric judge (through the mock); pairwise pairing; human verdict API; blind payload; leaderboard view; fitness; casting suggestion and confirmation; same-provider warning | Seeded results give a deterministic leaderboard. The blind endpoint never returns contender fields. A casting is suggested only above the minimum attempt count. |
-| T4 UI | Editors for workspaces, roles and tasks; connection and contender setup; run builder; live run view; handoff copy screen; blind judging screen; leaderboard and casting | A browser walkthrough of all four reference workspaces against the mock works end to end, with no framework, at desktop and phone width. |
-| T5 Integration | End-to-end runs of the four reference workspaces; README and operations notes; fixes for gaps found | All four workspaces complete the loop (tasks → runs → judging → casting) with no special cases. |
+| T0 Foundations | Repo layout and Bun scripts; download and checksum the pinned Vaultbase binary; start and stop scripts; schema (including the nullable *later* fields) and API rules as code; the generic handoff template; seed script for the four reference workspaces from "Reference workspace content"; a deterministic mock provider (text, and test images); a test harness that boots a fresh instance per run | From a fresh clone, one command boots Vaultbase, applies the schema, seeds, and `bun test` passes schema and rule tests. Every *later* field exists and is nullable. The open questions marked for T0 are answered in `docs/NOTES.md`. |
+| T1 API execution | Run → attempt fan-out (one per task × contender); queue worker; provider adapters (Anthropic, OpenAI-compatible, mock); max output tokens; measured tokens and time; cost from token prices; Run again; the call count for the spending guard; retries and failure handling | A run of 2 tasks × 3 contenders against the mock produces 6 submitted attempts with tokens and time. Run again produces 6 more and leaves the first 6 untouched. Each call is sent with the contender's max output tokens. Cost is derived when prices are set and empty when they are not. Injected failures are recorded as failed attempts and nothing crashes. |
+| T2 Handoff | The generic template; rendering once per task; manual submission (pasted text, uploads, optional tokens and time); upload type and size checks | A seeded task renders one prompt that is identical for every handoff contender in the run and contains the role, task, repo and commit (when set), rubric and return instructions. A pasted output submits exactly once; a second submission is rejected. Uploads of the wrong type or over 25 MB are rejected. |
+| T3 Judging and fitness | AI star judge through the mock (stars plus a reason per criterion); human verdict API; owner override; rubric snapshot on verdicts; blind payload; leaderboard view with confidence ranges; fitness with partial data; champion suggestion and confirmation; same-provider warning | Seeded results give a deterministic leaderboard. The blind endpoint never returns contender fields. An owner override replaces the AI's score in the leaderboard and the AI verdict stays in history. Fitness drops the tokens term when one contender lacks token data, and says so. A champion is suggested only at or above the minimum outputs and above the pass mark. |
+| T4 UI | Editors for workspaces, stages, roles (with rubric) and tasks, including "Duplicate and edit"; connection and contender setup; run builder with call count; live run view; handoff copy and paste screen; blind star-judging screen with image grid and override; Run again; leaderboard and casting | A browser walkthrough of all four reference workspaces against the mock works end to end, with no framework, at desktop and phone width. |
+| T5 Integration | End-to-end runs of the four reference workspaces; README and operations notes, including the steps for Cas's local Anthropic check; fixes for gaps found | All four workspaces complete the loop (tasks → runs → judging → casting) with no special cases. |
 
 ## Orchestrator rules
 
@@ -216,21 +243,79 @@ Four seeded workspaces test that the model is generic. If all four run without s
 
 | Workspace | Shape | Contenders | Judging | Proves |
 | --- | --- | --- | --- | --- |
-| Software Factory | Multi-stage: research, spec, back-end, UI | API models plus coding harnesses by handoff | AI rubric, objective checks, blind human pairwise | Stages, the coding-harness template, self-reported metrics |
-| Marketing Pipeline | No stages: social posts, branding copy, images | API models, including an image model | Blind pairwise; image grid | Image output, pairwise ratings |
-| Stock Review | One role, one contender | One API model | Rubric score now; outcome verdict later (Phase 2) | The single-contender path, absolute thresholds |
-| Travel Research | One role, non-technical | ChatGPT and Perplexity apps by handoff | Human rubric | The app template, manual return |
+| Software Factory | Multi-stage: research, spec, back-end, UI | API models, plus coding harnesses by copy and paste | Star rubric by AI, owner override; build and test results and screenshots arrive in the output | Stages, repo and commit in the prompt, results reported inside the output |
+| Marketing Pipeline | No stages: social posts, brand copy, images | API models for text; image contenders by upload (mock returns test images) | Star rubric by Me; images rated in a grid | Image output, the image grid |
+| Stock Review | One role, one contender | One API model | Star rubric now; outcome verdict later (Phase 2) | The single-contender path, the pass mark |
+| Travel Research | One role, non-technical | ChatGPT and Perplexity by copy and paste | Star rubric by Me | Manual return, a non-technical user |
+
+## Reference workspace content
+
+Draft seed content for Cas to review. T0 seeds it as written once approved. Weights are percentages; the pass mark is in stars (1 to 5). Seeded contenders use the mock connection (API) and the Manual connection (handoff); real contenders are added in the UI.
+
+**Seeded connections and contenders**
+
+| Connection | Contenders |
+| --- | --- |
+| Mock (provider: mock) | "Mock Steady" (always solid output), "Mock Erratic" (varies by seed), "Mock Judge" (the AI judge), "Mock Image" (returns test images) |
+| Manual | "Claude Code (manual)", "Codex (manual)", "ChatGPT (manual)", "Perplexity (manual)", "Midjourney (manual)" |
+
+### Software Factory
+
+Stages: Research → Spec → Back-end → UI. Judge: AI ("Mock Judge"), owner can override. Fitness: quality 70, tokens 20, time 10. The coding tasks name a small demo repo and commit (see the open questions).
+
+| Stage | Role | Criteria (weight) | Pass mark | Tasks |
+| --- | --- | --- | --- | --- |
+| Research | Researcher: compares options and recommends one, with sources | Accuracy (40), Relevance to the question (25), Clear recommendation (20), Sources cited (15) | 3.5 | "Compare three ways to store user settings in a small web app and recommend one"; "Summarise the trade-offs of SQLite versus Postgres for a single-user app" |
+| Spec | Spec writer: turns a rough idea into a short, testable spec | Completeness (35), Testable acceptance criteria (30), Clarity (20), Scope discipline (15) | 3.5 | "Write a one-page spec for a settings screen with Profile, Notifications and Danger zone" |
+| Back-end | Back-end engineer: builds small, tested server features | Correctness (40), Tests included and passing (25), Code quality (20), Error handling (15) | 3.5 | "Add a REST endpoint that saves and reads user settings, with tests" |
+| UI | UI engineer: builds accessible, responsive screens from a spec | Matches the spec (40), Code quality (30), Accessibility (20), Responsiveness (10) | 3.5 | "Build the settings screen from settings-spec.md and mockup.png, vanilla JS and CSS, usable at 375 px" |
+
+Contenders in a typical run: "Mock Steady", "Mock Erratic" (API) and "Claude Code (manual)", "Codex (manual)" (handoff).
+
+### Marketing Pipeline
+
+No stages. Judge: Me. Fitness: quality only.
+
+| Role | Criteria (weight) | Pass mark | Tasks |
+| --- | --- | --- | --- |
+| Social post writer: short posts for a given channel and audience | On brand voice (30), Hook in the first line (30), Clear call to action (20), Fits the channel's length (20) | 3.5 | "Write three LinkedIn posts announcing a self-hosted note-taking app"; "Write five posts for X about a spring sale at a coffee roaster" |
+| Brand copywriter: names, taglines and short brand copy | Memorable (35), Fits the brand brief (35), Clear (20), Original (10) | 3.5 | "Propose five taglines and a 50-word About text for a coffee roaster called Ember & Oak" |
+| Image maker: images from a brief (output type image) | Matches the brief (40), Visual quality (30), On brand (20), Usable as-is (10) | 3.0 | "Create a square social image for the Ember & Oak spring sale: warm tones, a coffee bag, no text" |
+
+Contenders: "Mock Steady", "Mock Erratic" for text; "Mock Image" and "Midjourney (manual)" for images.
+
+### Stock Review
+
+No stages, one role, one contender. Judge: AI ("Mock Judge"). Fitness: quality only. The outcome verdict ("was the call right four weeks later?") is Phase 2.
+
+| Role | Criteria (weight) | Pass mark | Tasks |
+| --- | --- | --- | --- |
+| Stock analyst: a short, balanced review of one listed company | Uses the facts given (35), Balanced risks and upside (25), Clear view with reasoning (25), Plain language (15) | 3.5 | "Review the attached quarterly summary for a fictional company, Northwind Foods, and give a buy, hold or sell view with three reasons" |
+
+Contender: "Mock Steady". The task uses an attached, made-up summary, so no live market data is needed.
+
+### Travel Research
+
+No stages, one role. Judge: Me. Fitness: quality only. Built for a non-technical user: copy, paste, rate.
+
+| Role | Criteria (weight) | Pass mark | Tasks |
+| --- | --- | --- | --- |
+| Trip researcher: practical travel plans with real places | Practical and realistic (35), Matches the brief (30), Specific places named (20), Easy to follow (15) | 3.5 | "Plan three days in Lisbon in May for two adults who like food and walking, mid-range budget"; "Find the best way to get from Paris to Amsterdam with a bike, and what it costs" |
+
+Contenders: "ChatGPT (manual)" and "Perplexity (manual)".
 
 ## Open questions
 
-T0 answers the first four from the Vaultbase docs and records the answers in `docs/NOTES.md`. The rest wait for later phases.
+T0 answers the first four from the Vaultbase docs and records the answers in `docs/NOTES.md`. Architecture answers the fifth and sixth. The rest wait.
 
 - [ ] How is the schema kept as code: a schema snapshot, the migrate CLI, or a seed script?
 - [ ] Can Vaultbase serve the static UI itself, or does the UI need its own host (for example a Cloudflare Worker)?
 - [ ] Is the `@vaultbase/sdk` client worth taking on, or is plain `fetch` plus WebSocket enough?
 - [ ] Can a cloud session download the pinned release from GitHub, or does the binary need to be committed or cached?
+- [ ] How are images passed to the AI judge (vision input) for Marketing? Can the Anthropic adapter send images to the judge? (Architecture)
+- [ ] Which demo repo and commit do the Software Factory coding tasks name? (Architecture proposes; Cas confirms)
+- [ ] How does the image-judging grid look? (Design)
 - [ ] Is vector search reachable through MCP, or only through a custom route? (Phase 2)
-- [ ] How do the image-judging grid and screenshot capture for UI tasks work? (Phase 1 UI decides)
 - [ ] Does "Audition" need a qualifier or distinct domain to stay clear of Adobe Audition, if this is ever offered publicly?
 
 ## Sources
