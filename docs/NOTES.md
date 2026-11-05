@@ -1,46 +1,63 @@
 # Audition — Notes
 
-Decisions, findings and answers that feed `docs/SPEC.md`. The spec stays the source of truth; the Requirements thread folds these decisions into it.
+Decisions, findings and answers that feed `docs/SPEC.md`. The spec stays the source of truth. The Requirements thread folds these decisions into it through a PR.
 
 ## Interview decisions (Nov 5, 2026)
 
-### Topic 0: Lean Phase 1 (supersedes parts of topic 1)
+Interview with Cas, run one topic at a time. Partway through, Cas asked to step back and avoid complexity, so Phase 1 shrank to a lean core. The decisions are grouped by topic and numbered, and a later decision that replaces an earlier one says so.
 
-Cas asked to step back and avoid complexity. Phase 1 goal: create a workspace with stages, roles and tasks; pick one or more contenders (linked to a connected model, agent, harness or app) to compete on tasks; judge their outputs to find the best contender per role.
+### 1. Phase 1 goal and scope
 
-- **D0.1 Manual return for non-API contenders.** Audition shows the prompt to copy; you paste or upload the result back. No report tokens, no agent self-report in Phase 1.
-- **D0.2 Confidence ranges stay** on the leaderboard, next to the attempt count.
-- **D0.3 Generic handoff template only.** One copy-ready block: role context, task prompt (with commit/repo if relevant), rubric, and "when done, reply with" instructions. The coding-harness and app templates are deferred. Example: `prompt-examples.md` (project files, interview folder).
-- **D0.4 Check results travel in the output.** The generic template asks the agent to include build/test/lint results and screenshots in its reply. You paste the reply and upload screenshots; the blind judging screen shows text and images together. Results are self-claimed; Audition runs nothing.
-- **D0.5 Fitness stays, with partial data handled.** Weights per workspace, default quality only. The leaderboard shows cost and latency per contender where known and "N/A" where unknown. The cost and latency terms of fitness apply only when every contender in that role has them; otherwise fitness is quality only and the leaderboard says so.
-- **D0.6 Deferred from Phase 1:** report tokens and agent self-report, the coding-harness and app templates, platform-run objective checks and screenshot capture, MCP, the stale-attempt cron.
+Phase 1 goal, in Cas's words: create a workspace (e.g. Software Factory); define stages, roles and tasks for roles; pick one or more contenders, each linked to a connected model, agent, harness or app; judge the competing outputs to find the best contender per role. Keep it simple, including for non-technical users.
 
-### Topic 2: Records, versioning and runs
+- **D1.1 Manual return for non-API contenders.** Audition shows the prompt to copy. You paste the result back or upload files. Phase 1 has no report tokens and no agent self-report.
+- **D1.2 Generic handoff template only.** One copy-ready block: role context, the task prompt (naming the repo and commit when relevant), the rubric, and "when done, reply with…" instructions. The prompt is identical for every contender on a task. The coding-harness and app templates are deferred. Example: `prompt-examples.md` in the project files (interview folder).
+- **D1.3 Check results travel in the output.** For code and UI tasks, the generic template asks the agent to include build, test and lint results and screenshots in its reply. You paste the reply and upload the screenshots. The judging screen shows text and images together. These results are the agent's own claim, because Audition runs no checks.
+- **D1.4 Phase 2 fields exist from T0.** T0 creates the later-phase fields as nullable and unused in Phase 1, so later phases add behaviour without a schema change: `workspaces.composer_contender`, `tasks.composed_prompt`, `runs.schedule`, verdict methods `pairwise` and `outcome`, and `verdicts.opponent`, `winner` and `due_at`.
+- **D1.5 Deferred from Phase 1:** report tokens and agent self-report; the coding-harness and app templates; platform-run objective checks and screenshot capture; pairwise (A-vs-B) judging (see D3.1); MCP, including MCP reads of castings (an earlier decision to ship three MCP tools is withdrawn); the stale-attempt cron; direct image-generation APIs (see D5.2).
+- **D1.6 Real-provider check.** Phase 1's final check with a real key uses **Anthropic**. You run it on your own machine, outside any Claude session, after T5 merges. Providers stay configurable: you add connections in the UI, and T1 builds the Anthropic, OpenAI-compatible and mock adapters. No thread ever uses a real key.
 
-- **D2.1 Entity hierarchy.** Workspace → Stage (optional) → Role (owns rubric) → Task. Separately, Connection (provider + credential, or "Manual") → Contender. A Run is one role + some of its tasks + some contenders + a repetition count; it creates one Attempt per task × contender × repetition. Verdicts judge attempts; the leaderboard rolls verdicts up per role × contender; a Casting (champion) is the contender you confirm for a role. Contenders are picked per run, not attached to tasks.
-- **D2.2 Contender = exact configuration.** Connection + model + settings (reasoning level, temperature, system prompt, etc.). "Opus 5.5 High 0.6" and "Opus 5.5 Medium 0.2" are two contenders. Same for agents and apps ("Claude Code, Opus, plan mode"). Contenders have friendly names; the leaderboard can group rows by model. Connections and contenders are global (shared across workspaces) — recommended default, not objected to.
-- **D2.3 Used records are read-only.** Once a task or contender has been in a run it cannot be edited; "duplicate and edit" creates a new version. Role rubrics may change, but each verdict stores a snapshot of the rubric it was scored against.
-- **D2.4 No repetitions field; "Run again" instead.** (Replaces an earlier "default 1, max 5".) A finished run has a "Run again" button that creates a new run with the same role, tasks and contenders. Reruns add outputs; nothing is overwritten, and the leaderboard averages every scored output. The minimum-attempts rule (D3.5) guards against a lucky single result.
-- **D2.5 UI wording.** Screens say "outputs"; "attempt" stays the internal record name.
+### 2. Records, versioning and runs
 
-### Topic 3: Judging and champions
+- **D2.1 How the records relate.** A workspace holds stages (optional), a stage holds roles, and a role owns the rubric and holds tasks. Separately, a connection (provider plus credential, or "Manual") holds contenders. A run is one role, some of its tasks and some contenders. It creates one attempt per task × contender. Verdicts judge attempts, and the leaderboard rolls verdicts up per role × contender. A casting (champion) is the contender you confirm for a role. Contenders are picked per run, not attached to tasks.
+- **D2.2 A contender is an exact configuration.** Connection plus model plus settings (reasoning level, temperature, system prompt, token limit). "Opus 5.5 High 0.6" and "Opus 5.5 Medium 0.2" are two contenders, and the same applies to agents and apps ("Claude Code, Opus, plan mode"). Contenders have friendly names, and the leaderboard can group rows by model. Connections and contenders are global, shared across workspaces. That was my recommendation, and Cas didn't object.
+- **D2.3 Used records are read-only.** Once a task or contender has been in a run, it can't be edited. "Duplicate and edit" creates a new version. Role rubrics can change, but each verdict stores a snapshot of the rubric it was scored against.
+- **D2.4 No repetitions field. "Run again" instead.** A finished run has a "Run again" button that creates a new run with the same role, tasks and contenders. Reruns add outputs and never overwrite. The leaderboard averages every scored output, and the minimum-output rule (D3.5) guards against a single lucky result. This replaces an earlier "default 1, max 5" decision and the spec's `runs.repetitions` and `attempts.repetition`.
+- **D2.5 UI wording.** Screens say "outputs". "Attempt" stays the internal record name.
 
-Cas asked for judging simple enough for non-technical users.
+### 3. Judging and champions
 
-- **D3.1 Rubric scoring is the only method in Phase 1.** Each role has a few criteria with weights. The judge gives each output 1–5 stars per criterion; Audition computes the weighted score. Pairwise (A-vs-B) judging is dropped from Phase 1.
-- **D3.2 One judging screen per task.** All contenders' outputs for a task are shown side by side, unlabelled and shuffled ("Output A, B, C"), and each gets stars per criterion. The best output is the highest score.
-- **D3.3 One judge per run: "Me" or "AI".** The AI judge is a contender chosen in workspace settings and gives stars plus a one-line reason per criterion.
-- **D3.4 The owner can always override.** On any AI-judged output, the owner can change the stars; the owner's scores then count and the AI's are kept in history.
-- **D3.5 Champion suggestion.** The leaderboard averages each contender's scores per role across all runs. Once a contender has at least 5 scored attempts (minimum set per workspace) and averages above the role's pass mark, the top one is marked "Suggested champion" and the owner confirms it. Below the minimum: "not enough data yet".
+- **D3.1 Rubric scoring is the only method in Phase 1.** Each role has a few criteria with weights. The judge gives each output 1 to 5 stars per criterion, and Audition computes the weighted score. Pairwise judging is dropped from Phase 1.
+- **D3.2 One judging screen per task.** The screen shows all the outputs for a task side by side, unlabelled and shuffled ("Output A, B, C"), and each gets stars per criterion. The best output is the highest score. The blind rule holds: the data behind this screen never includes contender fields.
+- **D3.3 One judge per run: "Me" or "AI".** The AI judge is a contender chosen in workspace settings. It gives stars plus a one-line reason per criterion. The spec's same-provider warning stays.
+- **D3.4 The owner can always override.** On any output the AI judged, you can change the stars. Your scores then count, and the AI's stay in the history.
+- **D3.5 Champion suggestion.** The leaderboard averages each contender's scores per role across all runs. A contender needs a minimum number of scored outputs (default 5, set per workspace) and an average above the role's pass mark. The best such contender is marked "Suggested champion", and you confirm it. Below the minimum, the leaderboard shows "not enough data yet".
+- **D3.6 Confidence ranges stay** on the leaderboard, next to the number of outputs.
+- **D3.7 Fitness stays, with partial data handled.** Fitness weighs quality against tokens and time taken, with weights set per workspace (default: quality only). A tokens or time term applies only when every contender in the role has that data. Otherwise fitness falls back to the terms that are available, and the leaderboard says so.
 
-### Topic 4: Users, costs and files
+### 4. Users, tokens and files
 
-- **D4.1 Single owner.** Audition is not multi-tenant. Phase 1 has one owner account (MFA available); no other logins.
-- **D4.2 Tokens first, cost optional.** Every output records tokens in/out (measured for API; optionally typed in for pasted outputs) and latency. Cost is optional: an API contender may carry price per million input and output tokens, and cost is derived from them; otherwise "N/A". The fitness efficiency term uses tokens (not cost); cost is display-only. Refines D0.5.
-- **D4.3 Spending guard.** Each contender has a max-output-tokens limit; the run screen shows the number of calls before starting. Cost estimates come later.
-- **D4.4 Uploads.** Text, images, PDF and zip, up to 25 MB per file.
+- **D4.1 Single owner.** Audition isn't multi-tenant. Phase 1 has one owner account (MFA available) and no other logins.
+- **D4.2 Tokens first, cost optional.** Every output records tokens in and out (measured for API contenders, optionally typed in for pasted outputs) and time taken. Cost is display-only. An API contender can carry a price per million input and output tokens, and Audition derives cost from those. Without prices, cost shows "N/A".
+- **D4.3 Spending guard.** Each contender has a max-output-tokens limit. The run screen shows the number of calls before you start. Cost estimates come later.
+- **D4.4 Uploads.** Text, images, PDFs and zip files, up to 25 MB per file.
 
-### Topic 1: Phase 1 scope edges
+### 5. Example workspaces and seed content
 
-- **D1.4 Phase 2 fields exist from T0.** T0 creates the Phase 2 fields as nullable and unused in Phase 1: `workspaces.composer_contender`, `tasks.composed_prompt`, `runs.schedule`, verdict method `outcome` and `verdicts.due_at`. Later phases then add behaviour without a schema change.
-- ~~D1.5 MCP surface in Phase 1~~ Superseded by D0.6: MCP is deferred.
+- **D5.1 All four example workspaces stay.** Software Factory has stages and coding tasks. Marketing has image outputs. Stock Review has a single contender. Travel Research uses ChatGPT and Perplexity by copy and paste. Their judging becomes star ratings (D3.1). Marketing's images are rated in a grid. Stock Review's outcome verdict stays in Phase 2.
+- **D5.2 Images come from contenders, not from Audition.** Audition never generates images itself. Image contenders return their images by copy and paste in Phase 1, for example generated in ChatGPT or Midjourney and then uploaded. The mock provider returns test images so the image grid can be tested. API adapters for image models come later. Anthropic, the first real provider, doesn't generate images.
+- **D5.3 Seed content.** The Requirements thread drafts the tasks, roles and criteria for the four workspaces for Cas to review.
+
+## What the Requirements thread needs to change in SPEC.md
+
+- Phase 1 scope and "Done when": the lean core (section 1). Drop MCP from Phase 1, along with the matching rows in the Vaultbase feature table.
+- Execution modes: the handoff flow becomes generic template plus manual return (D1.1 to D1.3). Report tokens and the report route move to a later phase.
+- Data model: remove the repetitions fields (D2.4), add contender token prices and token limit (D2.2, D4.2), store a rubric snapshot on verdicts (D2.3), and keep the later-phase fields as nullable (D1.4).
+- Judging: star rubric only, one judge per run, owner override (D3.1 to D3.4). Rewrite the fitness formula around tokens and time (D3.7).
+- Thread plan: T2 shrinks to the generic template, rendering and manual submission. T3 loses pairwise judging. T1 adds token limits and prices. "Done when" for T1 drops "2 repetitions".
+- Reference workspaces table: update the judging column (D5.1, D5.2).
+
+## Open questions (not blocking Phase 1)
+
+- How should images be passed to the AI judge (vision input) for Marketing? Architecture should confirm the Anthropic adapter can send images to the judge.
+- The first four spec open questions (schema as code, serving the static UI, SDK or plain fetch, binary download in cloud sessions) are still for T0. Image-grid layout is for Design.
