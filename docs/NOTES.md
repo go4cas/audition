@@ -50,6 +50,8 @@ Phase 1 goal, in Cas's words: create a workspace (e.g. Software Factory); define
 
 ## What the Requirements thread needs to change in SPEC.md
 
+Done: folded into `docs/SPEC.md` by the Requirements thread (Nov 5, 2026). The choices it made beyond these decisions are listed under "Requirements thread choices" below.
+
 - Phase 1 scope and "Done when": the lean core (section 1). Drop MCP from Phase 1, along with the matching rows in the Vaultbase feature table.
 - Execution modes: the handoff flow becomes generic template plus manual return (D1.1 to D1.3). Report tokens and the report route move to a later phase.
 - Data model: remove the repetitions fields (D2.4), add contender token prices and token limit (D2.2, D4.2), store a rubric snapshot on verdicts (D2.3), and keep the later-phase fields as nullable (D1.4).
@@ -61,3 +63,14 @@ Phase 1 goal, in Cas's words: create a workspace (e.g. Software Factory); define
 
 - How should images be passed to the AI judge (vision input) for Marketing? Architecture should confirm the Anthropic adapter can send images to the judge.
 - The first four spec open questions (schema as code, serving the static UI, SDK or plain fetch, binary download in cloud sessions) are still for T0. Image-grid layout is for Design.
+
+## Requirements thread choices (Nov 5, 2026)
+
+Small choices made while folding the decisions into the spec, for Cas to confirm in the PR.
+
+- **Fields added to support decisions:** `runs.rerun_of` (Run again links to the original run), `tasks.locked`/`previous_version` and `contenders.locked`/`previous_version` (read-only once used, "Duplicate and edit"), `contenders.group` (leaderboard grouping by model), `runs.judge` and `workspaces.default_judge` (one judge per run), `workspaces.min_outputs` (champion minimum).
+- **Renamed** `roles.pass_threshold` to `pass_mark`, on the 1 to 5 star scale. Dropped `tasks.status` and `tasks.rubric_override`, `contenders.handoff_template`, `attempts.repetition`, `attempts.report_token`, `runs.repetitions`.
+- **Provider list** is anthropic / openai-compatible / mock / manual, matching the adapters T1 builds. Google is dropped until an adapter exists.
+- **`handoff_templates` stays** as a collection with one seeded generic row, so later templates need no schema change.
+- **Fitness normalisation:** Q maps stars 1 to 5 onto 0 to 1; tokens and time are divided by the largest mean in the role. The suggested champion is the qualifying contender with the highest fitness, which is the highest score under the default weights.
+- **A submitted handoff output can't be replaced.** Run again gives a fresh one.
