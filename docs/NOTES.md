@@ -22,6 +22,16 @@ Cas asked to step back and avoid complexity. Phase 1 goal: create a workspace wi
 - **D2.3 Used records are read-only.** Once a task or contender has been in a run it cannot be edited; "duplicate and edit" creates a new version. Role rubrics may change, but each verdict stores a snapshot of the rubric it was scored against.
 - **D2.4 Repetitions** default to 1 per run, maximum 5, set per run.
 
+### Topic 3: Judging and champions
+
+Cas asked for judging simple enough for non-technical users.
+
+- **D3.1 Rubric scoring is the only method in Phase 1.** Each role has a few criteria with weights. The judge gives each output 1–5 stars per criterion; Audition computes the weighted score. Pairwise (A-vs-B) judging is dropped from Phase 1.
+- **D3.2 One judging screen per task.** All contenders' outputs for a task are shown side by side, unlabelled and shuffled ("Output A, B, C"), and each gets stars per criterion. The best output is the highest score.
+- **D3.3 One judge per run: "Me" or "AI".** The AI judge is a contender chosen in workspace settings and gives stars plus a one-line reason per criterion.
+- **D3.4 The owner can always override.** On any AI-judged output, the owner can change the stars; the owner's scores then count and the AI's are kept in history.
+- **D3.5 Champion suggestion.** The leaderboard averages each contender's scores per role across all runs. Once a contender has at least 5 scored attempts (minimum set per workspace) and averages above the role's pass mark, the top one is marked "Suggested champion" and the owner confirms it. Below the minimum: "not enough data yet".
+
 ### Topic 1: Phase 1 scope edges
 
 - **D1.4 Phase 2 fields exist from T0.** T0 creates the Phase 2 fields as nullable and unused in Phase 1: `workspaces.composer_contender`, `tasks.composed_prompt`, `runs.schedule`, verdict method `outcome` and `verdicts.due_at`. Later phases then add behaviour without a schema change.
