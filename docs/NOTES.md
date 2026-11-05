@@ -20,7 +20,8 @@ Cas asked to step back and avoid complexity. Phase 1 goal: create a workspace wi
 - **D2.1 Entity hierarchy.** Workspace → Stage (optional) → Role (owns rubric) → Task. Separately, Connection (provider + credential, or "Manual") → Contender. A Run is one role + some of its tasks + some contenders + a repetition count; it creates one Attempt per task × contender × repetition. Verdicts judge attempts; the leaderboard rolls verdicts up per role × contender; a Casting (champion) is the contender you confirm for a role. Contenders are picked per run, not attached to tasks.
 - **D2.2 Contender = exact configuration.** Connection + model + settings (reasoning level, temperature, system prompt, etc.). "Opus 5.5 High 0.6" and "Opus 5.5 Medium 0.2" are two contenders. Same for agents and apps ("Claude Code, Opus, plan mode"). Contenders have friendly names; the leaderboard can group rows by model. Connections and contenders are global (shared across workspaces) — recommended default, not objected to.
 - **D2.3 Used records are read-only.** Once a task or contender has been in a run it cannot be edited; "duplicate and edit" creates a new version. Role rubrics may change, but each verdict stores a snapshot of the rubric it was scored against.
-- **D2.4 Repetitions** default to 1 per run, maximum 5, set per run.
+- **D2.4 No repetitions field; "Run again" instead.** (Replaces an earlier "default 1, max 5".) A finished run has a "Run again" button that creates a new run with the same role, tasks and contenders. Reruns add outputs; nothing is overwritten, and the leaderboard averages every scored output. The minimum-attempts rule (D3.5) guards against a lucky single result.
+- **D2.5 UI wording.** Screens say "outputs"; "attempt" stays the internal record name.
 
 ### Topic 3: Judging and champions
 
