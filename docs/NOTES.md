@@ -61,8 +61,7 @@ Done: folded into `docs/SPEC.md` by the Requirements thread (Nov 5, 2026). The c
 
 ## Open questions (not blocking Phase 1)
 
-- How should images be passed to the AI judge (vision input) for Marketing? Architecture should confirm the Anthropic adapter can send images to the judge.
-- The first four spec open questions (schema as code, serving the static UI, SDK or plain fetch, binary download in cloud sessions) are still for T0. Image-grid layout is for Design.
+- Answered by the Architecture thread (Nov 6, 2026): the AI judge can see images, and the first four spec questions have proposed answers that T0 confirms. See below and `docs/TECH-SPEC.md` §2. Image-grid layout is still for Design.
 
 ## Requirements thread choices (Nov 5, 2026)
 
@@ -74,6 +73,26 @@ Small choices made while folding the decisions into the spec, for Cas to confirm
 - **`handoff_templates` stays** as a collection with one seeded generic row, so later templates need no schema change.
 - **Fitness normalisation:** Q maps stars 1 to 5 onto 0 to 1; tokens and time are divided by the largest mean in the role. The suggested champion is the qualifying contender with the highest fitness, which is the highest score under the default weights.
 - **A submitted handoff output can't be replaced.** Run again gives a fresh one.
+
+## Architecture findings (Nov 6, 2026)
+
+The Architecture thread read the Vaultbase source at tag v0.37.0, because `docs.vaultbase.dev` shows only the latest release. Full detail, with file references, is in `docs/TECH-SPEC.md` §3. T0 confirms each finding against the running binary and adds the command and output here.
+
+- **Pin.** v0.37.0 is the only 0.37.x release. Cas chose v0.40.2 on Nov 6, 2026, for the security fixes in 0.38 and 0.39. Checksums are in `docs/TECH-SPEC.md` §1, and the linux-x64 binary was downloaded and matched. Upgrades follow the policy in §1: an exact pin, a monthly review of the changelog, a faster upgrade for relevant security fixes, Cas's approval each time, and an old-to-new data-folder test.
+- **Q1 Schema as code:** a snapshot file applied with `vaultbase --apply-snapshot <file> --snapshot-mode sync`.
+- **Q2 Static UI:** there is no public folder, but a custom route can return a `Response`, so `GET /api/custom/app/*` serves `ui/dist`.
+- **Q3 SDK:** plain `fetch`.
+- **Q4 Binary in cloud sessions:** downloading works. Running it was blocked by a safety check in this session, so T0 must prove it.
+- **Q5 Images to the AI judge:** yes. The Anthropic API takes base64 JPEG, PNG, GIF and WebP up to 10 MB encoded, 8000 px, and 600 per request. The judge is called once per output.
+- **F1** Server code can't write through the records API: writes go through `helpers.sql` and emit no realtime events. So the live run view polls.
+- **F2** Encrypted fields are decrypted for anyone allowed to read them. So keys move to an owner-write-only `connection_keys` collection.
+- **F3** The egress guard is a denylist of private ranges, not an allowlist. Audition adds its own host check.
+- **F4** Custom routes don't parse multipart. Uploads use the files endpoint, whose global MIME list excludes `application/zip` and `text/markdown`, so the UI maps those by extension.
+- **F5** Default time limits are 30 s for HTTP and 300 s for queue workers. Raise the queue limit to 15 minutes and use 10-minute provider calls.
+- **F6** `helpers.template` has no loops. Build list text in TypeScript first.
+- **F7** `vb_hooks/` layout: `hooks/`, `routes/`, `jobs/`, `workers/`, `lib/`, with `define*()` from `"vaultbase"`.
+- **F8** Anthropic API version `2026-10-21` rejects `temperature`. Anthropic contenders use effort instead.
+- **UI library (Cas, Nov 6, 2026):** Arrow.js core only (`@arrow-js/core`, exact pin), built by Bun with the Design CSS and a small hash router. The full quiver template was weighed and set aside for now: Tailwind clashes with the Design CSS, its router needs Vite's `import.meta.glob`, and it has no base path for `/api/custom/app/`. Cas is addressing those in quiver separately.
 
 ## Design thread choices (Nov 6, 2026)
 
