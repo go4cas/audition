@@ -39,7 +39,7 @@ The core model uses ten domain-neutral terms. Nothing in the core mentions softw
 | Role | A job a contender is cast into; owns the rubric | Back-end engineer, Copywriter |
 | Task | A fixed, repeatable test job for a role | "Build this settings screen from this spec" |
 | Connection | Where contenders run: a provider plus its encrypted key, or "Manual" for copy and paste | Anthropic API key; Manual |
-| Contender | One exact configuration: connection plus model plus settings | "Opus 5.5, high reasoning, temperature 0.6"; "Claude Code, Opus, plan mode" |
+| Contender | One exact configuration: connection plus model plus settings | "Opus 5.5, high effort"; "Claude Code, Opus, plan mode" |
 | Run | One role, some of its tasks and some contenders, with one judge | 3 tasks × 4 contenders = 12 outputs |
 | Attempt | One contender doing one task once. Screens call it an **output** | A draft post, a branch plus build results, an image |
 | Verdict | Star ratings for one output, per rubric criterion | Accuracy ★★★★, Tone ★★★ → 3.6 |
@@ -53,7 +53,7 @@ How they relate: a workspace holds stages (optional), a stage holds roles, and a
 
 ## Data model
 
-Thirteen Vaultbase collections. Each one is a real SQL table. Field names are indicative; T0 settles them in the schema. Fields marked *later* exist from T0 as nullable and unused in Phase 1, so later phases add behaviour without a schema change.
+Fourteen Vaultbase collections plus one view. Each collection is a real SQL table. The exact fields, types and API rules are in `docs/TECH-SPEC.md` §6; T0 builds the schema from there. Fields marked *later* exist from T0 as nullable and unused in Phase 1, so later phases add behaviour without a schema change.
 
 | Collection | Kind | Key fields |
 | --- | --- | --- |
@@ -62,12 +62,13 @@ Thirteen Vaultbase collections. Each one is a real SQL table. Field names are in
 | stages | base | workspace, name, order. Optional. |
 | roles | base | workspace, stage (optional), name, description, rubric (json: criteria with name, weight, guidance), pass_mark (stars, 1 to 5), default_output_type |
 | tasks | base | role, title, prompt (editor), output_type (text / image / file / code), attachments (files), base_ref (repo + commit, coding tasks only), locked, previous_version → tasks, composed_prompt (*later*) |
-| connections | base | name, provider (anthropic / openai-compatible / mock / manual), base_url, api_key (**encrypted**), notes |
-| contenders | base | connection, name, mode (api / handoff; runner *later*), model, group (for leaderboard grouping), config (json: system prompt, reasoning level, temperature), max_output_tokens, price_in_per_mtok (optional), price_out_per_mtok (optional), locked, previous_version → contenders, enabled |
+| connections | base | name, provider (anthropic / openai-compatible / mock / manual), base_url, has_key, notes |
+| connection_keys | base | connection, api_key (**encrypted**). The owner can write a key but never read it back; only server code reads it. |
+| contenders | base | connection, name, mode (api / handoff; runner *later*), model, group (for leaderboard grouping), config (json: system prompt, effort, temperature for OpenAI-compatible only), max_output_tokens, price_in_per_mtok (optional), price_out_per_mtok (optional), locked, previous_version → contenders, enabled |
 | handoff_templates | base | name, kind (generic; coding-harness and app *later*), body with {{vars}}, return_instructions. Phase 1 seeds one generic template. |
-| runs | base | workspace, role, tasks (multi), contenders (multi), judge (me / ai), rerun_of → runs (optional), status, schedule (cron, *later*) |
-| attempts | base | run, task, contender, status, prompt_sent, output, output_files, tokens_in, tokens_out, duration_ms, cost (derived, empty when unknown), metrics_source (measured / manual), error |
-| verdicts | base | attempt, method (rubric; pairwise and outcome *later*), judge_kind (human / ai), judge_contender, scores (json: stars and a one-line reason per criterion), rubric_snapshot (json), score (weighted, 1 to 5), status, opponent, winner, due_at (all three *later*) |
+| runs | base | workspace, role, tasks (multi), contenders (multi), judge (me / ai), judge_contender, rerun_of → runs (optional), status, call_count, schedule (cron, *later*) |
+| attempts | base | run, task, contender, mode, status, prompt_sent, output, output_files, tokens_in, tokens_out, duration_ms, cost (derived, empty when unknown), metrics_source (measured / manual), finish_reason, error, submitted_at |
+| verdicts | base | attempt, run, method (rubric; pairwise and outcome *later*), judge_kind (human / ai), judge_contender, scores (json: stars and a one-line reason per criterion), rubric_snapshot (json), score (weighted, 1 to 5), status (active / overridden), opponent, winner, due_at (all three *later*) |
 | castings | base | role, contender, since, rationale, suggested_by (system / human), confirmed |
 | leaderboard | view | SQL over attempts and verdicts, per role × contender: outputs scored, mean score, confidence range, mean tokens, mean time, mean cost (or N/A), fitness |
 
@@ -103,7 +104,7 @@ Every contender runs in one of two Phase 1 modes. The attempt record is the same
 
 **Handoff (manual return)**
 
-1. Audition renders the generic template once per task. The rendered prompt is identical for every contender on that task.
+1. Audition renders the generic template once per task when the run starts. The rendered prompt is identical for every contender on that task, and API contenders receive the same text as their user message.
 2. The handoff screen shows one copy-ready block: the role and its description, the task prompt (naming the repo and commit when the task has one), the rubric, and "When done, reply with…" instructions. For code and UI tasks, those instructions ask for a summary, the branch or diff, build, test and lint results, and screenshots as files.
 3. You paste the reply into Audition and upload any files. You can also type in tokens and time taken, if the tool showed them. Submitting moves the attempt to submitted. A submitted output cannot be replaced; use "Run again" for a fresh one.
 
@@ -149,9 +150,9 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 | Owner sign-in | Auth collection with MFA | 1 |
 | Provider keys | Encrypted fields (AES-GCM) | 1 |
 | Fan-out of attempts | After-create hook on runs → queue workers | 1 |
-| Provider calls | `helpers.http` with retries, behind the SSRF egress guard | 1 |
+| Provider calls | `helpers.http` with retries, behind the SSRF egress guard (default private-range denylist) plus Audition's own check that the host matches the connection | 1 |
 | Handoff rendering | `helpers.template` | 1 |
-| Live run progress | Realtime subscriptions on attempts | 1 |
+| Live run progress | The run page polls a run summary route every 2 seconds (server-side writes don't emit realtime events; see `docs/TECH-SPEC.md` F1) | 1 |
 | Uploads and outputs | Files with MIME and size validation and thumbnails | 1 |
 | Leaderboard | View collection plus aggregations | 1 |
 | Task and contender versions | Record history | 1 |
@@ -178,11 +179,11 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 
 The only secrets Audition holds are provider API keys. It never stores account passwords for providers or harnesses.
 
-- **Keys are write-only to clients.** API keys sit in encrypted fields and only server-side hooks read them. No API response or realtime event returns them.
+- **Keys are write-only to clients.** API keys sit in an encrypted field on `connection_keys`, which the owner can write but not read, and only server-side code reads them. No API response or realtime event returns them.
 - **Harness credentials stay on the harness machine.** Handoff contenders hold no credentials in Audition.
 - **API rules:** the single owner alone can access everything. The blind judging endpoint never returns contender fields.
 - **Uploads** are checked for type (text, images, PDF, zip) and size (25 MB per file).
-- **Egress:** the SSRF guard allows only the configured provider hosts.
+- **Egress:** Vaultbase's guard blocks private and loopback ranges, and Audition refuses any provider URL whose host isn't the connection's.
 - **Rate limits** apply to the auth routes.
 - **Development and cloud sessions use the mock provider only.** No real provider keys ever enter the repo, tests or Claude Code cloud sessions. The real-provider check runs on the owner's own machine.
 
@@ -306,14 +307,15 @@ Contenders: "ChatGPT (manual)" and "Perplexity (manual)".
 
 ## Open questions
 
-T0 answers the first four from the Vaultbase docs and records the answers in `docs/NOTES.md`. Architecture answers the fifth and sixth. The rest wait.
+The Architecture thread answered the first six in `docs/TECH-SPEC.md` §2. T0 confirms the first four against the running binary and records the evidence in `docs/NOTES.md`.
 
-- [ ] How is the schema kept as code: a schema snapshot, the migrate CLI, or a seed script?
-- [ ] Can Vaultbase serve the static UI itself, or does the UI need its own host (for example a Cloudflare Worker)?
-- [ ] Is the `@vaultbase/sdk` client worth taking on, or is plain `fetch` plus WebSocket enough?
-- [ ] Can a cloud session download the pinned release from GitHub, or does the binary need to be committed or cached?
-- [ ] How are images passed to the AI judge (vision input) for Marketing? Can the Anthropic adapter send images to the judge? (Architecture)
-- [ ] Which demo repo and commit do the Software Factory coding tasks name? (Architecture proposes; Cas confirms)
+- [x] How is the schema kept as code? A Vaultbase snapshot file applied with `--apply-snapshot`.
+- [x] Can Vaultbase serve the static UI itself? Yes, through a custom route at `/api/custom/app/`.
+- [x] Is the `@vaultbase/sdk` client worth taking on? No, plain `fetch`.
+- [x] Can a cloud session download the pinned release from GitHub? Yes, checked by checksum. Running it there is for T0 to confirm.
+- [x] How are images passed to the AI judge? As base64 image blocks, one judge call per output. The Anthropic adapter supports this.
+- [ ] Which demo repo and commit do the Software Factory coding tasks name? Proposed: a new `go4cas/factory-demo` repo (Cas confirms).
+- [ ] Pin Vaultbase 0.37.0 or move to 0.40.2? (Cas decides; see `docs/TECH-SPEC.md` O1)
 - [ ] How does the image-judging grid look? (Design)
 - [ ] Is vector search reachable through MCP, or only through a custom route? (Phase 2)
 - [ ] Does "Audition" need a qualifier or distinct domain to stay clear of Adobe Audition, if this is ever offered publicly?
