@@ -85,7 +85,7 @@
   --r-sm: 4px;     /* chips, badges, avatars, inputs inside groups */
   --r-md: 6px;     /* buttons, inputs, menus items, tiles */
   --r-lg: 8px;     /* panels, cards, popovers, dialogs */
-  --r-pill: 999px; /* only counts, dots, switches and state chips (so chips never read as buttons) */
+  --r-pill: 999px; /* only counts, dots and switches; state chips use 7px, between --r-md and a pill */
   --shadow-1: 0 1px 2px rgb(16 20 30 / 0.06), 0 1px 1px rgb(16 20 30 / 0.03);
   --shadow-2: 0 4px 14px -4px rgb(16 20 30 / 0.14), 0 2px 4px rgb(16 20 30 / 0.05);
   --shadow-pop: 0 18px 40px -12px rgb(16 20 30 / 0.28), 0 4px 10px rgb(16 20 30 / 0.08);
