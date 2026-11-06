@@ -1,0 +1,15 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "audition",
+      "dependencies": {
+        "@arrow-js/core": "1.0.6",
+      },
+    },
+  },
+  "packages": {
+    "@arrow-js/core": ["@arrow-js/core@1.0.6", "", {}, "sha512-75f4N0iHtHTwgxf9XS8a1vtfGZZmCvqT0Ix+ScDLclNuR9Fqp2yOIK1u8vmN1BPsS4aRfMVTdSFSmgGCqkJSCg=="],
+  }
+}

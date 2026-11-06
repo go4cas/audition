@@ -53,7 +53,7 @@ How they relate: a workspace holds stages (optional), a stage holds roles, and a
 
 ## Data model
 
-Fourteen Vaultbase collections plus one view. Each collection is a real SQL table. The exact fields, types and API rules are in `docs/TECH-SPEC.md` §6; T0 builds the schema from there. Fields marked *later* exist from T0 as nullable and unused in Phase 1, so later phases add behaviour without a schema change.
+Thirteen Vaultbase collections plus one view (T0 counted them against the built schema). Each collection is a real SQL table. The exact fields, types and API rules are in `docs/TECH-SPEC.md` §6; T0 builds the schema from there. Fields marked *later* exist from T0 as nullable and unused in Phase 1, so later phases add behaviour without a schema change.
 
 | Collection | Kind | Key fields |
 | --- | --- | --- |
@@ -66,7 +66,7 @@ Fourteen Vaultbase collections plus one view. Each collection is a real SQL tabl
 | connection_keys | base | connection, api_key (**encrypted**). The owner can write a key but never read it back; only server code reads it. |
 | contenders | base | connection, name, mode (api / handoff; runner *later*), model, group (for leaderboard grouping), config (json: system prompt, effort, temperature for OpenAI-compatible only), max_output_tokens, price_in_per_mtok (optional), price_out_per_mtok (optional), locked, previous_version → contenders, enabled |
 | handoff_templates | base | name, kind (generic; coding-harness and app *later*), body with {{vars}}, return_instructions. Phase 1 seeds one generic template. |
-| runs | base | workspace, role, tasks (multi), contenders (multi), judge (me / ai), judge_contender, rerun_of → runs (optional), status, call_count, schedule (cron, *later*) |
+| runs | base | workspace, role, tasks (list of ids), contenders (list of ids), judge (me / ai), judge_contender, rerun_of → runs (optional), status, call_count, schedule (cron, *later*) |
 | attempts | base | run, task, contender, mode, status, prompt_sent, output, output_files, tokens_in, tokens_out, duration_ms, cost (derived, empty when unknown), metrics_source (measured / manual), finish_reason, error, submitted_at |
 | verdicts | base | attempt, run, method (rubric; pairwise and outcome *later*), judge_kind (human / ai), judge_contender, scores (json: stars and a one-line reason per criterion), rubric_snapshot (json), score (weighted, 1 to 5), status (active / overridden), opponent, winner, due_at (all three *later*) |
 | castings | base | role, contender, since, rationale, suggested_by (system / human), confirmed |
@@ -314,7 +314,7 @@ The Architecture thread answered the first six in `docs/TECH-SPEC.md` §2. T0 co
 - [x] Is the `@vaultbase/sdk` client worth taking on? No, plain `fetch`.
 - [x] Can a cloud session download the pinned release from GitHub? Yes, checked by checksum. Running it there is for T0 to confirm.
 - [x] How are images passed to the AI judge? As base64 image blocks, one judge call per output. The Anthropic adapter supports this.
-- [ ] Which demo repo and commit do the Software Factory coding tasks name? Proposed: a new `go4cas/factory-demo` repo (Cas confirms).
+- [ ] Which demo repo and commit do the Software Factory coding tasks name? The repo is `go4cas/audition-factory-demo` (Cas created it on Nov 6, 2026). The commit is pending: Cas pushes `fixtures/factory-demo/` to it, and the seed's placeholder commit is replaced with that commit's SHA.
 - [x] Pin Vaultbase 0.37.0 or move to 0.40.2? Pinned at v0.40.2 (Cas, Nov 6, 2026), with the monthly upgrade policy in `docs/TECH-SPEC.md` §1.
 - [x] How does the image-judging grid look? (Design) Answered in `docs/design/README.md`: square cards in a responsive grid, stars per criterion under each image, tap to enlarge.
 - [ ] Is vector search reachable through MCP, or only through a custom route? (Phase 2)

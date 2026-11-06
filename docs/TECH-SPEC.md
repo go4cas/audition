@@ -99,7 +99,7 @@ So the design is:
 - The OpenAI-compatible adapter sends images as `image_url` data URIs. Whether a given model accepts them is up to that provider; a refusal fails that verdict, not the run.
 - The mock judge "sees" images by counting them, so the Marketing image role is testable without a real provider.
 
-**Q6. Which demo repo and commit do the Software Factory coding tasks name?** Proposal: a new, small public repo **`go4cas/factory-demo`**, holding a Bun app of about 200 lines. It has a JSON settings store, one REST endpoint and an empty `ui/` folder, so the Spec, Back-end and UI tasks have something real to build on. `settings-spec.md` and `mockup.png` sit at the root. Cas creates the empty repo (this session may not create repositories). T0 writes its content under `fixtures/factory-demo/` and Cas pushes it. The seeded tasks then name `github.com/go4cas/factory-demo` and the first commit's SHA. Until then, T0 seeds `base_ref` with the placeholder commit `0000000` and a test fails if the placeholder is still there at T5. This is open question O2 for Cas to confirm.
+**Q6. Which demo repo and commit do the Software Factory coding tasks name?** Proposal: a new, small public repo **`go4cas/audition-factory-demo`**, holding a Bun app of about 200 lines. It has a JSON settings store, one REST endpoint and an empty `ui/` folder, so the Spec, Back-end and UI tasks have something real to build on. `settings-spec.md` and `mockup.png` sit at the root. Cas creates the empty repo (this session may not create repositories). T0 writes its content under `fixtures/factory-demo/` and Cas pushes it. The seeded tasks then name `github.com/go4cas/audition-factory-demo` and the first commit's SHA. Until then, T0 seeds `base_ref` with the placeholder commit `0000000` and a test fails if the placeholder is still there at T5. This is open question O2 for Cas to confirm.
 
 ## 3. Findings from the Vaultbase source that shape the design
 
@@ -111,7 +111,7 @@ Each finding names the file it comes from at tag v0.37.0; all were re-checked at
 - **The live run view polls** `GET /api/custom/runs/:id` every 2 seconds while the run is active, instead of subscribing to realtime. That is fine for one owner. The spec's "Live run progress: Realtime subscriptions on attempts" row changes to "polling" (see [spec changes](#spec-changes-in-this-pr)).
 - Record history isn't needed: versions of tasks and contenders are explicit records (`previous_version`), as the spec already says.
 
-**F2. Encrypted fields come back decrypted** to anyone the collection's rules let read them (`src/core/records.ts`, `decryptValue` on read). An encrypted `api_key` on `connections` would therefore be returned to the owner's browser, which breaks "keys are write-only to clients". Decision: the key moves to its own collection, **`connection_keys`**: one record per connection, field `api_key` (encrypted). The owner can create, update and delete those records but not list or view them (list and view rules are `""`, admin only), and only server code reads them (`helpers.find`). `connections.has_key` (bool, maintained by hooks) tells the UI whether a key is set. That makes 14 collections, not 13.
+**F2. Encrypted fields come back decrypted** to anyone the collection's rules let read them (`src/core/records.ts`, `decryptValue` on read). An encrypted `api_key` on `connections` would therefore be returned to the owner's browser, which breaks "keys are write-only to clients". Decision: the key moves to its own collection, **`connection_keys`**: one record per connection, field `api_key` (encrypted). The owner can create, update and delete those records but not list or view them (list and view rules are `""`, admin only), and only server code reads them (`helpers.find`). `connections.has_key` (bool, maintained by hooks) tells the UI whether a key is set. That makes 13 collections plus the view (T0's count; this line first said 14).
 
 **F3. The egress guard denies private and loopback ranges by default** and allows the rest (`src/core/hook-egress.ts`). Public provider hosts such as `api.anthropic.com` pass without configuration. The spec's "allows only the configured provider hosts" is stricter than what Vaultbase offers, which is a denylist plus allow exceptions. Decision: keep the default denylist, and have `lib/providers/index.ts` refuse any URL whose host isn't the host of a configured connection's `base_url` (or `api.anthropic.com` for Anthropic). The mock provider runs in-process and makes no HTTP call, so tests need no egress change.
 
@@ -137,7 +137,7 @@ audition/
 ├── package.json               # bun scripts; one runtime dependency: @arrow-js/core (exact version)
 ├── bunfig.toml
 ├── schema/
-│   └── snapshot.json          # all 14 collections + the leaderboard view
+│   └── snapshot.json          # all 13 collections + the leaderboard view
 ├── seed/
 │   ├── reference.ts           # the four reference workspaces (SPEC "Reference workspace content")
 │   └── fixtures/              # test images, the Northwind Foods summary, settings-spec.md, mockup.png
@@ -156,7 +156,7 @@ audition/
 ├── test/
 │   ├── harness.ts             # boots a fresh instance on a free port in a temp dir
 │   └── *.test.ts
-├── fixtures/factory-demo/     # contents for go4cas/factory-demo (O2)
+├── fixtures/factory-demo/     # contents for go4cas/audition-factory-demo (O2)
 └── docs/
 ```
 
@@ -191,7 +191,7 @@ Rule shorthand used below:
 
 ## 6. Data model
 
-Fourteen base or auth collections plus one view. Every collection also gets `id`, `created_at` and `updated_at` from Vaultbase. "Later" fields exist from T0, are nullable, and are unused in Phase 1. "Rel" means a relation, with its delete behaviour.
+Thirteen base or auth collections plus one view (T0 counted them against the built schema; earlier drafts said fourteen). Every collection also gets `id`, `created_at` and `updated_at` from Vaultbase. "Later" fields exist from T0, are nullable, and are unused in Phase 1. "Rel" means a relation, with its delete behaviour.
 
 ### users (auth)
 
@@ -248,7 +248,7 @@ Rules: all `OWNER`, except delete: `OWNER`, and the hook refuses when the role h
 | prompt | editor, required | |
 | output_type | select `text`, `image`, `file`, `code` | |
 | attachments | file, multiple, 25 MB each | |
-| base_ref | json | `{ "repo": "github.com/go4cas/factory-demo", "commit": "…" }`, or null |
+| base_ref | json | `{ "repo": "github.com/go4cas/audition-factory-demo", "commit": "…" }`, or null |
 | locked | bool | Set by the start-run route |
 | previous_version | rel → tasks, setNull | |
 | composed_prompt | text | *later* |
@@ -316,8 +316,8 @@ Rules: list, view and update `OWNER` · create and delete `""`. T0 seeds one gen
 | --- | --- | --- |
 | workspace | rel → workspaces, restrict | |
 | role | rel → roles, restrict | |
-| tasks | rel → tasks, multiple | |
-| contenders | rel → contenders, multiple | |
+| tasks | json | List of task ids. Vaultbase 0.40.2 refuses new `multiple` relations (F10), so this is a JSON list. |
+| contenders | json | List of contender ids, as `tasks`. |
 | judge | select `me`, `ai` | |
 | judge_contender | rel → contenders | Copied from the workspace when `judge = ai` |
 | rerun_of | rel → runs, setNull | |
@@ -618,7 +618,7 @@ T0 must prove this with a test: attach through `lib/files.ts`, then fetch the fi
 
 - **One fresh instance per test file.** `test/harness.ts` creates a temporary directory, picks a free port, starts the pinned binary with `--apply-snapshot`, creates the admin and the owner, applies the settings, and waits for `/_/ready`. It tears everything down after the file. Tests talk to it over HTTP as the owner (or as the admin where a test says so).
 - **Pure modules** (`lib/handoff.ts`, `lib/fitness.ts`, `lib/judge.ts` validation, `lib/providers/*` against a fake `http`, `lib/scoring.ts`) are unit-tested without a server.
-- **No real keys.** The suite fails fast if any `ANTHROPIC_*` or `OPENAI_*` variable is set, so a key can't leak into a cloud run.
+- **No real keys.** The suite fails fast if any key-like `ANTHROPIC_*` or `OPENAI_*` variable is set (a name with KEY, TOKEN or SECRET), so a key can't leak into a cloud run. Vaultbase never sees any `ANTHROPIC_*` or `OPENAI_*` variable. Claude Code sets `ANTHROPIC_BASE_URL` for itself, which is why the check is by name.
 - **Evidence.** Every build PR pastes the full `bun test` output into its description.
 
 ## 14. Open questions
@@ -626,7 +626,7 @@ T0 must prove this with a test: attach through `lib/files.ts`, then fetch the fi
 | # | Question | Who | Recommendation |
 | --- | --- | --- | --- |
 | O1 | ~~Pin v0.37.0 or move to v0.40.2?~~ Decided Nov 6, 2026: pin v0.40.2, with the upgrade policy in §1. | Cas | Done |
-| O2 | Create `go4cas/factory-demo` for the Software Factory coding tasks? | Cas | Yes (Q6). Until then, T0 seeds a placeholder commit. |
+| O2 | Create `go4cas/audition-factory-demo` for the Software Factory coding tasks? | Cas | Created Nov 6, 2026. Cas pushes `fixtures/factory-demo/`; until then T0 seeds a placeholder commit. |
 | O3 | Can a cloud session run the binary? This thread was stopped from executing it by a safety check, so the boot is unproven here. | T0 | T0 boots it first thing and records the result in `NOTES.md`. |
 | O4 | The leaderboard view joins `vb_runs` for the role. T0 confirms table and column names. | T0 | — |
 | O5 | Does `--apply-snapshot` create view collections in the right order (after their tables) on a fresh data directory? | T0 | If not, apply the snapshot twice, or split it into base and view snapshots. |
@@ -740,7 +740,7 @@ The spec's thread plan stands: T0 merges first, then T1 to T4 run in parallel, t
 
 `docs/SPEC.md` is edited in this PR as follows, so that it stays the source of truth:
 
-1. **Data model.** 14 collections plus the view, with `connection_keys` added (F2). Also added: `connections.has_key`, `attempts.finish_reason`, `attempts.mode` and `attempts.submitted_at`, `runs.judge_contender` and `runs.call_count`, `verdicts.run` and `verdicts.status`, and the `runner` value on `contenders.mode`.
+1. **Data model.** 13 collections plus the view, with `connection_keys` added (F2). Also added: `connections.has_key`, `attempts.finish_reason`, `attempts.mode` and `attempts.submitted_at`, `runs.judge_contender` and `runs.call_count`, `verdicts.run` and `verdicts.status`, and the `runner` value on `contenders.mode`.
 2. **Platform table.** Live run progress uses polling, not realtime (F1). The egress row becomes "default private-range denylist, plus Audition's own host check per connection" (F3).
 3. **Execution modes.** The rendered generic prompt is also the user message for API contenders, so every contender gets the identical task text (§9).
 4. **Contender example.** For Anthropic, "temperature" becomes "effort" (F8).
