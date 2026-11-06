@@ -119,37 +119,6 @@
   });
   window.addEventListener("scroll", function () { $$(".pop").forEach(function (p) { try { p.hidePopover(); } catch (e) { /* not open */ } }); }, { passive: true });
 
-  // ---------- Logo picker (wireframe only: try the logo prototypes in place) ----------
-  var LOGOS = {"star-a": "<rect class=\"lg-tile\" width=\"64\" height=\"64\" rx=\"14\"/><g transform=\"translate(9 9) scale(.72)\"><path class=\"lg-on-stroke\" d=\"M13 55 L32 9 L51 55\" fill=\"none\" stroke-width=\"8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><polygon class=\"lg-gold lg-star\" points=\"32.00,30.00 34.70,36.28 41.51,36.91 36.37,41.42 37.88,48.09 32.00,44.60 26.12,48.09 27.63,41.42 22.49,36.91 29.30,36.28\" stroke-linejoin=\"round\"/></g>", "podium": "<rect class=\"lg-tile\" width=\"64\" height=\"64\" rx=\"14\"/><g transform=\"translate(9 9) scale(.72)\"><rect class=\"lg-on\" x=\"7\" y=\"34\" width=\"15\" height=\"22\" rx=\"2.5\"/><rect class=\"lg-on\" x=\"24.5\" y=\"25\" width=\"15\" height=\"31\" rx=\"2.5\"/><rect class=\"lg-on\" x=\"42\" y=\"41\" width=\"15\" height=\"15\" rx=\"2.5\"/><polygon class=\"lg-gold lg-star\" points=\"32.00,4.50 34.30,9.84 40.08,10.37 35.72,14.21 37.00,19.88 32.00,16.91 27.00,19.88 28.28,14.21 23.92,10.37 29.70,9.84\" stroke-linejoin=\"round\"/></g>"};
-  var logoPick = $("#logo-pick");
-  var oldMarks = $$(".brand__mark").map(function (m) { return m.innerHTML; });
-  try { logoPick.value = localStorage.getItem("audition-wire-logo") || "star-a"; } catch (e) { /* storage blocked */ }
-  function setFavicon(body) {
-    var link = document.querySelector('link[rel="icon"]');
-    if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' + body
-      .replace(/class="lg-tile"/g, 'fill="#171717"').replace(/class="lg-on"/g, 'fill="#fff"')
-      .replace(/class="lg-on-stroke"/g, 'stroke="#fff"').replace(/class="lg-gold lg-star"/g, 'fill="#d99a06"') + "</svg>";
-    link.href = "data:image/svg+xml," + encodeURIComponent(svg);
-  }
-  function applyLogo() {
-    var l = LOGOS[logoPick.value];
-    $$(".brand__mark").forEach(function (m, i) {
-      if (l) { m.classList.add("has-logo"); m.innerHTML = '<svg class="lg" viewBox="0 0 64 64" aria-hidden="true">' + l + "</svg>"; }
-      else { m.classList.remove("has-logo"); m.innerHTML = oldMarks[i]; hydrateIcons(m); }
-    });
-    if (l) setFavicon(l);
-    try { localStorage.setItem("audition-wire-logo", logoPick.value); } catch (e) { /* storage blocked */ }
-  }
-  logoPick.addEventListener("change", applyLogo);
-  $$("[data-use-logo]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      logoPick.value = b.getAttribute("data-use-logo"); applyLogo();
-      toast("Logo switched to " + b.closest(".logo-card").querySelector("h3").textContent);
-    });
-  });
-  applyLogo();
-
   // ---------- Chip style picker (wireframe only: soft or solid state chips) ----------
   var chipPick = $("#chip-pick");
   try { chipPick.value = localStorage.getItem("audition-wire-chips") || ""; } catch (e) { /* storage blocked */ }

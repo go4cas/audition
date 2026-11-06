@@ -709,7 +709,7 @@ tr.is-suggested td { background: color-mix(in srgb, var(--gold-soft) 70%, transp
 :root[data-theme="dark"] .count { color: #160b33; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .count { color: #160b33; } }
 
-/* ---------- Logo (prototypes: Star A and Podium) ---------- */
+/* ---------- Logo: Star A (chosen by Cas, Nov 6 2026) ---------- */
 .lg { flex: none; display: block; overflow: visible; }
 .lg .lg-ink { fill: var(--text); }
 .lg .lg-stroke { stroke: var(--text); }
@@ -718,14 +718,14 @@ tr.is-suggested td { background: color-mix(in srgb, var(--gold-soft) 70%, transp
 .lg .lg-on { fill: var(--accent-ink); }
 .lg .lg-on-stroke { stroke: var(--accent-ink); }
 .lg .lg-star { transform-box: fill-box; transform-origin: 50% 55%; transition: transform var(--t-med) var(--ease-spring); }
-/* Header mark: when a prototype logo is on, the SVG draws its own tile */
+/* Header mark: the SVG draws its own tile */
 .brand__mark.has-logo { background: none; box-shadow: none; border-radius: 0; }
 .brand__mark.has-logo .lg { width: 100%; height: 100%; }
 .brand:hover .brand__mark.has-logo { transform: none; }
 .brand:hover .lg-star, .logo-card:hover .logo-stage .lg-star { transform: translateY(-2px) rotate(36deg) scale(1.12); }
 .logo-grid { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); }
 .logo-card { overflow: hidden; }
-.logo-stages { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--line); }
+.logo-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); border-bottom: 1px solid var(--line); }
 .logo-stage { display: grid; place-items: center; padding: 24px 0; background: var(--surface); }
 .logo-stage + .logo-stage { border-left: 1px solid var(--line); }
 .logo-stage--dark { background: #111111; }
@@ -734,5 +734,6 @@ tr.is-suggested td { background: color-mix(in srgb, var(--gold-soft) 70%, transp
 .logo-row > .xs:first-child { width: 7.5rem; flex: none; }
 .logo-tab { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 10px; border-radius: 8px 8px 0 0; background: var(--bg-sunk); font-size: var(--fs-xs); }
 .logo-word { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 750; font-size: 1.15rem; letter-spacing: -0.02em; }
+.lg--round { border-radius: 50%; overflow: hidden; }
 .logo-word--lg { font-size: 1.6rem; gap: 12px; }
 @media (prefers-reduced-motion: reduce) { .lg .lg-star { transition: none; } }
