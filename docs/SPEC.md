@@ -316,7 +316,7 @@ The Architecture thread answered the first six in `docs/TECH-SPEC.md` §2. T0 co
 - [x] How are images passed to the AI judge? As base64 image blocks, one judge call per output. The Anthropic adapter supports this.
 - [ ] Which demo repo and commit do the Software Factory coding tasks name? Proposed: a new `go4cas/factory-demo` repo (Cas confirms).
 - [x] Pin Vaultbase 0.37.0 or move to 0.40.2? Pinned at v0.40.2 (Cas, Nov 6, 2026), with the monthly upgrade policy in `docs/TECH-SPEC.md` §1.
-- [ ] How does the image-judging grid look? (Design)
+- [x] How does the image-judging grid look? (Design) Answered in `docs/design/README.md`: square cards in a responsive grid, stars per criterion under each image, tap to enlarge.
 - [ ] Is vector search reachable through MCP, or only through a custom route? (Phase 2)
 - [ ] Does "Audition" need a qualifier or distinct domain to stay clear of Adobe Audition, if this is ever offered publicly?
 

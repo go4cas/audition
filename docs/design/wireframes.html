@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Audition Wireframes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Wireframe only: the app vendors these two OFL fonts as woff2 files instead. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&display=swap">
+<link rel="icon" href="logo/app-icons/favicon.ico" sizes="32x32">
+<link rel="icon" href="logo/app-icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="logo/app-icons/apple-touch-icon.png">
+<link rel="manifest" href="logo/app-icons/site.webmanifest">
+<meta name="theme-color" content="#171717">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- Wireframe toolbar: jump between screens and themes. Not part of the app. -->
+<div class="wire-bar">
+  <div class="wire-bar__inner">
+    <span class="wire-tag">Wireframe</span>
+    <label for="screen-pick">Screen</label>
+    <select id="screen-pick">
+      <option value="signin">1. Sign in</option>
+      <option value="home">2. Home</option>
+      <option value="workspace">3. Workspace</option>
+      <option value="workspace-settings">4. Workspace settings</option>
+      <option value="role">5. Role and rubric</option>
+      <option value="task">6. Task</option>
+      <option value="contenders">7. Contenders</option>
+      <option value="contender-new">8. Add a contender</option>
+      <option value="new-run">9. Start a run</option>
+      <option value="run">10. Run progress</option>
+      <option value="handoff">11. Copy and paste</option>
+      <option value="judge">12. Judge text and code</option>
+      <option value="judge-images">13. Judge images</option>
+      <option value="leaderboard">14. Leaderboard</option>
+      <option value="states">15. State system</option>
+      <option value="brand">16. Logo</option>
+    </select>
+    <label for="chip-pick">Chips</label>
+    <select id="chip-pick">
+      <option value="">Soft</option>
+      <option value="solid">Solid</option>
+      <option value="outline">Outline</option>
+    </select>
+    <label for="theme-pick">Theme</label>
+    <select id="theme-pick">
+      <option value="">System</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
+  </div>
+</div>
+
+<header class="topbar" id="topbar">
+  <div class="topbar__inner">
+    <a class="brand" href="#home"><span class="brand__mark has-logo"><svg class="lg" viewBox="0 0 64 64" aria-hidden="true"><rect class="lg-tile" width="64" height="64" rx="14"/><g transform="translate(6.40 6.40) scale(0.8)"><path class="lg-on-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></g></svg></span>Audition</a>
+    <nav class="nav" aria-label="Main">
+      <a href="#home" data-nav="workspaces"><i data-i="workspaces"></i>Workspaces</a>
+      <a href="#contenders" data-nav="contenders"><i data-i="contenders"></i>Contenders</a>
+    </nav>
+    <div class="topbar__end">
+      <a class="inbox-btn hide-phone" href="#home"><i data-i="inbox"></i>Waiting for you <span class="count" data-inbox-count>5</span></a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ======================= 1. SIGN IN ======================= -->
+<section class="page page--narrow" data-screen="signin" hidden>
+  <div class="panel" style="max-width: 25rem; width: 100%; margin: var(--s6) auto 0;">
+    <div class="panel__body" style="gap: var(--s5); padding: 28px">
+      <div class="stack-sm" style="align-items:flex-start">
+        <span class="brand__mark has-logo" style="width:44px;height:44px"><svg class="lg" viewBox="0 0 64 64" aria-hidden="true"><rect class="lg-tile" width="64" height="64" rx="14"/><g transform="translate(6.40 6.40) scale(0.8)"><path class="lg-on-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></g></svg></span>
+        <h1>Welcome back</h1>
+        <p class="muted small">Audition has one owner account. Nobody else can sign in.</p>
+      </div>
+      <form class="stack" data-demo-form data-toast="Signed in" data-go="home">
+        <div class="field"><label for="si-email">Email</label><input class="input" id="si-email" type="email" autocomplete="username" value="cas@example.com"></div>
+        <div class="field"><label for="si-pass">Password</label><input class="input" id="si-pass" type="password" autocomplete="current-password" value="correct horse"></div>
+        <div class="field"><label for="si-code"><i data-i="mfa"></i>Code from your authenticator app</label><input class="input num" id="si-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123 456"><span class="hint">Asked for only when two-step sign-in is on.</span></div>
+        <button class="btn btn--primary btn--lg" type="submit">Sign in<i data-i="arrow-right" class="i--nudge"></i></button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 2. HOME ======================= -->
+<section class="page" data-screen="home" hidden>
+  <div class="home-hero">
+    <div class="stack" style="justify-content:center">
+      <span class="eyebrow"><i data-i="sun"></i>Thursday, 6 November</span>
+      <h1>Good morning, Cas.<br>Your next audition is ready.</h1>
+      <p class="lede">5 things are waiting for you, and 2 runs are working in the background. Start with the one at the top; it takes about a minute.</p>
+      <div class="row">
+        <a class="btn btn--primary btn--lg" href="#handoff"><i data-i="play"></i>Pick up where you left off</a>
+        <a class="btn btn--lg" href="#new-run"><i data-i="plus"></i>Start a run</a>
+      </div>
+    </div>
+    <div class="hero-cast">
+      <div class="row-between"><span class="eyebrow"><i data-i="champion" style="color:var(--gold)"></i>Your cast</span><a class="small" href="#leaderboard">See all</a></div>
+      <div class="row" style="gap: var(--s4)">
+        <div class="hero-cast__stack" aria-label="Champions">
+          <span class="avatar" style="--h:200" data-tip="Mock Steady · Back-end engineer">MS<i data-i="champion" class="crown"></i></span>
+          <span class="avatar" style="--h:200" data-tip="Mock Steady · Stock analyst">MS<i data-i="champion" class="crown"></i></span>
+          <span class="avatar is-empty" data-tip="7 roles still auditioning">+7</span>
+        </div>
+        <div class="stack-sm" style="gap:2px">
+          <strong class="num" style="font-family:var(--font-display); font-size:1.5rem; letter-spacing:-.02em">2 of 9</strong>
+          <span class="small muted">roles have a champion</span>
+        </div>
+        <span class="ring ring--gold" style="--p:22; margin-left:auto">22%</span>
+      </div>
+      <div class="notice" data-state="warning" style="padding:10px 12px">
+        <i data-i="sparkle"></i>
+        <div class="small"><strong>UI engineer</strong> has a suggested champion. <a href="#leaderboard">Confirm it</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="home-grid">
+    <div class="home-main">
+      <div class="stack-sm">
+        <div class="section-head"><h2>Up next</h2><span class="small muted">1 of 5 waiting</span></div>
+        <div class="up-next">
+          <span class="avatar" style="--h:165">CG</span>
+          <div style="min-width:0">
+            <div class="up-next__title">Paste ChatGPT's plan for three days in Lisbon</div>
+            <div class="up-next__meta"><span><i data-i="workspaces"></i>Travel Research</span><span><i data-i="paste"></i>Copy and paste</span><span><i data-i="time"></i>About a minute</span></div>
+          </div>
+          <a class="btn btn--primary btn--lg" href="#handoff">Start<i data-i="arrow-right" class="i--nudge"></i></a>
+        </div>
+      </div>
+
+      <div class="stack-sm">
+        <div class="section-head"><h2>Also waiting</h2></div>
+        <div class="queue stagger">
+          <a href="#run"><span class="avatar" style="--h:20">CC</span><span><strong>Paste 3 replies for Run 9</strong><br><span class="small muted">Software Factory · Researcher</span></span><span class="state" data-state="waiting"><span class="pulse"></span>3 to paste</span><i data-i="arrow-right" class="go"></i></a>
+          <a href="#judge-images"><span class="letter-tile" style="width:30px;height:30px;font-size:.7rem">A–D</span><span><strong>Judge the Ember &amp; Oak sale images</strong><br><span class="small muted">Marketing Pipeline · Image maker</span></span><span class="state" data-state="waiting"><span class="pulse"></span>Judge</span><i data-i="arrow-right" class="go"></i></a>
+        </div>
+      </div>
+
+      <div class="stack-sm">
+        <div class="section-head"><h2>Workspaces</h2><button class="btn btn--sm btn--quiet" type="button" data-toast="Wireframe: opens the new workspace form"><i data-i="plus"></i>New workspace</button></div>
+        <div class="grid-cards stagger">
+          <a class="ws-card" href="#workspace">
+            <div class="ws-card__top"><span class="avatar avatar--lg" style="--h:230">SF</span><div class="grow"><h3>Software Factory</h3><span class="small muted">4 stages · 4 roles</span></div><span class="ring ring--sm" style="--p:25">1/4</span></div>
+            <div class="ws-card__foot"><span class="faces"><span class="avatar" style="--h:200">MS</span><span class="avatar" style="--h:280">ME</span><span class="avatar" style="--h:20">CC</span><span class="avatar" style="--h:140">CX</span></span><span class="state" data-state="active"><i data-i="spinner"></i>Run 9 live</span></div>
+          </a>
+          <a class="ws-card" href="#workspace">
+            <div class="ws-card__top"><span class="avatar avatar--lg" style="--h:25">MP</span><div class="grow"><h3>Marketing Pipeline</h3><span class="small muted">3 roles</span></div><span class="ring ring--sm" style="--p:0">0/3</span></div>
+            <div class="ws-card__foot"><span class="faces"><span class="avatar" style="--h:200">MS</span><span class="avatar" style="--h:30">MI</span><span class="avatar" style="--h:250">MJ</span></span><span class="state" data-state="waiting"><span class="pulse"></span>1 to judge</span></div>
+          </a>
+          <a class="ws-card" href="#workspace">
+            <div class="ws-card__top"><span class="avatar avatar--lg" style="--h:140">SR</span><div class="grow"><h3>Stock Review</h3><span class="small muted">1 role</span></div><span class="ring ring--sm ring--gold" style="--p:100">1/1</span></div>
+            <div class="ws-card__foot"><span class="faces"><span class="avatar" style="--h:200">MS</span></span><span class="state" data-state="champion"><i data-i="champion"></i>Fully cast</span></div>
+          </a>
+          <a class="ws-card" href="#workspace">
+            <div class="ws-card__top"><span class="avatar avatar--lg" style="--h:200">TR</span><div class="grow"><h3>Travel Research</h3><span class="small muted">1 role</span></div><span class="ring ring--sm" style="--p:60">3/5</span></div>
+            <div class="ws-card__foot"><span class="faces"><span class="avatar" style="--h:165">CG</span><span class="avatar" style="--h:190">PX</span></span><span class="state" data-state="draft"><i data-i="draft"></i>2 more outputs</span></div>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <aside class="home-rail">
+      <div class="panel">
+        <div class="panel__head"><h2><i data-i="champion" style="color:var(--gold)"></i>Who plays which role</h2></div>
+        <ul class="cast-list">
+          <li><div><div class="role">Back-end engineer</div><div class="ws">Software Factory</div></div><span class="who"><span class="avatar avatar--sm" style="--h:200">MS</span>Mock Steady<i data-i="champion" class="crown"></i></span></li>
+          <li><div><div class="role">Stock analyst</div><div class="ws">Stock Review</div></div><span class="who"><span class="avatar avatar--sm" style="--h:200">MS</span>Mock Steady<i data-i="champion" class="crown"></i></span></li>
+          <li><div><div class="role">UI engineer</div><div class="ws">Software Factory</div></div><a class="state" data-state="warning" href="#leaderboard" style="text-decoration:none"><i data-i="sparkle"></i>Confirm Claude Code</a></li>
+          <li><div><div class="role">Researcher</div><div class="ws">Software Factory</div></div><span class="row-tight small muted"><span class="ring ring--sm" style="--p:60">3/5</span>outputs</span></li>
+          <li><div><div class="role">Trip researcher</div><div class="ws">Travel Research</div></div><span class="row-tight small muted"><span class="ring ring--sm" style="--p:60">3/5</span>outputs</span></li>
+          <li><div class="small muted">4 more roles haven't had a run yet</div><a class="small" href="#new-run">Start one</a></li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head"><h2><i data-i="history"></i>Latest</h2></div>
+        <ol class="feed">
+          <li><span class="feed__icon" data-state="done"><i data-i="judge"></i></span><span>An output for <strong>UI engineer</strong> scored 4.4 stars<time>2 minutes ago</time></span></li>
+          <li><span class="feed__icon" data-state="active"><i data-i="play"></i></span><span>You started <strong>Run 9</strong> for Researcher<time>25 minutes ago</time></span></li>
+          <li><span class="feed__icon" data-state="error"><i data-i="error"></i></span><span><strong>Mock Erratic</strong> failed on one task in Run 9<time>24 minutes ago</time></span></li>
+          <li><span class="feed__icon"><i data-i="send"></i></span><span>You pasted <strong>Perplexity</strong>'s Lisbon plan<time>1 hour ago</time></span></li>
+          <li><span class="feed__icon" data-state="champion"><i data-i="champion"></i></span><span><strong>Mock Steady</strong> became Back-end engineer champion<time>4 days ago</time></span></li>
+        </ol>
+      </div>
+    </aside>
+  </div>
+</section>
+<!-- ======================= 3. WORKSPACE ======================= -->
+<section class="page" data-screen="workspace" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#home">Workspaces</a></nav>
+  <div class="page-head">
+    <div class="row" style="align-items:flex-start; gap: var(--s4)">
+      <span class="avatar avatar--lg" style="--h:230">SF</span>
+      <div><h1>Software Factory</h1><p class="lede">The champion of each role is the one to use. Click a role to see its rubric, tasks and leaderboard.</p></div>
+    </div>
+    <div class="row">
+      <a class="btn btn--quiet" href="#workspace-settings"><i data-i="settings" class="i--spin-on-hover"></i>Settings</a>
+      <a class="btn btn--primary" href="#new-run"><i data-i="play"></i>Start a run</a>
+    </div>
+  </div>
+
+  <div class="stages stagger">
+    <div class="stage">
+      <div class="stage__name"><span class="eyebrow">Research</span></div>
+      <a class="card-link role-card" href="#role">
+        <div class="row-tight"><h3>Researcher</h3><i data-i="arrow-right" class="go"></i></div>
+        <div class="cast muted"><i data-i="draft"></i>No champion yet</div>
+        <span class="state" data-state="active" style="align-self:flex-start"><i data-i="spinner"></i>Run 9 in progress</span>
+        <div class="muted xs num">2 tasks · 3 of 5 outputs scored</div>
+      </a>
+    </div>
+    <div class="stage">
+      <div class="stage__name"><span class="eyebrow">Spec</span></div>
+      <a class="card-link role-card" href="#new-run">
+        <div class="row-tight"><h3>Spec writer</h3><i data-i="arrow-right" class="go"></i></div>
+        <div class="cast muted"><i data-i="draft"></i>No runs yet</div>
+        <span class="btn btn--sm" style="align-self:flex-start"><i data-i="play"></i>Start the first run</span>
+      </a>
+    </div>
+    <div class="stage">
+      <div class="stage__name"><span class="eyebrow">Back-end</span></div>
+      <a class="card-link role-card" href="#leaderboard">
+        <div class="row-tight"><h3>Back-end engineer</h3><i data-i="arrow-right" class="go"></i></div>
+        <div class="cast"><span class="avatar avatar--sm" style="--h:200">MS</span><strong>Mock Steady</strong></div>
+        <span class="state" data-state="champion" style="align-self:flex-start"><i data-i="champion"></i>Champion since 2 Nov</span>
+        <div class="muted xs num">1 task · 10 outputs scored</div>
+      </a>
+    </div>
+    <div class="stage">
+      <div class="stage__name"><span class="eyebrow">UI</span></div>
+      <a class="card-link role-card" href="#leaderboard">
+        <div class="row-tight"><h3>UI engineer</h3><i data-i="arrow-right" class="go"></i></div>
+        <div class="cast"><span class="avatar avatar--sm" style="--h:20">CC</span><strong>Claude Code (manual)</strong></div>
+        <span class="state" data-state="warning" style="align-self:flex-start"><i data-i="sparkle"></i>Suggested, confirm it</span>
+        <div class="muted xs num">1 task · 21 outputs scored</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel__head"><h2><i data-i="history"></i>Recent runs</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Run</th><th>Role</th><th class="num">Outputs</th><th>Judge</th><th class="col-state">State</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><strong>Run 9</strong></td><td>Researcher</td><td class="num">8</td><td><span class="badge"><i data-i="ai"></i>AI</span></td><td class="col-state"><span class="state" data-state="waiting"><span class="pulse"></span>3 waiting for you</span></td><td class="num"><a class="btn btn--sm btn--quiet" href="#run">Open<i data-i="arrow-right" class="i--nudge"></i></a></td></tr>
+          <tr><td><strong>Run 8</strong></td><td>UI engineer</td><td class="num">4</td><td><span class="badge"><i data-i="ai"></i>AI</span></td><td class="col-state"><span class="state" data-state="done"><i data-i="done"></i>Finished</span></td><td class="num"><a class="btn btn--sm btn--quiet" href="#judge">Open<i data-i="arrow-right" class="i--nudge"></i></a></td></tr>
+          <tr><td><strong>Run 7</strong> <span class="badge" data-tip="Started with Run again from Run 5"><i data-i="again"></i>Run 5</span></td><td>UI engineer</td><td class="num">4</td><td><span class="badge"><i data-i="ai"></i>AI</span></td><td class="col-state"><span class="state" data-state="done"><i data-i="done"></i>Finished</span></td><td class="num"><a class="btn btn--sm btn--quiet" href="#judge">Open<i data-i="arrow-right" class="i--nudge"></i></a></td></tr>
+          <tr><td><strong>Run 6</strong></td><td>Back-end engineer</td><td class="num">5</td><td><span class="badge"><i data-i="ai"></i>AI</span></td><td class="col-state"><span class="state" data-state="warning"><i data-i="warning"></i>Finished, 1 failed</span></td><td class="num"><a class="btn btn--sm btn--quiet" href="#run">Open<i data-i="arrow-right" class="i--nudge"></i></a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 4. WORKSPACE SETTINGS ======================= -->
+<section class="page page--narrow" data-screen="workspace-settings" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#home">Workspaces</a><i data-i="caret-right"></i><a href="#workspace">Software Factory</a></nav>
+  <h1>Workspace settings</h1>
+  <form class="stack" data-demo-form data-toast="Settings saved">
+    <div class="panel"><div class="panel__body">
+      <div class="field"><label for="ws-name">Name</label><input class="input" id="ws-name" value="Software Factory"></div>
+      <div class="field"><label for="ws-desc">Description</label><textarea class="textarea" id="ws-desc" rows="2" style="min-height:4.5rem">Research, spec, back-end and UI, from idea to working screen.</textarea></div>
+    </div></div>
+
+    <div class="panel">
+      <div class="panel__head"><h2><i data-i="stage"></i>Stages</h2><span class="muted small">Optional. The order work flows in.</span></div>
+      <ul class="list list--hover" id="stage-list">
+        <li><span class="grow">Research</span><button class="icon-btn" type="button" data-move="up" data-tip="Move up" aria-label="Move Research up" disabled style="opacity:.3"><i data-i="arrow-up"></i></button><button class="icon-btn" type="button" data-move="down" data-tip="Move down" aria-label="Move Research down"><i data-i="arrow-down"></i></button></li>
+        <li><span class="grow">Spec</span><button class="icon-btn" type="button" data-move="up" data-tip="Move up" aria-label="Move Spec up"><i data-i="arrow-up"></i></button><button class="icon-btn" type="button" data-move="down" data-tip="Move down" aria-label="Move Spec down"><i data-i="arrow-down"></i></button></li>
+        <li><span class="grow">Back-end</span><button class="icon-btn" type="button" data-move="up" data-tip="Move up" aria-label="Move Back-end up"><i data-i="arrow-up"></i></button><button class="icon-btn" type="button" data-move="down" data-tip="Move down" aria-label="Move Back-end down"><i data-i="arrow-down"></i></button></li>
+        <li><span class="grow">UI</span><button class="icon-btn" type="button" data-move="up" data-tip="Move up" aria-label="Move UI up"><i data-i="arrow-up"></i></button><button class="icon-btn" type="button" data-move="down" data-tip="Move down" aria-label="Move UI down" disabled style="opacity:.3"><i data-i="arrow-down"></i></button></li>
+      </ul>
+      <div class="panel__body" style="padding-top:8px"><button class="btn btn--ghost" type="button" style="align-self:flex-start"><i data-i="plus"></i>Add stage</button></div>
+    </div>
+
+    <div class="panel"><div class="panel__head"><h2><i data-i="judge"></i>Judging</h2></div><div class="panel__body">
+      <div class="field">
+        <span class="label" id="ws-judge-label">Who judges new runs</span>
+        <div class="seg" role="radiogroup" aria-labelledby="ws-judge-label">
+          <input type="radio" name="ws-judge" id="ws-judge-me"><label for="ws-judge-me"><i data-i="me"></i>Me</label>
+          <input type="radio" name="ws-judge" id="ws-judge-ai" checked><label for="ws-judge-ai"><i data-i="ai"></i>AI</label>
+        </div>
+        <span class="hint">You can pick per run, and you can always change the AI's stars.</span>
+      </div>
+      <div class="field"><label for="ws-ai">AI judge</label>
+        <select class="select" id="ws-ai"><option data-avatar="160:MJ" data-desc="Mock · temperature 0 · made for judging">Mock Judge</option><option data-avatar="200:MS" data-desc="Mock · temperature 0.2">Mock Steady</option></select>
+        <span class="hint">Any contender can judge. It rates each output against the rubric and says why in one line.</span>
+      </div>
+      <div class="field"><label for="ws-min">Outputs needed before suggesting a champion
+        <button class="info-btn" type="button" popovertarget="pop-min" aria-label="Why a minimum?"><i data-i="help"></i></button></label>
+        <input class="input num" id="ws-min" type="number" min="1" value="5" style="max-width:8rem">
+      </div>
+      <div class="pop" id="pop-min" popover>
+        <div class="pop__head"><i data-i="shuffle"></i>Why a minimum?</div>
+        <div class="pop__body"><p>One great answer can be luck. Five or more outputs show whether a contender is good every time. Use <strong>Run again</strong> to collect more without changing anything.</p></div>
+      </div>
+    </div></div>
+
+    <div class="panel"><div class="panel__head"><h2><i data-i="trophy"></i>What makes a champion</h2></div><div class="panel__body">
+      <p class="small text-2">Quality always counts. Give tokens and time some weight if a cheaper or faster contender should win when quality is close.</p>
+      <div class="weight-bar" id="fw-bar" aria-hidden="true"><span style="width:70%"></span><span style="width:20%"></span><span style="width:10%"></span></div>
+      <div class="fields-2">
+        <div class="field"><label for="fw-q"><i data-i="star"></i>Quality</label><input class="input num" id="fw-q" type="number" value="70" data-weight></div>
+        <div class="field"><label for="fw-t"><i data-i="tokens"></i>Fewer tokens</label><input class="input num" id="fw-t" type="number" value="20" data-weight></div>
+        <div class="field"><label for="fw-d"><i data-i="time"></i>Less time</label><input class="input num" id="fw-d" type="number" value="10" data-weight></div>
+      </div>
+      <span class="state" data-state="done" id="fw-total" aria-live="polite" style="align-self:flex-start"><i data-i="done"></i>Adds up to 100</span>
+    </div></div>
+
+    <div class="row"><button class="btn btn--primary btn--lg" type="submit"><i data-i="check"></i>Save settings</button><a class="btn btn--quiet" href="#workspace">Cancel</a></div>
+  </form>
+</section>
+
+<!-- ======================= 5. ROLE ======================= -->
+<section class="page" data-screen="role" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#home">Workspaces</a><i data-i="caret-right"></i><a href="#workspace">Software Factory</a><i data-i="caret-right"></i><span>UI</span></nav>
+  <div class="page-head">
+    <div><h1>UI engineer</h1><p class="lede">Builds accessible, responsive screens from a spec.</p></div>
+    <div class="row"><a class="btn" href="#leaderboard"><i data-i="leaderboard"></i>Leaderboard</a><a class="btn btn--primary" href="#new-run"><i data-i="play"></i>Start a run</a></div>
+  </div>
+
+  <form class="stack" data-demo-form data-toast="Role saved. Old scores keep their rubric.">
+    <div class="panel"><div class="panel__body">
+      <div class="fields-2">
+        <div class="field"><label for="ro-name">Role name</label><input class="input" id="ro-name" value="UI engineer"></div>
+        <div class="field"><label for="ro-stage">Stage</label><select class="select" id="ro-stage"><option data-icon="stage">Research</option><option data-icon="stage">Spec</option><option data-icon="stage">Back-end</option><option data-icon="stage" selected>UI</option><option data-icon="draft" data-desc="Sits on its own, outside the stages">No stage</option></select></div>
+      </div>
+      <div class="field"><label for="ro-desc">What this role does</label><input class="input" id="ro-desc" value="Builds accessible, responsive screens from a spec."><span class="hint">Goes at the top of every prompt, so contenders know the job.</span></div>
+    </div></div>
+
+    <div class="panel">
+      <div class="panel__head"><div class="stack-sm" style="gap:2px"><h2><i data-i="rubric"></i>Rubric</h2><p class="muted small">What good looks like. The judge gives 1 to 5 stars per line.</p></div><span class="state" data-state="done" id="rb-total"><i data-i="done"></i>Weights add up to 100%</span></div>
+      <div class="panel__body">
+        <div class="weight-bar" id="rb-bar" aria-hidden="true"><span style="width:40%"></span><span style="width:30%"></span><span style="width:20%"></span><span style="width:10%"></span></div>
+        <div class="rubric-row hide-phone xs muted"><span></span><span>Criterion</span><span>Weight %</span><span>Guidance for the judge</span><span></span></div>
+        <div class="rubric-row"><span class="swatch" style="background:var(--accent)"></span><input class="input" aria-label="Criterion 1" value="Matches the spec"><input class="input num" aria-label="Weight 1" value="40" data-rb><input class="input guidance" aria-label="Guidance 1" value="Every section and field present"><button class="icon-btn remove" type="button" data-tip="Remove" aria-label="Remove criterion 1"><i data-i="trash"></i></button></div>
+        <div class="rubric-row"><span class="swatch" style="background:color-mix(in srgb, var(--accent) 68%, var(--surface))"></span><input class="input" aria-label="Criterion 2" value="Code quality"><input class="input num" aria-label="Weight 2" value="30" data-rb><input class="input guidance" aria-label="Guidance 2" value="Readable, no dead code"><button class="icon-btn remove" type="button" data-tip="Remove" aria-label="Remove criterion 2"><i data-i="trash"></i></button></div>
+        <div class="rubric-row"><span class="swatch" style="background:color-mix(in srgb, var(--accent) 42%, var(--surface))"></span><input class="input" aria-label="Criterion 3" value="Accessibility"><input class="input num" aria-label="Weight 3" value="20" data-rb><input class="input guidance" aria-label="Guidance 3" value="Labels, focus order, contrast"><button class="icon-btn remove" type="button" data-tip="Remove" aria-label="Remove criterion 3"><i data-i="trash"></i></button></div>
+        <div class="rubric-row"><span class="swatch" style="background:color-mix(in srgb, var(--accent) 22%, var(--surface))"></span><input class="input" aria-label="Criterion 4" value="Responsiveness"><input class="input num" aria-label="Weight 4" value="10" data-rb><input class="input guidance" aria-label="Guidance 4" value="Usable at phone width"><button class="icon-btn remove" type="button" data-tip="Remove" aria-label="Remove criterion 4"><i data-i="trash"></i></button></div>
+        <button class="btn btn--ghost" type="button" style="align-self:flex-start"><i data-i="plus"></i>Add criterion</button>
+        <div class="fields-2">
+          <div class="field"><label for="ro-pass"><i data-i="pass-mark"></i>Pass mark
+            <button class="info-btn" type="button" popovertarget="pop-pass" aria-label="What is the pass mark?"><i data-i="help"></i></button></label>
+            <select class="select" id="ro-pass"><option data-icon="star" data-desc="Usable, needs some fixing">3.0 stars</option><option data-icon="star" data-desc="Solid, with small issues" selected>3.5 stars</option><option data-icon="star" data-desc="Strong, ready to use">4.0 stars</option></select></div>
+          <div class="field"><label for="ro-type">Usual output</label><select class="select" id="ro-type"><option data-icon="text">Text</option><option data-icon="image">Image</option><option data-icon="file">File</option><option data-icon="code" data-desc="Names a repository and commit" selected>Code</option></select></div>
+        </div>
+        <div class="pop" id="pop-pass" popover>
+          <div class="pop__head"><i data-i="pass-mark"></i>Pass mark</div>
+          <div class="pop__body"><p>A contender has to average more than this to be suggested as champion. 3.5 stars means "solid, with small issues".</p><p class="xs muted">Changing the rubric later is safe: old scores keep the rubric they were judged with.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="row"><button class="btn btn--primary" type="submit"><i data-i="check"></i>Save role</button></div>
+  </form>
+
+  <div class="panel">
+    <div class="panel__head"><h2><i data-i="file"></i>Tasks</h2><button class="btn btn--sm" type="button"><i data-i="plus"></i>New task</button></div>
+    <ul class="list list--hover">
+      <li>
+        <i data-i="code" class="i--lg muted"></i>
+        <div class="grow"><a class="title" href="#task">Build the settings screen</a><div class="muted small row-tight"><span><i data-i="branch"></i> factory-demo</span><span><i data-i="commit"></i> a1b2c3d</span><span>2 attachments</span></div></div>
+        <span class="state" data-state="locked" data-tip="Used in 5 runs, so it can't change"><i data-i="locked"></i>Read-only</span>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ======================= 6. TASK ======================= -->
+<section class="page page--narrow" data-screen="task" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#workspace">Software Factory</a><i data-i="caret-right"></i><a href="#role">UI engineer</a></nav>
+  <div class="page-head">
+    <div><h1>Build the settings screen</h1><p class="lede row-tight" id="task-version"><span class="badge">Version 1</span><span class="state" data-state="locked"><i data-i="locked"></i>Read-only</span></p></div>
+  </div>
+
+  <div class="notice" data-state="locked" id="task-locked">
+    <i data-i="locked"></i>
+    <div class="grow stack-sm">
+      <p><strong>This task was used in 5 runs, so it can't change.</strong> That keeps every score comparable.</p>
+      <div><button class="btn btn--primary" type="button" id="task-dup"><i data-i="copy"></i>Duplicate and edit</button></div>
+    </div>
+  </div>
+  <div class="notice" data-state="done" id="task-draft" hidden>
+    <i data-i="edit"></i>
+    <div class="grow"><strong>You're editing version 2.</strong> Version 1 and its results stay exactly as they were. Runs from now on use version 2.</div>
+  </div>
+
+  <form class="stack" data-demo-form id="task-form" data-toast="Version 2 saved">
+    <div class="field"><label for="tk-title">Title</label><input class="input" id="tk-title" value="Build the settings screen" readonly></div>
+    <div class="field"><label for="tk-prompt">What to do</label>
+      <textarea class="textarea" id="tk-prompt" rows="6" readonly>Implement the settings screen described in settings-spec.md.
+- Sections: Profile, Notifications, Danger zone
+- Vanilla JS and CSS, no framework
+- Must work at 375px width</textarea>
+      <span class="hint">Every contender gets exactly this text, with the role and rubric around it.</span>
+    </div>
+    <div class="field">
+      <span class="label" id="tk-type-label">The output is</span>
+      <div class="seg" role="radiogroup" aria-labelledby="tk-type-label">
+        <input type="radio" name="tk-type" id="tk-text" disabled><label for="tk-text"><i data-i="text"></i>Text</label>
+        <input type="radio" name="tk-type" id="tk-image" disabled><label for="tk-image"><i data-i="image"></i>Image</label>
+        <input type="radio" name="tk-type" id="tk-file" disabled><label for="tk-file"><i data-i="file"></i>File</label>
+        <input type="radio" name="tk-type" id="tk-code" checked disabled><label for="tk-code"><i data-i="code"></i>Code</label>
+      </div>
+    </div>
+    <div class="panel"><div class="panel__body">
+      <p class="small"><strong>Starting point</strong> <span class="muted">Every contender starts from the same commit.</span></p>
+      <div class="fields-2">
+        <div class="field"><label for="tk-repo">Repository</label><div class="input-group"><i data-i="branch"></i><input class="input" id="tk-repo" value="github.com/you/factory-demo" readonly></div></div>
+        <div class="field"><label for="tk-commit">Commit</label><div class="input-group"><i data-i="commit"></i><input class="input" id="tk-commit" value="a1b2c3d" readonly></div></div>
+      </div>
+    </div></div>
+    <div class="field"><span class="label">Attachments</span>
+      <ul class="files"><li><i data-i="file"></i>settings-spec.md · 3 KB</li><li><i data-i="image"></i>mockup.png · 220 KB</li></ul>
+    </div>
+    <div class="row" id="task-save" hidden><button class="btn btn--primary btn--lg" type="submit"><i data-i="check"></i>Save version 2</button><a class="btn btn--quiet" href="#role">Cancel</a></div>
+  </form>
+</section>
+
+<!-- ======================= 7. CONTENDERS ======================= -->
+<section class="page" data-screen="contenders" hidden>
+  <div class="page-head">
+    <div><h1>Contenders</h1><p class="lede">Every model, agent or app you want to compare. Each one is an exact setup, shared by all workspaces.</p></div>
+    <a class="btn btn--primary" href="#contender-new"><i data-i="plus"></i>Add contender</a>
+  </div>
+
+  <div class="panel">
+    <div class="panel__head"><h2><i data-i="connection"></i>Connections</h2><button class="btn btn--sm" type="button"><i data-i="plus"></i>Add connection</button></div>
+    <ul class="list list--hover">
+      <li><span class="avatar" style="--h:270"><i data-i="api"></i></span><div class="grow"><div class="title">Mock</div><div class="muted small">Built-in test provider. Free, instant, made-up answers.</div></div><span class="badge">4 contenders</span><span class="state" data-state="done"><i data-i="done"></i>Connected</span></li>
+      <li><span class="avatar" style="--h:20"><i data-i="paste"></i></span><div class="grow"><div class="title">Manual</div><div class="muted small">You copy the prompt into a tool and paste the reply back.</div></div><span class="badge">5 contenders</span><span class="state" data-state="done"><i data-i="done"></i>Ready</span></li>
+      <li><span class="avatar" style="--h:30"><i data-i="key"></i></span><div class="grow"><div class="title">Anthropic</div><div class="muted small row-tight">API key saved <button class="info-btn" type="button" popovertarget="pop-key" aria-label="Why is the key hidden?"><i data-i="help"></i></button></div></div><span class="badge">0 contenders</span><span class="state" data-state="done"><i data-i="done"></i>Connected</span><button class="btn btn--sm btn--quiet" type="button">Replace key</button></li>
+    </ul>
+    <div class="pop" id="pop-key" popover>
+      <div class="pop__head"><i data-i="key"></i>Your key stays hidden</div>
+      <div class="pop__body"><p>Audition encrypts the key and only uses it on the server. It never shows it again, not even to you. To change it, replace it.</p></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel__head"><h2><i data-i="contenders"></i>All contenders</h2><span class="muted small row-tight"><i data-i="locked"></i>Used ones are read-only. Duplicate to try other settings.</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Contender</th><th>Runs by</th><th class="num">Max output</th><th class="col-state">State</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><span class="who"><span class="avatar" style="--h:200">MS</span><span><span class="who__name">Mock Steady</span><br><span class="who__meta">mock-steady · temp 0.2</span></span></span></td><td><span class="badge"><i data-i="api"></i>API · Mock</span></td><td class="num">4,000</td><td class="col-state"><span class="state" data-state="locked"><i data-i="locked"></i>Used</span></td><td class="num"><button class="icon-btn" type="button" popovertarget="pop-ms" aria-label="Mock Steady details"><i data-i="more"></i></button></td></tr>
+          <tr><td><span class="who"><span class="avatar" style="--h:280">ME</span><span><span class="who__name">Mock Erratic</span><br><span class="who__meta">mock-erratic · temp 1.0</span></span></span></td><td><span class="badge"><i data-i="api"></i>API · Mock</span></td><td class="num">4,000</td><td class="col-state"><span class="state" data-state="locked"><i data-i="locked"></i>Used</span></td><td class="num"><button class="icon-btn" type="button" popovertarget="pop-ms" aria-label="Mock Erratic details"><i data-i="more"></i></button></td></tr>
+          <tr><td><span class="who"><span class="avatar" style="--h:160">MJ</span><span><span class="who__name">Mock Judge</span><br><span class="who__meta">mock-judge · temp 0</span></span></span></td><td><span class="badge"><i data-i="api"></i>API · Mock</span></td><td class="num">1,000</td><td class="col-state"><span class="state" data-state="locked"><i data-i="locked"></i>Used</span></td><td class="num"><button class="icon-btn" type="button" popovertarget="pop-ms" aria-label="Mock Judge details"><i data-i="more"></i></button></td></tr>
+          <tr><td><span class="who"><span class="avatar" style="--h:20">CC</span><span><span class="who__name">Claude Code (manual)</span><br><span class="who__meta">Opus, plan mode</span></span></span></td><td><span class="badge"><i data-i="paste"></i>Copy and paste</span></td><td class="num muted">–</td><td class="col-state"><span class="state" data-state="locked"><i data-i="locked"></i>Used</span></td><td class="num"><button class="icon-btn" type="button" popovertarget="pop-ms" aria-label="Claude Code details"><i data-i="more"></i></button></td></tr>
+          <tr><td><span class="who"><span class="avatar" style="--h:140">CX</span><span><span class="who__name">Codex (manual)</span><br><span class="who__meta">Default settings</span></span></span></td><td><span class="badge"><i data-i="paste"></i>Copy and paste</span></td><td class="num muted">–</td><td class="col-state"><span class="state" data-state="locked"><i data-i="locked"></i>Used</span></td><td class="num"><button class="icon-btn" type="button" popovertarget="pop-ms" aria-label="Codex details"><i data-i="more"></i></button></td></tr>
+          <tr><td><span class="who"><span class="avatar" style="--h:165">CG</span><span><span class="who__name">ChatGPT (manual)</span><br><span class="who__meta">Web app</span></span></span></td><td><span class="badge"><i data-i="paste"></i>Copy and paste</span></td><td class="num muted">–</td><td class="col-state"><span class="state" data-state="locked"><i data-i="locked"></i>Used</span></td><td class="num"><button class="icon-btn" type="button" popovertarget="pop-ms" aria-label="ChatGPT details"><i data-i="more"></i></button></td></tr>
+          <tr><td><span class="who"><span class="avatar" style="--h:250">MJ</span><span><span class="who__name">Midjourney (manual)</span><br><span class="who__meta">v7, square</span></span></span></td><td><span class="badge"><i data-i="paste"></i>Copy and paste</span></td><td class="num muted">–</td><td class="col-state"><span class="state" data-state="draft"><i data-i="draft"></i>Not used yet</span></td><td class="num"><button class="icon-btn" type="button" data-tip="Edit" aria-label="Edit Midjourney"><i data-i="edit"></i></button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="pop" id="pop-ms" popover>
+    <div class="pop__head"><span class="avatar avatar--sm" style="--h:200">MS</span>Mock Steady</div>
+    <div class="pop__body">
+      <dl>
+        <dt><i data-i="connection"></i>Connection</dt><dd>Mock</dd>
+        <dt><i data-i="sliders"></i>Model</dt><dd>mock-steady</dd>
+        <dt>Reasoning</dt><dd>Off</dd>
+        <dt>Temperature</dt><dd>0.2</dd>
+        <dt><i data-i="tokens"></i>Max output</dt><dd>4,000 tokens</dd>
+        <dt><i data-i="cost"></i>Price in / out</dt><dd>$1.00 / $5.00 per 1M</dd>
+        <dt><i data-i="history"></i>Used in</dt><dd>7 runs</dd>
+      </dl>
+      <button class="btn btn--sm" type="button" style="align-self:flex-start"><i data-i="copy"></i>Duplicate and edit</button>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 8. ADD CONTENDER ======================= -->
+<section class="page page--narrow" data-screen="contender-new" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#contenders">Contenders</a></nav>
+  <h1>Add a contender</h1>
+  <form class="stack" data-demo-form data-toast="Contender added" data-go="contenders">
+    <div class="field">
+      <span class="label" id="cn-mode-label">How does it run?</span>
+      <div class="seg" role="radiogroup" aria-labelledby="cn-mode-label">
+        <input type="radio" name="cn-mode" id="cn-api" value="api" checked><label for="cn-api"><i data-i="api"></i>Audition calls it</label>
+        <input type="radio" name="cn-mode" id="cn-manual" value="manual"><label for="cn-manual"><i data-i="paste"></i>I copy and paste</label>
+      </div>
+      <span class="hint" id="cn-mode-hint">Audition sends the prompt to the provider and measures tokens and time.</span>
+    </div>
+    <div class="field"><label for="cn-name">Name</label><input class="input" id="cn-name" value="Opus 5.5, high reasoning, 0.6"><span class="hint">What the leaderboard shows. Two setups of the same model are two contenders.</span></div>
+
+    <div class="stack" data-mode="api">
+      <div class="fields-2">
+        <div class="field"><label for="cn-conn">Connection</label><select class="select" id="cn-conn"><option data-icon="key" data-desc="API key saved">Anthropic</option><option data-icon="api" data-desc="Built-in test provider">Mock</option></select></div>
+        <div class="field"><label for="cn-model">Model</label><input class="input" id="cn-model" value="claude-opus-5-5"></div>
+        <div class="field"><label for="cn-reason">Reasoning</label><select class="select" id="cn-reason"><option data-desc="Fastest, fewest tokens">Off</option><option data-desc="A little thinking first">Low</option><option data-desc="Balanced">Medium</option><option data-desc="Thinks longest, uses most tokens" selected>High</option></select></div>
+        <div class="field"><label for="cn-temp">Temperature <button class="info-btn" type="button" popovertarget="pop-temp" aria-label="What is temperature?"><i data-i="help"></i></button></label><input class="input num" id="cn-temp" value="0.6"></div>
+      </div>
+      <div class="pop" id="pop-temp" popover>
+        <div class="pop__head"><i data-i="sliders"></i>Temperature</div>
+        <div class="pop__body"><p>How adventurous the answers are. 0 gives the same, careful answer each time. 1 gives more varied, creative answers.</p></div>
+      </div>
+      <div class="field"><label for="cn-sys">System prompt <span class="muted">(optional)</span></label><textarea class="textarea" id="cn-sys" rows="3" style="min-height:5rem" placeholder="Extra instructions this contender always gets"></textarea></div>
+      <div class="fields-2">
+        <div class="field"><label for="cn-max"><i data-i="tokens"></i>Max output tokens</label><input class="input num" id="cn-max" value="8000"><span class="hint">A hard limit on every reply. Your spending guard.</span></div>
+        <div class="field"><label for="cn-group">Leaderboard group</label><input class="input" id="cn-group" value="Opus 5.5"><span class="hint">Groups setups of the same model.</span></div>
+      </div>
+      <details class="panel">
+        <summary class="panel__head" style="cursor:pointer; border-bottom:0"><span class="row-tight"><i data-i="cost"></i><strong>Prices</strong> <span class="muted small">optional, shows cost on the leaderboard</span></span><i data-i="caret-down"></i></summary>
+        <div class="panel__body fields-2" style="padding-top:0">
+          <div class="field"><label for="cn-pin">Input, $ per 1M tokens</label><input class="input num" id="cn-pin" placeholder="5.00"></div>
+          <div class="field"><label for="cn-pout">Output, $ per 1M tokens</label><input class="input num" id="cn-pout" placeholder="25.00"></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="stack" data-mode="manual" hidden>
+      <div class="field"><label for="cn-notes">Which tool and settings?</label><textarea class="textarea" id="cn-notes" rows="3" style="min-height:5rem" placeholder="Claude Code, Opus, plan mode"></textarea><span class="hint">For your memory only. Audition never stores your passwords for these tools.</span></div>
+    </div>
+
+    <div class="row"><button class="btn btn--primary btn--lg" type="submit"><i data-i="plus"></i>Add contender</button><a class="btn btn--quiet" href="#contenders">Cancel</a></div>
+  </form>
+</section>
+
+<!-- ======================= 9. NEW RUN ======================= -->
+<section class="page" data-screen="new-run" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#home">Workspaces</a><i data-i="caret-right"></i><a href="#workspace">Software Factory</a></nav>
+  <h1>Start a run</h1>
+  <div style="display:grid; gap: var(--s5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); align-items:start">
+    <form class="stack" data-demo-form id="run-form" style="min-width:0">
+      <div class="field"><label for="nr-role">Role</label><select class="select" id="nr-role"><optgroup label="Research"><option data-icon="rubric" data-desc="2 tasks · 3 of 5 outputs scored">Researcher</option></optgroup><optgroup label="Spec"><option data-icon="rubric" data-desc="1 task · no runs yet">Spec writer</option></optgroup><optgroup label="Back-end"><option data-icon="rubric" data-desc="Champion: Mock Steady">Back-end engineer</option></optgroup><optgroup label="UI"><option data-icon="rubric" data-desc="Suggested: Claude Code (manual)">UI engineer</option></optgroup></select></div>
+      <fieldset class="stack-sm" style="border:0;padding:0;margin:0">
+        <legend class="eyebrow" style="margin-bottom:var(--s2)"><i data-i="file"></i>Tasks</legend>
+        <div class="check-list">
+          <label class="check"><input type="checkbox" checked data-task><span class="check__box"><i data-i="check"></i></span><span><strong>Compare three ways to store user settings</strong><br><span class="muted small row-tight"><i data-i="text"></i>Text</span></span></label>
+          <label class="check"><input type="checkbox" checked data-task><span class="check__box"><i data-i="check"></i></span><span><strong>SQLite versus Postgres for a single-user app</strong><br><span class="muted small row-tight"><i data-i="text"></i>Text</span></span></label>
+        </div>
+      </fieldset>
+      <fieldset class="stack-sm" style="border:0;padding:0;margin:0">
+        <legend class="eyebrow" style="margin-bottom:var(--s2)"><i data-i="contenders"></i>Contenders</legend>
+        <div class="check-list">
+          <label class="check"><input type="checkbox" checked data-contender="api"><span class="check__box"><i data-i="check"></i></span><span class="who"><span class="avatar avatar--sm" style="--h:200">MS</span><span><strong>Mock Steady</strong><br><span class="who__meta"><i data-i="api"></i>API · up to 4,000 tokens</span></span></span></label>
+          <label class="check"><input type="checkbox" checked data-contender="api"><span class="check__box"><i data-i="check"></i></span><span class="who"><span class="avatar avatar--sm" style="--h:280">ME</span><span><strong>Mock Erratic</strong><br><span class="who__meta"><i data-i="api"></i>API · up to 4,000 tokens</span></span></span></label>
+          <label class="check"><input type="checkbox" checked data-contender="manual"><span class="check__box"><i data-i="check"></i></span><span class="who"><span class="avatar avatar--sm" style="--h:20">CC</span><span><strong>Claude Code (manual)</strong><br><span class="who__meta"><i data-i="paste"></i>Copy and paste</span></span></span></label>
+          <label class="check"><input type="checkbox" checked data-contender="manual"><span class="check__box"><i data-i="check"></i></span><span class="who"><span class="avatar avatar--sm" style="--h:140">CX</span><span><strong>Codex (manual)</strong><br><span class="who__meta"><i data-i="paste"></i>Copy and paste</span></span></span></label>
+        </div>
+      </fieldset>
+      <div class="field">
+        <span class="label" id="nr-judge-label">Who judges</span>
+        <div class="seg" role="radiogroup" aria-labelledby="nr-judge-label">
+          <input type="radio" name="nr-judge" id="nr-me" value="me"><label for="nr-me"><i data-i="me"></i>Me</label>
+          <input type="radio" name="nr-judge" id="nr-ai" value="ai" checked><label for="nr-ai"><i data-i="ai"></i>AI · Mock Judge</label>
+        </div>
+      </div>
+      <div class="notice" data-state="warning" id="nr-warn">
+        <i data-i="warning"></i>
+        <div><strong>The AI judge shares a provider with two contenders.</strong> Mock Judge, Mock Steady and Mock Erratic all use Mock, and a judge may favour its own family. You can go ahead, or judge this run yourself.</div>
+      </div>
+    </form>
+
+    <aside class="summary" aria-live="polite">
+      <span class="eyebrow">This run makes</span>
+      <div><span class="summary__big tick" id="sum-outputs">8</span> <span class="text-2">outputs</span></div>
+      <p class="small muted" id="sum-formula">2 tasks × 4 contenders</p>
+      <dl>
+        <dt><i data-i="api"></i>Provider calls for outputs</dt><dd><span class="tick" id="sum-api">4</span></dd>
+        <dt><i data-i="ai"></i>Calls to the AI judge</dt><dd><span class="tick" id="sum-judge">8</span></dd>
+        <dt><strong>Provider calls in total</strong>
+          <button class="info-btn" type="button" popovertarget="pop-calls" aria-label="How calls are counted"><i data-i="help"></i></button></dt><dd><strong class="tick" id="sum-total">12</strong></dd>
+        <dt><i data-i="paste"></i>Replies you paste back</dt><dd><span class="tick" id="sum-manual">4</span></dd>
+      </dl>
+      <div class="pop" id="pop-calls" popover>
+        <div class="pop__head"><i data-i="api"></i>How calls are counted</div>
+        <div class="pop__body"><p>Each API contender is called once per task. The AI judge is called once per output. Copy-and-paste contenders cost no calls.</p><p class="xs muted">Every API call stops at the contender's max output tokens.</p></div>
+      </div>
+      <span id="start-tip" data-tip="" style="display:grid"><button class="btn btn--primary btn--lg" type="button" id="start-run"><i data-i="play"></i>Start run</button></span>
+    </aside>
+  </div>
+</section>
+
+<!-- ======================= 10. RUN ======================= -->
+<section class="page" data-screen="run" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#home">Workspaces</a><i data-i="caret-right"></i><a href="#workspace">Software Factory</a><i data-i="caret-right"></i><a href="#role">Researcher</a></nav>
+  <div class="page-head">
+    <div><h1>Run 9 · Researcher</h1><p class="lede row-tight"><span class="badge"><i data-i="ai"></i>Judge: Mock Judge</span><span class="badge"><i data-i="time"></i>Started 07:52</span><span class="badge">2 tasks × 4 contenders</span></p></div>
+    <span data-tip="Available when every output is in" tabindex="0"><button class="btn" type="button" disabled><i data-i="again"></i>Run again</button></span>
+  </div>
+
+  <div class="panel"><div class="panel__body" style="gap:10px">
+    <div class="row-between"><strong id="run-headline">3 of 8 outputs judged</strong><span class="state" data-state="active"><i data-i="spinner"></i>Live</span></div>
+    <div class="progress" role="img" id="run-progress" aria-label="Run progress"><span class="p-done" data-w="25"></span><span class="p-active" data-w="25"></span><span class="p-waiting" data-w="37.5"></span><span class="p-error" data-w="12.5"></span></div>
+    <div class="legend"><span><i style="background:var(--done)"></i><b id="lg-done">2</b>&nbsp;judged</span><span><i style="background:var(--active)"></i><b id="lg-active">2</b>&nbsp;being worked on</span><span><i style="background:var(--waiting)"></i>3 waiting for you</span><span><i style="background:var(--error)"></i>1 failed</span></div>
+  </div></div>
+
+  <div class="notice"><i data-i="blind"></i><div class="small">Outputs and scores stay hidden here so judging stays blind. You'll see them on the judging screen, without names.</div></div>
+
+  <div class="panel">
+    <div class="panel__head"><h2 style="font-size:var(--fs-md)"><i data-i="text"></i>Compare three ways to store user settings</h2><a class="btn btn--sm" href="#judge"><i data-i="judge"></i>Open judging</a></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Contender</th><th class="col-state">State</th><th class="num">Tokens</th><th class="num">Time</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><span class="who"><span class="avatar avatar--sm" style="--h:200">MS</span>Mock Steady</span></td><td class="col-state"><span class="state" data-state="done"><i data-i="done"></i>Judged</span></td><td class="num">5,820</td><td class="num">38 s</td><td class="num"><button class="icon-btn" type="button" popovertarget="pop-out" aria-label="Output details"><i data-i="more"></i></button></td></tr>
+        <tr><td><span class="who"><span class="avatar avatar--sm" style="--h:280">ME</span>Mock Erratic</span></td><td class="col-state"><span class="state" data-state="done"><i data-i="done"></i>Judged</span></td><td class="num">7,105</td><td class="num">51 s</td><td class="num"><button class="icon-btn" type="button" popovertarget="pop-out" aria-label="Output details"><i data-i="more"></i></button></td></tr>
+        <tr><td><span class="who"><span class="avatar avatar--sm" style="--h:20">CC</span>Claude Code (manual)</span></td><td class="col-state"><span class="state" data-state="active" id="live-chip"><i data-i="spinner"></i>Being judged</span></td><td class="num">41,200</td><td class="num">9 min</td><td class="num"><button class="icon-btn" type="button" popovertarget="pop-out" aria-label="Output details"><i data-i="more"></i></button></td></tr>
+        <tr><td><span class="who"><span class="avatar avatar--sm" style="--h:140">CX</span>Codex (manual)</span></td><td class="col-state"><span class="state" data-state="waiting"><span class="pulse"></span>Waiting for you</span></td><td class="num muted">–</td><td class="num muted">–</td><td class="num"><a class="btn btn--sm btn--primary" href="#handoff"><i data-i="paste"></i>Paste</a></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel__head"><h2 style="font-size:var(--fs-md)"><i data-i="text"></i>SQLite versus Postgres for a single-user app</h2><span class="muted small">Judging starts as outputs arrive</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Contender</th><th class="col-state">State</th><th class="num">Tokens</th><th class="num">Time</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><span class="who"><span class="avatar avatar--sm" style="--h:200">MS</span>Mock Steady</span></td><td class="col-state"><span class="state" data-state="queued"><i data-i="queued"></i>Queued for judging</span></td><td class="num">4,960</td><td class="num">33 s</td><td class="num"><button class="icon-btn" type="button" popovertarget="pop-out" aria-label="Output details"><i data-i="more"></i></button></td></tr>
+        <tr><td><span class="who"><span class="avatar avatar--sm" style="--h:280">ME</span>Mock Erratic</span></td><td class="col-state"><span class="row-tight"><button class="info-btn" type="button" popovertarget="pop-err" aria-label="Why it failed"><i data-i="info"></i></button><span class="state" data-state="error"><i data-i="error"></i>Failed</span></span></td><td class="num muted">–</td><td class="num muted">–</td><td></td></tr>
+        <tr><td><span class="who"><span class="avatar avatar--sm" style="--h:20">CC</span>Claude Code (manual)</span></td><td class="col-state"><span class="state" data-state="waiting"><span class="pulse"></span>Waiting for you</span></td><td class="num muted">–</td><td class="num muted">–</td><td class="num"><a class="btn btn--sm btn--primary" href="#handoff"><i data-i="paste"></i>Paste</a></td></tr>
+        <tr><td><span class="who"><span class="avatar avatar--sm" style="--h:140">CX</span>Codex (manual)</span></td><td class="col-state"><span class="state" data-state="waiting"><span class="pulse"></span>Waiting for you</span></td><td class="num muted">–</td><td class="num muted">–</td><td class="num"><a class="btn btn--sm btn--primary" href="#handoff"><i data-i="paste"></i>Paste</a></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="pop" id="pop-out" popover>
+    <div class="pop__head"><i data-i="file"></i>Output details</div>
+    <div class="pop__body"><dl>
+      <dt><i data-i="tokens"></i>Tokens in</dt><dd>1,240</dd>
+      <dt><i data-i="tokens"></i>Tokens out</dt><dd>4,580</dd>
+      <dt><i data-i="time"></i>Time</dt><dd>38 s</dd>
+      <dt><i data-i="cost"></i>Cost</dt><dd>$0.02</dd>
+      <dt>Measured by</dt><dd>Audition</dd>
+    </dl></div>
+  </div>
+  <div class="pop" id="pop-err" popover>
+    <div class="pop__head" style="color:var(--error)"><i data-i="error"></i>The provider didn't answer</div>
+    <div class="pop__body"><p>Audition tried 3 times over 2 minutes. This output won't be scored. Use <strong>Run again</strong> once the run finishes to try it fresh.</p><code class="xs">timeout after 60 s · attempt 3 of 3</code></div>
+  </div>
+</section>
+
+<!-- ======================= 11. HANDOFF ======================= -->
+<section class="page page--narrow" data-screen="handoff" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#home">Workspaces</a><i data-i="caret-right"></i><a href="#workspace">Travel Research</a><i data-i="caret-right"></i><a href="#run">Run 3</a></nav>
+  <div class="page-head">
+    <div class="row" style="gap:var(--s4); align-items:center"><span class="avatar avatar--lg" style="--h:165">CG</span><div><h1>ChatGPT (manual)</h1><p class="muted">Plan three days in Lisbon in May</p></div></div>
+  </div>
+
+  <ol class="steps" id="handoff-steps">
+    <li class="is-current" data-step="1">
+      <div class="stack-sm" style="min-width:0">
+        <h2>Copy this prompt</h2>
+        <p class="small muted">Every contender on this task gets exactly the same text.</p>
+        <div class="copy-block" id="copy-block">
+          <div class="copy-block__bar"><span class="row-tight"><i data-i="file"></i>Prompt · 14 lines</span><button class="btn btn--sm" type="button" data-copy="handoff-prompt"><i data-i="copy"></i><span>Copy prompt</span></button></div>
+<pre id="handoff-prompt"><b>You are acting as:</b> Trip researcher.
+Role description: Writes practical travel plans with real places.
+
+<b>TASK:</b> Plan three days in Lisbon in May
+Plan three days in Lisbon in May for two adults who like food
+and walking, on a mid-range budget.
+
+<b>You will be judged on:</b>
+1. Practical and realistic (35%): the days can actually be done
+2. Matches the brief (30%): food, walking, mid-range, May
+3. Specific places named (20%): real restaurants, streets, sights
+4. Easy to follow (15%): clear day-by-day layout
+
+<b>WHEN DONE, reply with:</b>
+- Your plan, day by day
+- Any links you used</pre>
+        </div>
+      </div>
+    </li>
+    <li data-step="2">
+      <div class="stack-sm">
+        <h2>Paste it into ChatGPT</h2>
+        <p class="small muted">Start a new chat so nothing earlier affects the answer.</p>
+      </div>
+    </li>
+    <li data-step="3">
+      <form class="stack" data-demo-form id="handoff-form" style="min-width:0">
+        <h2>Paste the reply here</h2>
+        <div class="field"><label for="ho-reply">Reply</label><textarea class="textarea" id="ho-reply" rows="7" placeholder="Paste the whole reply"></textarea><span class="hint" id="ho-count">Nothing pasted yet</span></div>
+        <div class="field"><span class="label">Files <span class="muted">(optional)</span></span>
+          <div class="drop" id="drop" tabindex="0" role="button"><i data-i="upload" class="i--xl"></i><span><strong>Choose files</strong> or drop them here</span><span class="xs">Text, images, PDF or zip, up to 25 MB each</span></div>
+          <ul class="files" id="drop-files"></ul>
+        </div>
+        <details>
+          <summary class="small row-tight" style="cursor:pointer; color: var(--accent); font-weight:600"><i data-i="caret-right"></i>Add tokens and time <span class="muted" style="font-weight:400">optional, if the tool showed them</span></summary>
+          <div class="fields-2" style="margin-top:var(--s3)">
+            <div class="field"><label for="ho-tin">Tokens in</label><input class="input num" id="ho-tin" inputmode="numeric"></div>
+            <div class="field"><label for="ho-tout">Tokens out</label><input class="input num" id="ho-tout" inputmode="numeric"></div>
+            <div class="field"><label for="ho-time">Minutes taken</label><input class="input num" id="ho-time" inputmode="decimal" value="4"></div>
+          </div>
+        </details>
+        <div class="notice" data-state="warning" id="ho-confirm" hidden>
+          <i data-i="warning"></i>
+          <div class="grow stack-sm"><p><strong>Submit this output?</strong> You can't change it afterwards. Use Run again if you want a fresh one.</p>
+            <div class="row"><button class="btn btn--primary" type="button" id="ho-yes"><i data-i="send"></i>Yes, submit</button><button class="btn btn--quiet" type="button" id="ho-no">Keep editing</button></div></div>
+        </div>
+        <div class="notice" data-state="done" id="ho-done" hidden><i data-i="done"></i><div><strong>Submitted.</strong> It goes to judging once every output for this task is in. <a href="#run">Back to the run</a></div></div>
+        <div class="row" id="ho-actions"><span data-tip="Paste the reply first" id="ho-tip" tabindex="0"><button class="btn btn--primary btn--lg" type="submit" id="ho-submit" disabled><i data-i="send" class="i--lift"></i>Submit output</button></span></div>
+      </form>
+    </li>
+  </ol>
+
+  <div class="panel">
+    <div class="panel__head"><h2 style="font-size:var(--fs-md)"><i data-i="contenders"></i>Same prompt, other contenders</h2></div>
+    <ul class="list"><li><span class="who grow"><span class="avatar avatar--sm" style="--h:190">PX</span>Perplexity (manual)</span><span class="state" data-state="done"><i data-i="done"></i>Submitted</span></li></ul>
+  </div>
+</section>
+
+<!-- ======================= 12. JUDGE: TEXT AND CODE ======================= -->
+<section class="page" data-screen="judge" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#workspace">Software Factory</a><i data-i="caret-right"></i><a href="#role">UI engineer</a><i data-i="caret-right"></i><span>Run 8</span></nav>
+  <div class="page-head">
+    <div>
+      <h1>Build the settings screen</h1>
+      <p class="lede">The AI has judged these. Change any stars you disagree with; your stars then count.</p>
+    </div>
+  </div>
+  <div class="blind-banner"><i data-i="blind"></i><span>Names are hidden and the order is shuffled.</span></div>
+
+  <details class="panel" open>
+    <summary class="panel__head" style="cursor:pointer"><h2 style="font-size:var(--fs-md)"><i data-i="rubric"></i>Rubric</h2><span class="muted small row-tight"><i data-i="pass-mark"></i>Pass mark 3.5</span></summary>
+    <div class="panel__body rubric-legend">
+      <div><strong>Matches the spec <span class="weight">40%</span></strong><span class="muted">Every section and field present</span></div>
+      <div><strong>Code quality <span class="weight">30%</span></strong><span class="muted">Readable, no dead code</span></div>
+      <div><strong>Accessibility <span class="weight">20%</span></strong><span class="muted">Labels, focus order, contrast</span></div>
+      <div><strong>Responsiveness <span class="weight">10%</span></strong><span class="muted">Usable at phone width</span></div>
+    </div>
+  </details>
+
+  <nav class="pager" aria-label="Jump to output"><a href="#out-a" data-jump class="is-current">A</a><a href="#out-b" data-jump>B</a><a href="#out-c" data-jump>C</a><a href="#out-d" data-jump>D</a></nav>
+  <div class="outputs" id="outputs"><!-- generated from JUDGE_DATA in wireframes.js --></div>
+
+  <div class="row-between">
+    <p class="small text-2 row-tight"><i data-i="trophy" style="color:var(--gold)"></i>Best on this task: <strong id="best-out">Output A · 4.4</strong></p>
+    <div class="row"><a class="btn btn--quiet" href="#run">Back to run</a><a class="btn btn--primary" href="#leaderboard"><i data-i="leaderboard"></i>See leaderboard</a></div>
+  </div>
+  <div class="pop" id="pop-reason" popover>
+    <div class="pop__head"><i data-i="ai"></i><span id="reason-title">Why these stars</span></div>
+    <div class="pop__body"><p id="reason-text"></p><p class="xs muted" id="reason-note"></p></div>
+  </div>
+</section>
+
+<!-- ======================= 13. JUDGE: IMAGE GRID ======================= -->
+<section class="page" data-screen="judge-images" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#workspace">Marketing Pipeline</a><i data-i="caret-right"></i><a href="#role">Image maker</a><i data-i="caret-right"></i><span>Run 4</span></nav>
+  <div class="page-head">
+    <div>
+      <h1>Social image for the Ember &amp; Oak spring sale</h1>
+      <p class="lede">You are the judge. Tap an image to see it large.</p>
+    </div>
+  </div>
+  <div class="blind-banner"><i data-i="blind"></i><span>Names are hidden and the order is shuffled.</span></div>
+  <div class="panel"><div class="panel__body rubric-legend">
+    <div><strong>Matches the brief <span class="weight">40%</span></strong><span class="muted">Warm tones, a coffee bag, no text</span></div>
+    <div><strong>Visual quality <span class="weight">30%</span></strong><span class="muted">Sharp, well composed</span></div>
+    <div><strong>On brand <span class="weight">20%</span></strong><span class="muted">Feels like Ember &amp; Oak</span></div>
+    <div><strong>Usable as-is <span class="weight">10%</span></strong><span class="muted">Could post it today</span></div>
+  </div></div>
+  <div class="image-grid" id="image-grid"><!-- generated from IMAGE_DATA in wireframes.js --></div>
+  <div class="row-between">
+    <div class="row-tight" style="flex:1; min-width: 12rem"><div class="progress" style="flex:1; max-width: 14rem"><span class="p-done" id="img-bar"></span></div><span class="small text-2" id="img-progress">2 of 4 rated</span></div>
+    <button class="btn btn--primary btn--lg" type="button" data-toast="Stars saved"><i data-i="check"></i>Save stars</button>
+  </div>
+</section>
+
+<!-- ======================= 14. LEADERBOARD ======================= -->
+<section class="page" data-screen="leaderboard" hidden>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#home">Workspaces</a><i data-i="caret-right"></i><a href="#workspace">Software Factory</a></nav>
+  <div class="page-head">
+    <div><h1>UI engineer</h1><p class="lede">Every scored output across all runs. A champion needs 5 outputs and an average above 3.5 stars.</p></div>
+    <a class="btn" href="#new-run"><i data-i="again" class="i--spin-on-hover"></i>Run again for more data</a>
+  </div>
+
+  <div class="champion" id="champ-box">
+    <div class="row" style="gap: var(--s4)">
+      <span class="champion__crown"><i data-i="champion"></i></span>
+      <div class="stack-sm" style="gap:4px">
+        <span class="eyebrow" id="champ-label"><i data-i="sparkle" style="color:var(--gold)"></i>Suggested champion</span>
+        <span class="champion__name">Claude Code (manual)</span>
+        <span class="small text-2 row-tight"><span class="score"><i data-i="star"></i>4.3</span> over 6 outputs · best balance of quality and time</span>
+      </div>
+    </div>
+    <div class="row" id="champ-actions"><button class="btn btn--gold btn--lg" type="button" id="champ-confirm"><i data-i="champion"></i>Make champion</button></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 style="font-size:var(--fs-md)"><i data-i="leaderboard"></i>Contenders</h2>
+      <label class="switch"><input type="checkbox" id="lb-group"><span class="switch__track"></span>Group by model</label>
+    </div>
+    <div class="table-wrap"><table id="lb-table">
+      <thead><tr><th>Contender</th><th class="num">Outputs</th><th class="num">Average</th><th>Likely range <button class="info-btn" type="button" popovertarget="pop-range" aria-label="What is the likely range?"><i data-i="help"></i></button></th><th class="num">Tokens</th><th class="num">Time</th><th class="num">Cost</th><th>Fitness <button class="info-btn" type="button" popovertarget="pop-fit" aria-label="How fitness is worked out"><i data-i="help"></i></button></th></tr></thead>
+      <tbody>
+        <tr class="is-suggested" data-group="Claude Code"><td><span class="who"><span class="avatar avatar--sm" style="--h:20">CC</span><strong>Claude Code (manual)</strong><span data-tip="Suggested champion" style="display:inline-flex"><i data-i="sparkle" style="color:var(--gold)"></i></span></span></td><td class="num">6</td><td class="num"><span class="score"><i data-i="star"></i>4.3</span></td><td><span class="range" data-tip="3.9 to 4.7"><span class="range__band" style="left:72.5%;width:20%"></span><span class="range__pass" style="left:62.5%"></span><span class="range__dot" style="left:82.5%"></span></span></td><td class="num">48k</td><td class="num">14 min</td><td class="num muted">N/A</td><td><span class="fitness-bar"><span class="fitness-bar__track"><span class="fitness-bar__fill" style="width:96%"></span></span><strong class="num">0.48</strong></span></td></tr>
+        <tr data-group="Mock"><td><span class="who"><span class="avatar avatar--sm" style="--h:200">MS</span>Mock Steady</span></td><td class="num">6</td><td class="num"><span class="score"><i data-i="star"></i>3.6</span></td><td><span class="range" data-tip="3.3 to 3.9"><span class="range__band" style="left:57.5%;width:15%"></span><span class="range__pass" style="left:62.5%"></span><span class="range__dot" style="left:65%"></span></span></td><td class="num">6.1k</td><td class="num">42 s</td><td class="num">$0.04</td><td><span class="fitness-bar"><span class="fitness-bar__track"><span class="fitness-bar__fill" style="width:90%"></span></span><span class="num">0.45</span></span></td></tr>
+        <tr data-group="Codex"><td><span class="who"><span class="avatar avatar--sm" style="--h:140">CX</span>Codex (manual)</span></td><td class="num">6</td><td class="num"><span class="score"><i data-i="star"></i>3.9</span></td><td><span class="range" data-tip="3.4 to 4.4"><span class="range__band" style="left:60%;width:25%"></span><span class="range__pass" style="left:62.5%"></span><span class="range__dot" style="left:72.5%"></span></span></td><td class="num muted" data-tip="Not typed in when pasted">N/A</td><td class="num">11 min</td><td class="num muted">N/A</td><td><span class="fitness-bar"><span class="fitness-bar__track"><span class="fitness-bar__fill" style="width:86%"></span></span><span class="num">0.43</span></span></td></tr>
+        <tr data-group="Mock"><td><span class="who"><span class="avatar avatar--sm" style="--h:280">ME</span>Mock Erratic</span></td><td class="num">3</td><td class="num"><span class="score"><i data-i="star"></i>3.1</span></td><td><span class="range" data-tip="2.0 to 4.2: wide, so not consistent yet"><span class="range__band" style="left:25%;width:55%"></span><span class="range__pass" style="left:62.5%"></span><span class="range__dot" style="left:52.5%"></span></span></td><td class="num">7.0k</td><td class="num">49 s</td><td class="num muted">N/A</td><td><span class="state" data-state="draft"><i data-i="draft"></i>3 of 5 outputs</span></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="notice" data-state="warning"><i data-i="info-fill"></i><div class="small"><strong>Tokens were left out of fitness</strong> because Codex (manual) has no token counts. Fitness used quality (70) and time (10).</div></div>
+
+  <div class="pop" id="pop-range" popover>
+    <div class="pop__head"><i data-i="shuffle"></i>Likely range</div>
+    <div class="pop__body">
+      <p>Where the true average probably sits. A narrow bar means the contender is consistent; a wide one means more runs would help.</p>
+      <p class="row-tight xs"><span class="range" style="width:5rem"><span class="range__band" style="left:30%;width:40%"></span><span class="range__pass" style="left:45%"></span><span class="range__dot" style="left:50%"></span></span> dot = average, line = pass mark</p>
+    </div>
+  </div>
+  <div class="pop" id="pop-fit" popover>
+    <div class="pop__head"><i data-i="trophy"></i>Fitness for Claude Code</div>
+    <div class="pop__body">
+      <dl>
+        <dt><i data-i="star"></i>Quality × 70</dt><dd>+0.58</dd>
+        <dt><i data-i="time"></i>Time × 10</dt><dd>−0.10</dd>
+        <dt><i data-i="tokens"></i>Tokens × 20</dt><dd class="muted">left out</dd>
+        <dt><strong>Fitness</strong></dt><dd><strong>0.48</strong></dd>
+      </dl>
+      <p class="xs muted">Cost is shown for information and never decides the champion.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 15. STATE SYSTEM ======================= -->
+<section class="page" data-screen="states" hidden>
+  <div class="page-head"><div><h1>State system</h1><p class="lede">Every state has a colour, an icon and a motion. Colour is never the only signal. The three chip styles are shown side by side. One setting, <code>data-chips</code> on the page root, switches the whole app (try the Chips switch above).</p></div></div>
+  <div class="panel"><div class="table-wrap"><table>
+    <thead><tr><th>State</th><th>Soft</th><th>Solid</th><th>Outline</th><th>Means</th><th>Motion</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Draft</strong></td><td><span class="state state--soft" data-state="draft"><i data-i="draft"></i>Not started</span></td><td><span class="state state--solid" data-state="draft"><i data-i="draft"></i>Not started</span></td><td><span class="state state--outline" data-state="draft"><i data-i="draft"></i>Not started</span></td><td>Nothing has happened yet</td><td class="muted">None</td></tr>
+      <tr><td><strong>Queued</strong></td><td><span class="state state--soft" data-state="queued"><i data-i="queued"></i>Queued</span></td><td><span class="state state--solid" data-state="queued"><i data-i="queued"></i>Queued</span></td><td><span class="state state--outline" data-state="queued"><i data-i="queued"></i>Queued</span></td><td>Lined up, starts on its own</td><td class="muted">Hourglass turns every few seconds</td></tr>
+      <tr><td><strong>Active</strong></td><td><span class="state state--soft" data-state="active"><i data-i="spinner"></i>Running</span></td><td><span class="state state--solid" data-state="active"><i data-i="spinner"></i>Running</span></td><td><span class="state state--outline" data-state="active"><i data-i="spinner"></i>Running</span></td><td>Happening right now</td><td class="muted">Spinner; progress shimmer</td></tr>
+      <tr><td><strong>Waiting for you</strong></td><td><span class="state state--soft" data-state="waiting"><span class="pulse"></span>Waiting for you</span></td><td><span class="state state--solid" data-state="waiting"><span class="pulse"></span>Waiting for you</span></td><td><span class="state state--outline" data-state="waiting"><span class="pulse"></span>Waiting for you</span></td><td>Your turn: paste or judge</td><td class="muted">Breathing dot</td></tr>
+      <tr><td><strong>Done</strong></td><td><span class="state state--soft is-new" data-state="done"><i data-i="done"></i>Judged</span></td><td><span class="state state--solid is-new" data-state="done"><i data-i="done"></i>Judged</span></td><td><span class="state state--outline is-new" data-state="done"><i data-i="done"></i>Judged</span></td><td>Finished well</td><td class="muted">Check pops in once</td></tr>
+      <tr><td><strong>Warning</strong></td><td><span class="state state--soft" data-state="warning"><i data-i="warning"></i>Check this</span></td><td><span class="state state--solid" data-state="warning"><i data-i="warning"></i>Check this</span></td><td><span class="state state--outline" data-state="warning"><i data-i="warning"></i>Check this</span></td><td>Works, but look before you go on</td><td class="muted">None</td></tr>
+      <tr><td><strong>Error</strong></td><td><span class="state state--soft is-new" data-state="error"><i data-i="error"></i>Failed</span></td><td><span class="state state--solid is-new" data-state="error"><i data-i="error"></i>Failed</span></td><td><span class="state state--outline is-new" data-state="error"><i data-i="error"></i>Failed</span></td><td>Didn't work; details in a popover</td><td class="muted">Pops in once</td></tr>
+      <tr><td><strong>Locked</strong></td><td><span class="state state--soft" data-state="locked"><i data-i="locked"></i>Read-only</span></td><td><span class="state state--solid" data-state="locked"><i data-i="locked"></i>Read-only</span></td><td><span class="state state--outline" data-state="locked"><i data-i="locked"></i>Read-only</span></td><td>Used in a run, so it can't change</td><td class="muted">None</td></tr>
+      <tr><td><strong>Disabled</strong></td><td><span class="state state--soft" data-state="disabled"><i data-i="disabled"></i>Not yet</span></td><td><span class="state state--solid" data-state="disabled"><i data-i="disabled"></i>Not yet</span></td><td><span class="state state--outline" data-state="disabled"><i data-i="disabled"></i>Not yet</span></td><td>Not possible yet; a tooltip says why</td><td class="muted">None</td></tr>
+      <tr><td><strong>Champion</strong></td><td><span class="state state--soft" data-state="champion"><i data-i="champion"></i>Champion</span></td><td><span class="state state--solid" data-state="champion"><i data-i="champion"></i>Champion</span></td><td><span class="state state--outline" data-state="champion"><i data-i="champion"></i>Champion</span></td><td>Confirmed best for a role</td><td class="muted">Crown and confetti on confirm</td></tr>
+    </tbody>
+  </table></div></div>
+  <div class="row">
+    <button class="btn btn--primary" type="button" data-toast="Saved">Primary</button>
+    <button class="btn" type="button">Secondary</button>
+    <button class="btn btn--quiet" type="button">Quiet</button>
+    <button class="btn btn--gold" type="button"><i data-i="champion"></i>Merit</button>
+    <span data-tip="Tooltips say why something is disabled" tabindex="0"><button class="btn" type="button" disabled>Disabled</button></span>
+    <button class="btn btn--primary is-loading" type="button">Loading</button>
+  </div>
+  <div class="panel"><div class="panel__body"><div class="stack-sm"><div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:85%"></div><div class="skeleton" style="width:40%"></div></div><p class="xs muted">Skeleton shown while an output loads.</p></div></div>
+</section>
+
+<!-- ======================= 16. BRAND ======================= -->
+<section class="page" data-screen="brand" hidden>
+  <div class="page-head"><div><h1>Logo</h1><p class="lede">Star A: the A of Audition with a gold star for the crossbar. Hover the header logo and the star hops and turns.</p></div></div>
+  <article class="panel logo-card">
+    <div class="logo-stages">
+      <div class="logo-stage"><svg class="lg" viewBox="0 0 64 64" width="96" height="96" aria-hidden="true"><path class="lg-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></svg></div>
+      <div class="logo-stage logo-stage--dark"><svg class="lg" viewBox="0 0 64 64" width="96" height="96" aria-hidden="true"><path class="lg-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></svg></div>
+      <div class="logo-stage"><svg class="lg" viewBox="0 0 64 64" width="96" height="96" aria-hidden="true"><rect class="lg-tile" width="64" height="64" rx="14"/><g transform="translate(6.40 6.40) scale(0.8)"><path class="lg-on-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></g></svg></div>
+      <div class="logo-stage" title="Maskable icon, as Android crops it"><svg class="lg lg--round" viewBox="0 0 64 64" width="96" height="96" aria-hidden="true"><rect class="lg-tile" width="64" height="64"/><g transform="translate(12.80 12.80) scale(0.6)"><path class="lg-on-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></g></svg></div>
+    </div>
+    <div class="panel__body stack">
+      <div class="logo-row"><span class="xs muted">Tab and app icon</span><svg class="lg" viewBox="0 0 64 64" width="48" height="48" aria-hidden="true"><rect class="lg-tile" width="64" height="64" rx="14"/><g transform="translate(6.40 6.40) scale(0.8)"><path class="lg-on-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></g></svg><svg class="lg" viewBox="0 0 64 64" width="32" height="32" aria-hidden="true"><rect class="lg-tile" width="64" height="64" rx="14"/><g transform="translate(6.40 6.40) scale(0.8)"><path class="lg-on-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></g></svg><svg class="lg" viewBox="0 0 64 64" width="16" height="16" aria-hidden="true"><rect class="lg-tile" width="64" height="64" rx="14"/><g transform="translate(6.40 6.40) scale(0.8)"><path class="lg-on-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></g></svg><span class="logo-tab"><svg class="lg" viewBox="0 0 64 64" width="16" height="16" aria-hidden="true"><rect class="lg-tile" width="64" height="64" rx="14"/><g transform="translate(6.40 6.40) scale(0.8)"><path class="lg-on-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></g></svg>Audition</span></div>
+      <div class="logo-row"><span class="xs muted">Mark alone</span><svg class="lg" viewBox="0 0 64 64" width="32" height="32" aria-hidden="true"><path class="lg-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></svg><svg class="lg" viewBox="0 0 64 64" width="20" height="20" aria-hidden="true"><path class="lg-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></svg><svg class="lg" viewBox="0 0 64 64" width="16" height="16" aria-hidden="true"><path class="lg-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></svg></div>
+      <div class="logo-row"><span class="xs muted">Lockups</span><span class="logo-word"><svg class="lg" viewBox="0 0 64 64" width="28" height="28" aria-hidden="true"><path class="lg-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></svg>Audition</span><span class="logo-word logo-word--lg"><svg class="lg" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true"><rect class="lg-tile" width="64" height="64" rx="14"/><g transform="translate(6.40 6.40) scale(0.8)"><path class="lg-on-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></g></svg>Audition</span></div>
+    </div>
+  </article>
+  <div class="panel"><div class="panel__head"><h2>Files</h2><span class="small muted">All in <code>docs/design/logo/</code>, ready for T4 to copy into the app</span></div><div class="table-wrap"><table>
+    <thead><tr><th>File</th><th>What</th><th>Used for</th></tr></thead>
+    <tbody>
+        <tr><td><code>logo/audition-mark.svg</code></td><td>Mark on light</td><td class="muted">Header lockups, docs, anywhere on a light surface</td></tr>
+        <tr><td><code>logo/audition-mark-dark.svg</code></td><td>Mark on dark</td><td class="muted">Dark surfaces</td></tr>
+        <tr><td><code>logo/audition-icon.svg</code></td><td>Icon tile</td><td class="muted">The app header mark, sign-in, social avatars</td></tr>
+        <tr><td><code>logo/app-icons/favicon.svg</code></td><td>Favicon (SVG)</td><td class="muted">Modern browsers; flips to a light tile when the browser is dark</td></tr>
+        <tr><td><code>logo/app-icons/favicon.ico</code></td><td>Favicon (ICO, 16/32/48)</td><td class="muted">Older browsers and bookmarks</td></tr>
+        <tr><td><code>logo/app-icons/apple-touch-icon.png</code></td><td>Apple touch icon, 180 px</td><td class="muted">iPhone and iPad home screen (iOS rounds the corners)</td></tr>
+        <tr><td><code>logo/app-icons/icon-192.png</code></td><td>App icon, 192 px</td><td class="muted">Android and installed web app</td></tr>
+        <tr><td><code>logo/app-icons/icon-512.png</code></td><td>App icon, 512 px</td><td class="muted">Install screens and splash</td></tr>
+        <tr><td><code>logo/app-icons/icon-maskable-512.png</code></td><td>Maskable icon, 512 px</td><td class="muted">Android adaptive icons (mark kept in the safe zone)</td></tr>
+        <tr><td><code>logo/app-icons/site.webmanifest</code></td><td>Web app manifest</td><td class="muted">Name, colours and icons for installing the app</td></tr>
+    </tbody>
+  </table></div></div>
+</section>
+
+
+</main>
+
+<nav class="bottom-nav" aria-label="Main">
+  <a href="#home" data-nav="workspaces"><i data-i="workspaces"></i>Workspaces</a>
+  <a href="#home" data-nav="waiting"><i data-i="inbox"></i>Waiting<span class="count" data-inbox-count>5</span></a>
+  <a href="#contenders" data-nav="contenders"><i data-i="contenders"></i>Contenders</a>
+</nav>
+
+<dialog class="lightbox" id="lightbox" aria-label="Large image">
+  <div class="lightbox__frame">
+    <div class="ph" id="lightbox-img"></div>
+    <div class="lightbox__bar"><strong id="lightbox-title">Output A</strong><button class="icon-btn" type="button" id="lightbox-close" aria-label="Close"><i data-i="close"></i></button></div>
+  </div>
+</dialog>
+
+<div class="toaster" id="toaster" aria-live="polite"></div>
+
+<script src="icons/icons.js"></script>
+<script src="wireframes.js"></script>
+</body>
+</html>
