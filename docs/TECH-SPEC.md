@@ -11,29 +11,65 @@ Where this document and `SPEC.md` disagree, this PR also edits `SPEC.md`, and th
 | | |
 | --- | --- |
 | Product | Vaultbase, [vaultbase-sh/vaultbase](https://github.com/vaultbase-sh/vaultbase) |
-| Pinned version | **v0.37.0** (released Nov 3, 2026; tag commit `198c19f39a5ce3f5c226685c9adfcc0d73126042`). It is the only 0.37.x release. |
-| Newer releases | v0.38.0, v0.39.0, v0.39.1, v0.40.0, v0.40.1, v0.40.2 (Nov 6, 2026). See [open question O1](#14-open-questions). |
-| Binary | `https://github.com/vaultbase-sh/vaultbase/releases/download/v0.37.0/<asset>` |
+| Pinned version | **v0.40.2** (released Nov 6, 2026; tag commit `99bc1072697d70b3193c243c600f1aace14c4350`). Cas approved the move from 0.37.x on Nov 6, 2026, for the security fixes in 0.38 and 0.39. |
+| Binary | `https://github.com/vaultbase-sh/vaultbase/releases/download/v0.40.2/<asset>` |
 | Checksums | From the release's `SHA256SUMS` file, and checked against a downloaded binary |
 
-SHA-256 for v0.37.0 (from `SHA256SUMS`):
+SHA-256 for v0.40.2 (from `SHA256SUMS`):
 
 | Asset | SHA-256 |
 | --- | --- |
-| `vaultbase-linux-x64` | `61f7d690d31deb45e1d32d6f3623bbb6343554450f06ac865c22de28e1a848c0` |
-| `vaultbase-linux-x64-musl` | `546c6afd244f37c18d428a012d3804727e7a0ae64ec0314e226f66ed5b368333` |
-| `vaultbase-linux-arm64` | `337763175345dc36daa5aeb81d0a0b7f182576595a13c13ece8c203de645ce82` |
-| `vaultbase-macos-arm64` | `519d234b8ff0d5ddf20a70e8d6ead84a005c31eee5b5635c03abc1ca9e431000` |
-| `vaultbase-macos-x64` | `b32550b6bcac1d99ed267eb311413406f3829700c5765ccb156974c0ece7776e` |
-| `vaultbase-windows-x64.exe` | `625ddf849b550786a84acdab11de01647835767aa7d9d315949018fb2eacb812` |
+| `vaultbase-linux-x64` | `b8181569514a113870bba88a26418f0c2d60ff296a1db5a97e4f413c217af757` |
+| `vaultbase-linux-x64-musl` | `ecbd47e0bead283b8286c664321e927cbd1b0012f8f6b8d634ddcf33dffbd5bc` |
+| `vaultbase-linux-arm64` | `7430d4725bfe38a20edd44292290b87ef03e860156b9b1b514933fab54f54be2` |
+| `vaultbase-macos-arm64` | `6a30411df608244e8a2bab95117ce71baa72467084c91e7201c121de7fee6577` |
+| `vaultbase-macos-x64` | `cd7d76832c93a326adde4d3f9ee31ad93baeb0279d43f8a1201c30b93503c1e6` |
+| `vaultbase-windows-x64.exe` | `4d1027d7f50d95df678f8e52b1ef8a9dd977f3dad9c58c83a675731cb6369475` |
 
-The `vaultbase-linux-x64` binary was downloaded in this session (126,634,160 bytes) and its SHA-256 matched the line above.
+The `vaultbase-linux-x64` binary was downloaded in this session (126,728,368 bytes) and its SHA-256 matched the line above.
 
-If Cas approves the move to v0.40.2 (O1), these are its checksums (from its `SHA256SUMS`): linux-x64 `b8181569514a113870bba88a26418f0c2d60ff296a1db5a97e4f413c217af757`, linux-arm64 `7430d4725bfe38a20edd44292290b87ef03e860156b9b1b514933fab54f54be2`, macos-arm64 `6a30411df608244e8a2bab95117ce71baa72467084c91e7201c121de7fee6577`, macos-x64 `cd7d76832c93a326adde4d3f9ee31ad93baeb0279d43f8a1201c30b93503c1e6`, windows-x64 `4d1027d7f50d95df678f8e52b1ef8a9dd977f3dad9c58c83a675731cb6369475`. The source files this design relies on (`code-files.ts`, `hooks.ts`, `hook-helpers-extra.ts`, `routes.ts`, `api-paths.ts`, `migrations.ts`, `hook-egress.ts`, `script-limits.ts`) are identical between v0.37.0 and v0.40.2; only `src/index.ts` changed, by 11 lines.
+**T0 records the pin in the repo** as `vaultbase.lock.json`: version, the release URL, and the SHA-256 for each asset. The download script refuses a binary whose checksum doesn't match. Since 0.39.1, releases also carry a Sigstore bundle (`<asset>.sigstore.json`). Verifying it needs `cosign`, so it is optional, not part of `bun run setup`.
 
-**T0 records the pin in the repo** as `vaultbase.lock.json`: version, the release URL, and the SHA-256 for each asset. The download script refuses a binary whose checksum doesn't match.
+**How this was checked.** `docs.vaultbase.dev` always shows the latest release, not the pinned one, so every claim about behaviour below was read from the source at the release's git tag (file paths are given). The analysis was done at v0.37.0 and re-checked at v0.40.2. The files this design depends on (`code-files.ts`, `hooks.ts`, `hook-helpers-extra.ts`, `routes.ts`, `api-paths.ts`, `migrations.ts`, `hook-egress.ts`, `script-limits.ts`) are identical between the two tags. `src/index.ts` changed by 11 lines: setup-admin email checking, and priming rule case folding at startup. Neither affects Audition. The other behaviours relied on were re-read at v0.40.2 and still hold: encrypted fields decrypted on read (`records.ts`), the upload handler and its MIME allowlist (`api/files.ts`, `core/sec.ts`), and routes that parse only JSON and text bodies.
 
-**How this was checked.** `docs.vaultbase.dev` always shows the latest release, not the pinned one, so every claim about behaviour below was read from the v0.37.0 source at its git tag (file paths are given). The 0.37.0 changelog's only upgrade note (plain comparisons on `_via_` in rules are refused) doesn't affect Audition, because no rule here uses `_via_`.
+The upgrade notes between 0.37.0 and 0.40.2 that touch Audition:
+
+- **0.40.0: new collections keep record history by default.** The snapshot sets `history_enabled` explicitly on every collection (`false`, except `tasks`, `contenders` and `roles`, which are cheap to keep).
+- **0.39.0: changing a table that a view reads can be refused (409)** while the view depends on it. A later schema change to `attempts`, `runs` or `verdicts` may therefore have to drop and recreate the `leaderboard` view. T0 notes how in `NOTES.md`.
+- **0.39.0: admin-only views answer 404 to non-admins.** The `leaderboard` view's rules are `OWNER`, so this doesn't apply.
+
+### Upgrade policy
+
+Vaultbase ships about one release a day and is pre-1.0, where a minor version may change behaviour. Following every release would turn Audition into a Vaultbase-chasing project, and falling far behind would make each upgrade large. The policy:
+
+1. **Pin an exact version.** Never "latest", and never `vaultbase update` on an install. The binary comes only from `vaultbase.lock.json`.
+2. **Upgrade on a rhythm, not on every release.** Once a month, a short "Vaultbase upgrade" thread reads the changelog from the pinned version to the newest release.
+3. **Security fixes jump the queue.** If the changelog's **Security** section names something Audition uses, the upgrade happens that week. That covers auth, rules, files, hooks, the egress guard, backups and the records API. It doesn't cover MCP, OAuth, Postgres or clusters, which Audition doesn't use.
+4. **Every upgrade is asked first** (orchestrator rule 9). The thread proposes the version, quotes the relevant Security and Upgrade notes, and waits for Cas.
+5. **Every upgrade is tested the same way:**
+   - `bun run vb:bump <version>` fetches the new `SHA256SUMS`, downloads and checks the binary, and rewrites `vaultbase.lock.json`.
+   - `bun test` passes on a fresh instance of the new version.
+   - `test/upgrade.test.ts` starts the *old* pinned version, runs a full seeded loop on it (seed, run, judge, cast), stops it, starts the *new* version on the same data folder, and checks that every record, file, key and sign-in is still there and the loop still works.
+   - The PR quotes the changelog sections it read.
+6. **Production upgrades** (the Release thread documents them in `docs/RELEASE.md`) follow these steps: `vaultbase backup`, stop, swap the binary, start, smoke test. Vaultbase upgrades a data folder on start and has no downgrade, so **rollback means restoring the backup** with the old binary, never starting the old binary on upgraded data.
+
+T0 builds `vb:bump` and `test/upgrade.test.ts`. The upgrade test can only be meaningful from the first upgrade on, so in T0 it runs the old and new version as the same pinned binary.
+
+## Tech stack
+
+| Layer | Choice | Why |
+| --- | --- | --- |
+| Backend platform | Vaultbase v0.40.2: one binary with SQLite, auth, REST, files, hooks, queues and encrypted fields | Spec decision. It does the backend work, so Audition writes only its own logic. |
+| Database | SQLite, inside Vaultbase (the default; one file in the data folder) | Single owner, single server. Postgres is not needed. |
+| Server logic | TypeScript files in `vb_hooks/` (hooks, custom routes, queue workers), run by Vaultbase's built-in Bun | Spec rule: logic lives in the repo |
+| Schema | `schema/snapshot.json`, applied by `vaultbase --apply-snapshot` | Q1 |
+| AI providers | Anthropic Messages API over raw HTTP (`helpers.http`, API version `2026-10-21`); an OpenAI-compatible chat-completions adapter; an in-process mock | No SDK, so no runtime dependency. Anthropic is the first real provider. |
+| Frontend language | Vanilla JavaScript (ES modules) and CSS, no framework, bundled with `Bun.build` | Spec rule |
+| Frontend look: components, icons, motion | **Pending the Design thread (PR #4).** Cas asked there for a more modern feel, with micro-animations, icons, richer state design and popovers, and for libraries such as Basecoat UI and Phosphor icons to be weighed. | Whatever Design picks, Architecture's constraint is only this: it is served as static files from `ui/dist` and adds no JavaScript framework. Copying CSS or SVG files into `ui/` is a build-time choice Cas can approve as compatible with "no runtime dependencies". T4 follows the Design decision. |
+| Browser APIs | `fetch`; native `<dialog>` and the Popover API for popovers; CSS transitions and `@starting-style` for motion; `navigator.clipboard` for the copy button | All built into current browsers, no library needed |
+| UI hosting | Served by Vaultbase itself through a custom route (`/api/custom/app/`) | Q2: one process, one origin |
+| Tooling | Bun (scripts, build, `bun test`). Playwright as a dev dependency for T4 browser tests. | Bun is the runtime Vaultbase is built on |
+| Production (Release thread) | A VPS running the binary under systemd, behind Cloudflare and a reverse proxy, with `vaultbase backup` on a schedule | Spec |
 
 ## 2. Answers to the open questions
 
@@ -45,7 +81,7 @@ These are the spec's first six open questions. T0 confirms the first four agains
 
 **Q3. `@vaultbase/sdk` or plain `fetch`?** **Plain `fetch`.** The rule is zero runtime dependencies, and Phase 1 needs only a small slice of the API: sign-in, list, view, create, update, file upload and the custom routes. T4 writes `ui/src/api.js` (about 150 lines). Realtime isn't used in Phase 1 (see F1), so no WebSocket client is needed either.
 
-**Q4. Can a cloud session download the pinned release?** **Yes.** This session fetched `SHA256SUMS` and the 126 MB `vaultbase-linux-x64` binary from GitHub Releases through the session proxy, and the checksum matched. The binary is therefore not committed; `scripts/fetch-vaultbase.ts` downloads it into `.vaultbase/bin/` (git-ignored) and checks it. One caution: in this session an automated safety check blocked running the downloaded binary, so this thread could not boot it. T0 must boot it and capture the output for its PR. If a cloud session can't run it, T0 records that in `NOTES.md` and asks before working around it.
+**Q4. Can a cloud session download the pinned release?** **Yes.** This session fetched `SHA256SUMS` and the 126 MB `vaultbase-linux-x64` binary (v0.37.0 and v0.40.2) from GitHub Releases through the session proxy, and both checksums matched. The binary is therefore not committed; `scripts/fetch-vaultbase.ts` downloads it into `.vaultbase/bin/` (git-ignored) and checks it. One caution: in this session an automated safety check blocked running the downloaded binary, so this thread could not boot it. T0 must boot it and capture the output for its PR. If a cloud session can't run it, T0 records that in `NOTES.md` and asks before working around it.
 
 **Q5. Can the AI judge see images?** **Yes, for Anthropic.** Every current Claude model accepts images in a Messages request as `{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "…"}}` blocks. The limits, from the [vision docs](https://platform.claude.com/docs/en/build-with-claude/vision) read on Nov 6, 2026, are:
 
@@ -66,7 +102,7 @@ So the design is:
 
 ## 3. Findings from the Vaultbase source that shape the design
 
-Each finding names the file it comes from at tag v0.37.0. T0 copies these into `docs/NOTES.md` and confirms each one against the running binary.
+Each finding names the file it comes from at tag v0.37.0; all were re-checked at v0.40.2. T0 copies these into `docs/NOTES.md` and confirms each one against the running binary.
 
 **F1. Server code can't write records through the records API.** Hook, route and worker helpers can *read* records (`helpers.find`, `helpers.query`), but have no create or update helper (`src/core/hooks.ts`, `makeHookHelpers`). Writes go through `helpers.sql` (`src/core/hook-helpers-extra.ts`, `SqlHelpers`). A SQL write skips record hooks, record history and **realtime events**, because realtime is broadcast only from the records API (`src/realtime/manager.ts`, `broadcast`). The alternative, workers calling the REST API over loopback, is blocked by the egress guard by default (F3) and would need a stored admin token. Decisions:
 
@@ -128,6 +164,7 @@ audition/
 | Script | Does |
 | --- | --- |
 | `bun run setup` | Fetch and check the binary |
+| `bun run vb:bump <version>` | Rewrite `vaultbase.lock.json` for a new release (upgrade policy, §1) |
 | `bun run dev` | Setup, build the UI, start Vaultbase with `--apply-snapshot schema/snapshot.json --snapshot-mode sync`, create the admin and the owner if missing, apply settings, seed if empty, then print the UI URL |
 | `bun run stop` | Stop the instance started by `dev` (PID file in `.vaultbase/`) |
 | `bun run seed` | Seed the reference workspaces into a running instance (idempotent by name) |
@@ -587,7 +624,7 @@ T0 must prove this with a test: attach through `lib/files.ts`, then fetch the fi
 
 | # | Question | Who | Recommendation |
 | --- | --- | --- | --- |
-| O1 | Pin v0.37.0, as the spec says, or move to v0.40.2? 0.37.x has only one release. 0.38 and 0.39 fix real problems: a write reported saved after SQLite rolled it back, rows leaking through joins, and sessions surviving a password reset. 0.40 turns record history on by default for new collections; the snapshot sets `history_enabled` explicitly, so that doesn't matter. | Cas (version changes need approval) | Move to v0.40.2. The source Audition depends on is unchanged (§1). |
+| O1 | ~~Pin v0.37.0 or move to v0.40.2?~~ Decided Nov 6, 2026: pin v0.40.2, with the upgrade policy in §1. | Cas | Done |
 | O2 | Create `go4cas/factory-demo` for the Software Factory coding tasks? | Cas | Yes (Q6). Until then, T0 seeds a placeholder commit. |
 | O3 | Can a cloud session run the binary? This thread was stopped from executing it by a safety check, so the boot is unproven here. | T0 | T0 boots it first thing and records the result in `NOTES.md`. |
 | O4 | The leaderboard view joins `vb_runs` for the role. T0 confirms table and column names. | T0 | — |
@@ -601,7 +638,7 @@ The spec's thread plan stands: T0 merges first, then T1 to T4 run in parallel, t
 
 ### T0 Foundations
 
-**Owns:** `vaultbase.lock.json`, `package.json`, `scripts/`, `schema/snapshot.json`, `seed/`, `test/harness.ts`, `vb_hooks/lib/store.ts`, `vb_hooks/lib/files.ts`, `vb_hooks/lib/providers/mock.ts`, `vb_hooks/routes/app.ts` (serving a placeholder page), every validation and locking hook in §6, the generic template seed, and `fixtures/factory-demo/`.
+**Owns:** `vaultbase.lock.json`, `package.json`, `scripts/` (including `vb:bump`), `test/upgrade.test.ts`, `schema/snapshot.json`, `seed/`, `test/harness.ts`, `vb_hooks/lib/store.ts`, `vb_hooks/lib/files.ts`, `vb_hooks/lib/providers/mock.ts`, `vb_hooks/routes/app.ts` (serving a placeholder page), every validation and locking hook in §6, the generic template seed, and `fixtures/factory-demo/`.
 
 **Done when:**
 
@@ -617,6 +654,8 @@ The spec's thread plan stands: T0 merges first, then T1 to T4 run in parallel, t
    - `lib/files.ts` attaches a file that `GET /api/v1/files/…` serves.
    - The mock provider is deterministic for the same seed.
    - Seeding twice creates nothing new.
+   - `bun run vb:bump <version>` rewrites the lock file from that release's `SHA256SUMS`, and refuses a version that has no checksum for this platform.
+   - `test/upgrade.test.ts` runs a seeded loop on one binary, restarts on the same data folder, and finds everything intact.
 3. `docs/NOTES.md` records Q1 to Q4 and F1 to F8, each confirmed against the running binary with the command and output, and answers O3 to O5.
 
 ### T1 API execution

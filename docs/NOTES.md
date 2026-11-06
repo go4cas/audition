@@ -78,7 +78,7 @@ Small choices made while folding the decisions into the spec, for Cas to confirm
 
 The Architecture thread read the Vaultbase source at tag v0.37.0, because `docs.vaultbase.dev` shows only the latest release. Full detail, with file references, is in `docs/TECH-SPEC.md` §3. T0 confirms each finding against the running binary and adds the command and output here.
 
-- **Pin.** v0.37.0 is the only 0.37.x release. Its checksums are recorded in `docs/TECH-SPEC.md` §1, and the linux-x64 binary was downloaded and matched. v0.40.2 is the latest; whether to move is Cas's call (TECH-SPEC O1).
+- **Pin.** v0.37.0 is the only 0.37.x release. Cas chose v0.40.2 on Nov 6, 2026, for the security fixes in 0.38 and 0.39. Checksums are in `docs/TECH-SPEC.md` §1, and the linux-x64 binary was downloaded and matched. Upgrades follow the policy in §1: an exact pin, a monthly review of the changelog, a faster upgrade for relevant security fixes, Cas's approval each time, and an old-to-new data-folder test.
 - **Q1 Schema as code:** a snapshot file applied with `vaultbase --apply-snapshot <file> --snapshot-mode sync`.
 - **Q2 Static UI:** there is no public folder, but a custom route can return a `Response`, so `GET /api/custom/app/*` serves `ui/dist`.
 - **Q3 SDK:** plain `fetch`.

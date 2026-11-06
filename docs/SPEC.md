@@ -169,7 +169,7 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 
 **Conventions**
 
-- **Pin the version.** Use the latest 0.37.x release, record its version and checksum in the repo, and upgrade only on purpose after reading the changelog's upgrade notes. Vaultbase is pre-1.0.
+- **Pin the version.** Pinned at v0.40.2, with its version and checksums recorded in the repo. Upgrade only on purpose, after reading the changelog's Security and Upgrade notes: monthly, or sooner for a security fix that touches what Audition uses (see `docs/TECH-SPEC.md` §1, "Upgrade policy"). Vaultbase is pre-1.0 and releases almost daily.
 - **Logic lives in the repo.** Hooks, routes, cron and queue workers are TypeScript files in `vb_hooks/`, not code typed into the admin UI.
 - **The schema lives in the repo** as code or a snapshot that a fresh instance can apply. T0 picks the mechanism after reading the docs.
 - **UI:** vanilla JavaScript, no framework, built with Bun, zero runtime dependencies. Restrained, modern look; works at phone width. Plain words on screen ("outputs", not "attempts").
@@ -315,7 +315,7 @@ The Architecture thread answered the first six in `docs/TECH-SPEC.md` §2. T0 co
 - [x] Can a cloud session download the pinned release from GitHub? Yes, checked by checksum. Running it there is for T0 to confirm.
 - [x] How are images passed to the AI judge? As base64 image blocks, one judge call per output. The Anthropic adapter supports this.
 - [ ] Which demo repo and commit do the Software Factory coding tasks name? Proposed: a new `go4cas/factory-demo` repo (Cas confirms).
-- [ ] Pin Vaultbase 0.37.0 or move to 0.40.2? (Cas decides; see `docs/TECH-SPEC.md` O1)
+- [x] Pin Vaultbase 0.37.0 or move to 0.40.2? Pinned at v0.40.2 (Cas, Nov 6, 2026), with the monthly upgrade policy in `docs/TECH-SPEC.md` §1.
 - [ ] How does the image-judging grid look? (Design)
 - [ ] Is vector search reachable through MCP, or only through a custom route? (Phase 2)
 - [ ] Does "Audition" need a qualifier or distinct domain to stay clear of Adobe Audition, if this is ever offered publicly?
