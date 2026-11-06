@@ -119,17 +119,6 @@
   });
   window.addEventListener("scroll", function () { $$(".pop").forEach(function (p) { try { p.hidePopover(); } catch (e) { /* not open */ } }); }, { passive: true });
 
-  // ---------- Colour picker (wireframe only: Denim or Monochrome) ----------
-  var brandPick = $("#brand-pick");
-  try { brandPick.value = localStorage.getItem("audition-wire-colour") || ""; } catch (e) { /* storage blocked */ }
-  function applyBrand() {
-    if (brandPick.value) document.documentElement.setAttribute("data-brand", brandPick.value);
-    else document.documentElement.removeAttribute("data-brand");
-    try { localStorage.setItem("audition-wire-colour", brandPick.value); } catch (e) { /* storage blocked */ }
-  }
-  brandPick.addEventListener("change", applyBrand);
-  applyBrand();
-
   // ---------- Dropdowns: upgrade every <select class="select"> ----------
   // The native select stays in the DOM (hidden) so forms keep their value.
   // Options may carry data-icon, data-avatar="hue:INITIALS" and data-desc.

@@ -24,8 +24,7 @@ This folder holds the Phase 1 screens as clickable wireframes, the design tokens
 
 Cas's feedback on v2: not a fan of the burgundy, replace native selects, less rounded corners, and a Home page that pulls people in.
 
-- **Brand: Denim** (`#3b5a9a` light, `#8fa8db` dark), a muted mid-blue. Cas first picked Cobalt from four candidates (Cobalt, Spruce, Ember, Graphite), found it too blue, then chose Denim over Navy ink, Slate blue and Iris. Neutrals are a cool graphite and gold stays reserved for merit. To rebrand later, change only the `--accent*` tokens.
-- **Monochrome (in review).** The wireframe's **Colour** picker switches to a monochrome look: pure greys, a black accent (white in dark mode). Gold for stars and champions and the state colours stay, because they carry meaning. If Cas keeps it, it replaces Denim in `tokens.css`; otherwise it gets deleted.
+- **Brand: Monochrome.** Near-black actions on pure greys, white actions in dark mode. Cas went Cobalt, then Denim, then picked Monochrome on Nov 6, 2026. Colour now only carries meaning: gold for stars and champions, **violet for "waiting for you"** (Cas asked that it stand out), and one colour per state. Queued moved from purple to slate so it does not compete with waiting. To rebrand later, change only the `--accent*` tokens.
 - **Selects.** Every `<select class="select">` is upgraded to a styled dropdown: a button showing the value with its icon or avatar, and a menu of options with icons, one-line descriptions, group headings and a tick on the selected one. Arrow keys, Home/End, type-ahead, Enter and Escape all work. The native select stays hidden underneath so forms keep their value, and it is styled too in case the script doesn't run.
 - **Corners.** Radius now runs 4 / 6 / 8 px (chips and avatars / buttons and inputs / panels and popovers). Pills remain only for counts, dots and switches.
 - **Home.** A hero greets you and says what's waiting, with one button to pick up the next task. Next to it, **Your cast** shows the champions and how many roles are cast. Below that: one large **Up next** card, a short **Also waiting** queue, workspace cards with a progress ring for roles cast and the contenders involved, a **Who plays which role** list (the routing table), and a **Latest** activity feed. The feed reads the audit log, which Phase 1 already has.
@@ -34,7 +33,7 @@ Cas's feedback on v2: not a fan of the burgundy, replace native selects, less ro
 
 Cas asked for a more modern look that feels less generic, with micro-interactions, more icons, richer states and extra detail tucked into popovers, so both technical and non-technical people want to use it.
 
-- **The audition stage.** One brand accent (velvet in v2, denim now) marks what you can act on and what is waiting for you. Gold (the spotlight) is kept for merit only: stars, the champion and the confetti when you confirm one. Neutrals are a soft graphite.
+- **The audition stage.** One brand accent (velvet in v2, denim in v3, monochrome now) marks what you can act on, and violet marks what is waiting for you. Gold (the spotlight) is kept for merit only: stars, the champion and the confetti when you confirm one. Neutrals are pure greys.
 - **Type with character.** Bricolage Grotesque for headings and big numbers, Instrument Sans for everything else. Both are SIL OFL; the app vendors the woff2 files so it makes no third-party calls. The wireframe loads them from Google Fonts for review only.
 - **Every state looks different** in colour, icon and motion (see the state system below and screen 15).
 - **Calm by default, detail on demand.** AI reasons, contender settings, output tokens and cost, error details and the fitness breakdown sit behind small info buttons that open popovers.
@@ -91,7 +90,7 @@ Each state has its own colour tokens (`--active`, `--active-bg`, `--active-line`
 | Disabled | prohibit, 45% opacity | none | Not possible yet; a tooltip says why |
 | Champion | crown, gold | crown bounce and confetti on confirm | Confirmed best per role |
 
-"Waiting for you" uses the accent colour on purpose: the things that need you are the things to act on.
+"Waiting for you" has its own violet so it is the one bit of colour that says "your turn" on a mostly grey page; its buttons stay in the black accent.
 
 ## Micro-interactions
 
@@ -152,7 +151,7 @@ Each screen uses the reference workspace content from the spec, so the wireframe
 
 For Cas to confirm in the PR. None of them adds scope; they decide how existing Phase 1 behaviour looks.
 
-- **Brand:** Denim (decided Nov 6, 2026).
+- **Brand:** Monochrome, with violet for "waiting for you" (decided Nov 6, 2026).
 - **Visual direction:** one brand accent, gold for merit, crisp 4/6/8 px corners, styled dropdowns, Bricolage Grotesque and Instrument Sans (vendored), Phosphor icons (vendored). No Basecoat, no Tailwind.
 - **Image-judging grid (answers the spec's open question).** One square card per output, four across on a laptop and one per row on a phone. Each card shows the first image with its letter, a "3 images" tag when there are more, and opens large on tap. Stars sit under the image. The rubric is shown once above the grid.
 - **Judging on a phone.** One output per screen, swipe or tap A–D to move.
