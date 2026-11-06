@@ -119,6 +119,17 @@
   });
   window.addEventListener("scroll", function () { $$(".pop").forEach(function (p) { try { p.hidePopover(); } catch (e) { /* not open */ } }); }, { passive: true });
 
+  // ---------- Chip style picker (wireframe only: soft or solid state chips) ----------
+  var chipPick = $("#chip-pick");
+  try { chipPick.value = localStorage.getItem("audition-wire-chips") || ""; } catch (e) { /* storage blocked */ }
+  function applyChips() {
+    if (chipPick.value) document.documentElement.setAttribute("data-chips", chipPick.value);
+    else document.documentElement.removeAttribute("data-chips");
+    try { localStorage.setItem("audition-wire-chips", chipPick.value); } catch (e) { /* storage blocked */ }
+  }
+  chipPick.addEventListener("change", applyChips);
+  applyChips();
+
   // ---------- Dropdowns: upgrade every <select class="select"> ----------
   // The native select stays in the DOM (hidden) so forms keep their value.
   // Options may carry data-icon, data-avatar="hue:INITIALS" and data-desc.

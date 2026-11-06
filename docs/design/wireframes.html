@@ -36,6 +36,11 @@
       <option value="leaderboard">14. Leaderboard</option>
       <option value="states">15. State system</option>
     </select>
+    <label for="chip-pick">Chips</label>
+    <select id="chip-pick">
+      <option value="">Soft</option>
+      <option value="solid">Solid</option>
+    </select>
     <label for="theme-pick">Theme</label>
     <select id="theme-pick">
       <option value="">System</option>
@@ -823,16 +828,16 @@ and walking, on a mid-range budget.
   <div class="panel"><div class="table-wrap"><table>
     <thead><tr><th>State</th><th>Chip: soft</th><th>Chip: solid</th><th>Means</th><th>Motion</th></tr></thead>
     <tbody>
-      <tr><td><strong>Draft</strong></td><td><span class="state" data-state="draft"><i data-i="draft"></i>Not started</span></td><td><span class="state state--solid" data-state="draft"><i data-i="draft"></i>Not started</span></td><td>Nothing has happened yet</td><td class="muted">None</td></tr>
-      <tr><td><strong>Queued</strong></td><td><span class="state" data-state="queued"><i data-i="queued"></i>Queued</span></td><td><span class="state state--solid" data-state="queued"><i data-i="queued"></i>Queued</span></td><td>Lined up, starts on its own</td><td class="muted">Hourglass turns every few seconds</td></tr>
-      <tr><td><strong>Active</strong></td><td><span class="state" data-state="active"><i data-i="spinner"></i>Running</span></td><td><span class="state state--solid" data-state="active"><i data-i="spinner"></i>Running</span></td><td>Happening right now</td><td class="muted">Spinner; progress shimmer</td></tr>
-      <tr><td><strong>Waiting for you</strong></td><td><span class="state" data-state="waiting"><span class="pulse"></span>Waiting for you</span></td><td><span class="state state--solid" data-state="waiting"><span class="pulse"></span>Waiting for you</span></td><td>Your turn: paste or judge</td><td class="muted">Breathing dot</td></tr>
-      <tr><td><strong>Done</strong></td><td><span class="state is-new" data-state="done"><i data-i="done"></i>Judged</span></td><td><span class="state state--solid is-new" data-state="done"><i data-i="done"></i>Judged</span></td><td>Finished well</td><td class="muted">Check pops in once</td></tr>
-      <tr><td><strong>Warning</strong></td><td><span class="state" data-state="warning"><i data-i="warning"></i>Check this</span></td><td><span class="state state--solid" data-state="warning"><i data-i="warning"></i>Check this</span></td><td>Works, but look before you go on</td><td class="muted">None</td></tr>
-      <tr><td><strong>Error</strong></td><td><span class="state is-new" data-state="error"><i data-i="error"></i>Failed</span></td><td><span class="state state--solid is-new" data-state="error"><i data-i="error"></i>Failed</span></td><td>Didn't work; details in a popover</td><td class="muted">Pops in once</td></tr>
-      <tr><td><strong>Locked</strong></td><td><span class="state" data-state="locked"><i data-i="locked"></i>Read-only</span></td><td><span class="state state--solid" data-state="locked"><i data-i="locked"></i>Read-only</span></td><td>Used in a run, so it can't change</td><td class="muted">None</td></tr>
-      <tr><td><strong>Disabled</strong></td><td><span class="state" data-state="disabled"><i data-i="disabled"></i>Not yet</span></td><td><span class="state state--solid" data-state="disabled"><i data-i="disabled"></i>Not yet</span></td><td>Not possible yet; a tooltip says why</td><td class="muted">None</td></tr>
-      <tr><td><strong>Champion</strong></td><td><span class="state" data-state="champion"><i data-i="champion"></i>Champion</span></td><td><span class="state state--solid" data-state="champion"><i data-i="champion"></i>Champion</span></td><td>Confirmed best for a role</td><td class="muted">Crown and confetti on confirm</td></tr>
+      <tr><td><strong>Draft</strong></td><td><span class="state state--soft" data-state="draft"><i data-i="draft"></i>Not started</span></td><td><span class="state state--solid" data-state="draft"><i data-i="draft"></i>Not started</span></td><td>Nothing has happened yet</td><td class="muted">None</td></tr>
+      <tr><td><strong>Queued</strong></td><td><span class="state state--soft" data-state="queued"><i data-i="queued"></i>Queued</span></td><td><span class="state state--solid" data-state="queued"><i data-i="queued"></i>Queued</span></td><td>Lined up, starts on its own</td><td class="muted">Hourglass turns every few seconds</td></tr>
+      <tr><td><strong>Active</strong></td><td><span class="state state--soft" data-state="active"><i data-i="spinner"></i>Running</span></td><td><span class="state state--solid" data-state="active"><i data-i="spinner"></i>Running</span></td><td>Happening right now</td><td class="muted">Spinner; progress shimmer</td></tr>
+      <tr><td><strong>Waiting for you</strong></td><td><span class="state state--soft" data-state="waiting"><span class="pulse"></span>Waiting for you</span></td><td><span class="state state--solid" data-state="waiting"><span class="pulse"></span>Waiting for you</span></td><td>Your turn: paste or judge</td><td class="muted">Breathing dot</td></tr>
+      <tr><td><strong>Done</strong></td><td><span class="state state--soft is-new" data-state="done"><i data-i="done"></i>Judged</span></td><td><span class="state state--solid is-new" data-state="done"><i data-i="done"></i>Judged</span></td><td>Finished well</td><td class="muted">Check pops in once</td></tr>
+      <tr><td><strong>Warning</strong></td><td><span class="state state--soft" data-state="warning"><i data-i="warning"></i>Check this</span></td><td><span class="state state--solid" data-state="warning"><i data-i="warning"></i>Check this</span></td><td>Works, but look before you go on</td><td class="muted">None</td></tr>
+      <tr><td><strong>Error</strong></td><td><span class="state state--soft is-new" data-state="error"><i data-i="error"></i>Failed</span></td><td><span class="state state--solid is-new" data-state="error"><i data-i="error"></i>Failed</span></td><td>Didn't work; details in a popover</td><td class="muted">Pops in once</td></tr>
+      <tr><td><strong>Locked</strong></td><td><span class="state state--soft" data-state="locked"><i data-i="locked"></i>Read-only</span></td><td><span class="state state--solid" data-state="locked"><i data-i="locked"></i>Read-only</span></td><td>Used in a run, so it can't change</td><td class="muted">None</td></tr>
+      <tr><td><strong>Disabled</strong></td><td><span class="state state--soft" data-state="disabled"><i data-i="disabled"></i>Not yet</span></td><td><span class="state state--solid" data-state="disabled"><i data-i="disabled"></i>Not yet</span></td><td>Not possible yet; a tooltip says why</td><td class="muted">None</td></tr>
+      <tr><td><strong>Champion</strong></td><td><span class="state state--soft" data-state="champion"><i data-i="champion"></i>Champion</span></td><td><span class="state state--solid" data-state="champion"><i data-i="champion"></i>Champion</span></td><td>Confirmed best for a role</td><td class="muted">Crown and confetti on confirm</td></tr>
     </tbody>
   </table></div></div>
   <div class="row">

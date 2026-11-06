@@ -206,10 +206,11 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .state[data-state="disabled"] { opacity: var(--disabled-opacity); border-style: dashed; }
 .state[data-state="champion"] { --fg: var(--gold-ink); --bg: var(--gold-soft); --ln: color-mix(in srgb, var(--gold) 45%, transparent); }
 .state[data-state="champion"] .i { color: var(--gold); }
-/* Solid variant (in review): the state colour fills the chip, text flips to the surface colour */
-.state--solid { color: var(--surface); background: var(--fg); border-color: var(--fg); }
-.state--solid[data-state="champion"] { color: #241900; background: var(--gold); border-color: var(--gold); }
-.state--solid[data-state="champion"] .i { color: inherit; }
+/* Solid variant (in review): the state colour fills the chip, text flips to the surface colour.
+   The wireframe's Chips switch sets data-chips="solid" on <html> to preview it everywhere. */
+.state--solid, :root[data-chips="solid"] .state:not(.state--soft) { color: var(--surface); background: var(--fg); border-color: var(--fg); }
+.state--solid[data-state="champion"], :root[data-chips="solid"] .state:not(.state--soft)[data-state="champion"] { color: #241900; background: var(--gold); border-color: var(--gold); }
+.state--solid[data-state="champion"] .i, :root[data-chips="solid"] .state:not(.state--soft)[data-state="champion"] .i { color: inherit; }
 .state[data-state="active"] .i { animation: spin 900ms linear infinite; }
 .state[data-state="queued"] .i { animation: tip 2.4s var(--ease-out) infinite; }
 .state[data-state="done"].is-new .i, .state[data-state="error"].is-new .i { animation: pop-in 480ms var(--ease-spring); }
