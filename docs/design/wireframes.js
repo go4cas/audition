@@ -98,21 +98,129 @@
     var inv = e.target.closest("[popovertarget]");
     if (inv) lastInvoker = inv;
   }, true);
+  // Places an open popover under (or above) the control that opened it, inside the viewport.
+  function placePop(pop, invoker, align) {
+    var r = invoker.getBoundingClientRect();
+    var w = pop.offsetWidth, h = pop.offsetHeight, gap = 6, vw = window.innerWidth, vh = window.innerHeight;
+    var want = align === "start" ? r.left : r.left + r.width / 2 - w / 2;
+    var left = Math.min(Math.max(16, want), vw - w - 16);
+    var below = r.bottom + gap + h < vh - 16 || r.top < h + gap + 16;
+    var top = below ? r.bottom + gap : r.top - gap - h;
+    pop.style.left = left + "px";
+    pop.style.top = Math.max(16, top) + "px";
+    pop.style.setProperty("--origin", (r.left + r.width / 2 - left) + "px " + (below ? "top" : "bottom"));
+  }
   $$(".pop").forEach(function (pop) {
     pop.addEventListener("toggle", function (e) {
       $$('[popovertarget="' + pop.id + '"]').forEach(function (b) { b.setAttribute("aria-expanded", String(e.newState === "open")); });
       if (e.newState !== "open" || !lastInvoker) return;
-      var r = lastInvoker.getBoundingClientRect();
-      var w = pop.offsetWidth, h = pop.offsetHeight, gap = 8, vw = window.innerWidth, vh = window.innerHeight;
-      var left = Math.min(Math.max(16, r.left + r.width / 2 - w / 2), vw - w - 16);
-      var below = r.bottom + gap + h < vh - 16;
-      var top = below ? r.bottom + gap : Math.max(16, r.top - gap - h);
-      pop.style.left = left + "px";
-      pop.style.top = top + "px";
-      pop.style.setProperty("--origin", (r.left + r.width / 2 - left) + "px " + (below ? "top" : "bottom"));
+      placePop(pop, lastInvoker);
     });
   });
   window.addEventListener("scroll", function () { $$(".pop").forEach(function (p) { try { p.hidePopover(); } catch (e) { /* not open */ } }); }, { passive: true });
+
+  // ---------- Brand picker (wireframe only: compare brand candidates) ----------
+  var brandPick = $("#brand-pick");
+  try { brandPick.value = localStorage.getItem("audition-wire-brand") || ""; } catch (e) { /* storage blocked */ }
+  function applyBrand() {
+    if (brandPick.value) document.documentElement.setAttribute("data-brand", brandPick.value);
+    else document.documentElement.removeAttribute("data-brand");
+    try { localStorage.setItem("audition-wire-brand", brandPick.value); } catch (e) { /* storage blocked */ }
+  }
+  brandPick.addEventListener("change", applyBrand);
+  applyBrand();
+
+  // ---------- Dropdowns: upgrade every <select class="select"> ----------
+  // The native select stays in the DOM (hidden) so forms keep their value.
+  // Options may carry data-icon, data-avatar="hue:INITIALS" and data-desc.
+  var ddCount = 0;
+  function optVisual(o) {
+    if (o.dataset.avatar) {
+      var a = o.dataset.avatar.split(":");
+      return '<span class="avatar avatar--sm" style="--h:' + a[0] + '">' + a[1] + "</span>";
+    }
+    return o.dataset.icon ? icon(o.dataset.icon) : "";
+  }
+  function enhanceSelect(sel) {
+    var id = "dd-" + (++ddCount);
+    var wrap = document.createElement("div");
+    wrap.className = "dd";
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(sel);
+    sel.tabIndex = -1;
+    sel.setAttribute("aria-hidden", "true");
+    var label = sel.id ? document.querySelector('label[for="' + sel.id + '"]') : null;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "dd__btn";
+    btn.setAttribute("aria-haspopup", "listbox");
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-controls", id);
+    if (label) { btn.id = sel.id + "-btn"; label.setAttribute("for", btn.id); }
+    wrap.appendChild(btn);
+    var menu = document.createElement("div");
+    menu.className = "pop dd__menu";
+    menu.id = id;
+    menu.setAttribute("popover", "");
+    menu.setAttribute("role", "listbox");
+    if (label) menu.setAttribute("aria-label", label.textContent.trim());
+    var html = "";
+    Array.prototype.forEach.call(sel.children, function (child) {
+      var group = child.tagName === "OPTGROUP" ? child : null;
+      var opts = group ? Array.prototype.slice.call(child.children) : [child];
+      if (group) html += '<div class="dd__group" role="presentation">' + group.label + "</div>";
+      opts.forEach(function (o) {
+        html += '<button type="button" class="dd__opt" role="option" data-value="' + o.index + '">' + optVisual(o) +
+          '<span class="dd__opt-text"><span>' + o.textContent + "</span>" + (o.dataset.desc ? '<span class="dd__opt-desc">' + o.dataset.desc + "</span>" : "") + "</span>" +
+          icon("check", "dd__tick") + "</button>";
+      });
+    });
+    menu.innerHTML = html;
+    document.body.appendChild(menu);
+    var options = $$(".dd__opt", menu);
+
+    function render() {
+      var o = sel.options[sel.selectedIndex];
+      btn.innerHTML = '<span class="dd__value">' + optVisual(o) + "<span>" + o.textContent + "</span></span>" + icon("caret-down", "dd__caret");
+      options.forEach(function (b) { b.setAttribute("aria-selected", String(Number(b.dataset.value) === sel.selectedIndex)); });
+    }
+    function open() {
+      menu.style.minWidth = btn.offsetWidth + "px";
+      menu.showPopover();
+      placePop(menu, btn, "start");
+      var current = options.filter(function (b) { return b.getAttribute("aria-selected") === "true"; })[0] || options[0];
+      current.focus();
+    }
+    function choose(b) {
+      sel.selectedIndex = Number(b.dataset.value);
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      render();
+      menu.hidePopover();
+      btn.focus();
+    }
+    btn.addEventListener("click", function () { if (menu.matches(":popover-open")) menu.hidePopover(); else open(); });
+    btn.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); open(); }
+    });
+    menu.addEventListener("toggle", function (e) { btn.setAttribute("aria-expanded", String(e.newState === "open")); });
+    menu.addEventListener("click", function (e) { var b = e.target.closest(".dd__opt"); if (b) choose(b); });
+    menu.addEventListener("keydown", function (e) {
+      var i = options.indexOf(document.activeElement);
+      if (e.key === "ArrowDown") { e.preventDefault(); options[Math.min(i + 1, options.length - 1)].focus(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); options[Math.max(i - 1, 0)].focus(); }
+      else if (e.key === "Home") { e.preventDefault(); options[0].focus(); }
+      else if (e.key === "End") { e.preventDefault(); options[options.length - 1].focus(); }
+      else if (e.key === "Tab") { menu.hidePopover(); }
+      else if (e.key.length === 1) {
+        var k = e.key.toLowerCase();
+        var hit = options.filter(function (b) { return b.textContent.trim().toLowerCase().indexOf(k) === 0; })[0];
+        if (hit) hit.focus();
+      }
+    });
+    menu.addEventListener("toggle", function (e) { if (e.newState === "closed" && document.activeElement && menu.contains(document.activeElement)) btn.focus(); });
+    render();
+  }
+  $$("select.select").forEach(enhanceSelect);
 
   // ---------- Segmented control: sliding thumb ----------
   function placeThumb(seg) {

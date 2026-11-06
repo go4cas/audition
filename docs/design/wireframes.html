@@ -36,6 +36,13 @@
       <option value="leaderboard">14. Leaderboard</option>
       <option value="states">15. State system</option>
     </select>
+    <label for="brand-pick">Brand</label>
+    <select id="brand-pick">
+      <option value="">Cobalt</option>
+      <option value="spruce">Spruce</option>
+      <option value="ember">Ember</option>
+      <option value="graphite">Graphite</option>
+    </select>
     <label for="theme-pick">Theme</label>
     <select id="theme-pick">
       <option value="">System</option>
@@ -81,81 +88,114 @@
 
 <!-- ======================= 2. HOME ======================= -->
 <section class="page" data-screen="home" hidden>
-  <div class="page-head">
-    <div>
-      <h1>Good morning, Cas</h1>
-      <p class="lede">Five things need you. Everything else is running on its own.</p>
+  <div class="home-hero">
+    <div class="stack" style="justify-content:center">
+      <span class="eyebrow"><i data-i="sun"></i>Thursday, 6 November</span>
+      <h1>Good morning, Cas.<br>Your next audition is ready.</h1>
+      <p class="lede">5 things are waiting for you, and 2 runs are working in the background. Start with the one at the top; it takes about a minute.</p>
+      <div class="row">
+        <a class="btn btn--primary btn--lg" href="#handoff"><i data-i="play"></i>Pick up where you left off</a>
+        <a class="btn btn--lg" href="#new-run"><i data-i="plus"></i>Start a run</a>
+      </div>
+    </div>
+    <div class="hero-cast">
+      <div class="row-between"><span class="eyebrow"><i data-i="champion" style="color:var(--gold)"></i>Your cast</span><a class="small" href="#leaderboard">See all</a></div>
+      <div class="row" style="gap: var(--s4)">
+        <div class="hero-cast__stack" aria-label="Champions">
+          <span class="avatar" style="--h:200" data-tip="Mock Steady · Back-end engineer">MS<i data-i="champion" class="crown"></i></span>
+          <span class="avatar" style="--h:200" data-tip="Mock Steady · Stock analyst">MS<i data-i="champion" class="crown"></i></span>
+          <span class="avatar is-empty" data-tip="7 roles still auditioning">+7</span>
+        </div>
+        <div class="stack-sm" style="gap:2px">
+          <strong class="num" style="font-family:var(--font-display); font-size:1.5rem; letter-spacing:-.02em">2 of 9</strong>
+          <span class="small muted">roles have a champion</span>
+        </div>
+        <span class="ring ring--gold" style="--p:22; margin-left:auto">22%</span>
+      </div>
+      <div class="notice" data-state="warning" style="padding:10px 12px">
+        <i data-i="sparkle"></i>
+        <div class="small"><strong>UI engineer</strong> has a suggested champion. <a href="#leaderboard">Confirm it</a></div>
+      </div>
     </div>
   </div>
 
-  <div class="stats stagger">
-    <div class="stat"><span class="stat__label"><span class="pulse" style="color:var(--waiting)"></span>Waiting for you</span><span class="stat__value" data-inbox-count>5</span></div>
-    <div class="stat"><span class="stat__label"><i data-i="spinner" style="color:var(--active);animation:spin 1s linear infinite"></i>Runs in progress</span><span class="stat__value">2</span></div>
-    <div class="stat"><span class="stat__label"><i data-i="champion" style="color:var(--gold)"></i>Champions</span><span class="stat__value">2 <span class="small muted" style="font-family:var(--font-sans);font-weight:500">of 9 roles</span></span></div>
-  </div>
+  <div class="home-grid">
+    <div class="home-main">
+      <div class="stack-sm">
+        <div class="section-head"><h2>Up next</h2><span class="small muted">1 of 5 waiting</span></div>
+        <div class="up-next">
+          <span class="avatar" style="--h:165">CG</span>
+          <div style="min-width:0">
+            <div class="up-next__title">Paste ChatGPT's plan for three days in Lisbon</div>
+            <div class="up-next__meta"><span><i data-i="workspaces"></i>Travel Research</span><span><i data-i="paste"></i>Copy and paste</span><span><i data-i="time"></i>About a minute</span></div>
+          </div>
+          <a class="btn btn--primary btn--lg" href="#handoff">Start<i data-i="arrow-right" class="i--nudge"></i></a>
+        </div>
+      </div>
 
-  <div class="panel" id="waiting">
-    <div class="panel__head"><h2><i data-i="inbox"></i>Waiting for you</h2><span class="muted small">Oldest first</span></div>
-    <ul class="list list--hover stagger">
-      <li>
-        <span class="avatar" style="--h:165">CG</span>
-        <div class="grow"><div class="title">Plan three days in Lisbon in May</div><div class="muted small">Travel Research · ChatGPT (manual)</div></div>
-        <span class="state" data-state="waiting"><span class="pulse"></span>Paste the reply</span>
-        <a class="btn btn--primary" href="#handoff"><i data-i="paste"></i>Copy and paste</a>
-      </li>
-      <li>
-        <span class="avatar" style="--h:20">CC</span>
-        <div class="grow"><div class="title">Run 9 · Researcher</div><div class="muted small">Software Factory · Claude Code and Codex (manual)</div></div>
-        <span class="state" data-state="waiting"><span class="pulse"></span>3 replies to paste</span>
-        <a class="btn" href="#run">Open run<i data-i="arrow-right" class="i--nudge"></i></a>
-      </li>
-      <li>
-        <span class="letter-tile" style="width:30px;height:30px;font-size:.8rem;border-radius:9px">A–D</span>
-        <div class="grow"><div class="title">Social image for the Ember &amp; Oak spring sale</div><div class="muted small">Marketing Pipeline · 4 images, you are the judge</div></div>
-        <span class="state" data-state="waiting"><span class="pulse"></span>Judge</span>
-        <a class="btn" href="#judge-images"><i data-i="judge"></i>Judge now</a>
-      </li>
-    </ul>
-  </div>
+      <div class="stack-sm">
+        <div class="section-head"><h2>Also waiting</h2></div>
+        <div class="queue stagger">
+          <a href="#run"><span class="avatar" style="--h:20">CC</span><span><strong>Paste 3 replies for Run 9</strong><br><span class="small muted">Software Factory · Researcher</span></span><span class="state" data-state="waiting"><span class="pulse"></span>3 to paste</span><i data-i="arrow-right" class="go"></i></a>
+          <a href="#judge-images"><span class="letter-tile" style="width:30px;height:30px;font-size:.7rem">A–D</span><span><strong>Judge the Ember &amp; Oak sale images</strong><br><span class="small muted">Marketing Pipeline · Image maker</span></span><span class="state" data-state="waiting"><span class="pulse"></span>Judge</span><i data-i="arrow-right" class="go"></i></a>
+        </div>
+      </div>
 
-  <div class="row-between">
-    <h2>Workspaces</h2>
-    <button class="btn" type="button" data-toast="Wireframe: opens the new workspace form"><i data-i="plus"></i>New workspace</button>
-  </div>
-  <div class="grid-cards stagger">
-    <a class="card-link" href="#workspace">
-      <div class="row-tight"><span class="avatar avatar--lg" style="--h:330">SF</span><i data-i="arrow-right" class="go"></i></div>
-      <h3>Software Factory</h3>
-      <p class="muted small">Research, spec, back-end and UI, from idea to working screen.</p>
-      <div class="row-tight"><span class="badge"><i data-i="stage"></i>4 stages</span><span class="state" data-state="champion"><i data-i="champion"></i>1 champion</span></div>
-    </a>
-    <a class="card-link" href="#workspace">
-      <div class="row-tight"><span class="avatar avatar--lg" style="--h:25">MP</span><i data-i="arrow-right" class="go"></i></div>
-      <h3>Marketing Pipeline</h3>
-      <p class="muted small">Social posts, brand copy and images for Ember &amp; Oak.</p>
-      <div class="row-tight"><span class="badge">3 roles</span><span class="state" data-state="waiting"><span class="pulse"></span>1 to judge</span></div>
-    </a>
-    <a class="card-link" href="#workspace">
-      <div class="row-tight"><span class="avatar avatar--lg" style="--h:140">SR</span><i data-i="arrow-right" class="go"></i></div>
-      <h3>Stock Review</h3>
-      <p class="muted small">A short, balanced review of one listed company.</p>
-      <div class="row-tight"><span class="badge">1 role</span><span class="state" data-state="champion"><i data-i="champion"></i>1 champion</span></div>
-    </a>
-    <a class="card-link" href="#workspace">
-      <div class="row-tight"><span class="avatar avatar--lg" style="--h:200">TR</span><i data-i="arrow-right" class="go"></i></div>
-      <h3>Travel Research</h3>
-      <p class="muted small">Practical trip plans. Copy, paste, rate.</p>
-      <div class="row-tight"><span class="badge">1 role</span><span class="state" data-state="draft"><i data-i="draft"></i>Needs 2 more outputs</span></div>
-    </a>
+      <div class="stack-sm">
+        <div class="section-head"><h2>Workspaces</h2><button class="btn btn--sm btn--quiet" type="button" data-toast="Wireframe: opens the new workspace form"><i data-i="plus"></i>New workspace</button></div>
+        <div class="grid-cards stagger">
+          <a class="ws-card" href="#workspace">
+            <div class="ws-card__top"><span class="avatar avatar--lg" style="--h:230">SF</span><div class="grow"><h3>Software Factory</h3><span class="small muted">4 stages · 4 roles</span></div><span class="ring ring--sm" style="--p:25">1/4</span></div>
+            <div class="ws-card__foot"><span class="faces"><span class="avatar" style="--h:200">MS</span><span class="avatar" style="--h:280">ME</span><span class="avatar" style="--h:20">CC</span><span class="avatar" style="--h:140">CX</span></span><span class="state" data-state="active"><i data-i="spinner"></i>Run 9 live</span></div>
+          </a>
+          <a class="ws-card" href="#workspace">
+            <div class="ws-card__top"><span class="avatar avatar--lg" style="--h:25">MP</span><div class="grow"><h3>Marketing Pipeline</h3><span class="small muted">3 roles</span></div><span class="ring ring--sm" style="--p:0">0/3</span></div>
+            <div class="ws-card__foot"><span class="faces"><span class="avatar" style="--h:200">MS</span><span class="avatar" style="--h:30">MI</span><span class="avatar" style="--h:250">MJ</span></span><span class="state" data-state="waiting"><span class="pulse"></span>1 to judge</span></div>
+          </a>
+          <a class="ws-card" href="#workspace">
+            <div class="ws-card__top"><span class="avatar avatar--lg" style="--h:140">SR</span><div class="grow"><h3>Stock Review</h3><span class="small muted">1 role</span></div><span class="ring ring--sm ring--gold" style="--p:100">1/1</span></div>
+            <div class="ws-card__foot"><span class="faces"><span class="avatar" style="--h:200">MS</span></span><span class="state" data-state="champion"><i data-i="champion"></i>Fully cast</span></div>
+          </a>
+          <a class="ws-card" href="#workspace">
+            <div class="ws-card__top"><span class="avatar avatar--lg" style="--h:200">TR</span><div class="grow"><h3>Travel Research</h3><span class="small muted">1 role</span></div><span class="ring ring--sm" style="--p:60">3/5</span></div>
+            <div class="ws-card__foot"><span class="faces"><span class="avatar" style="--h:165">CG</span><span class="avatar" style="--h:190">PX</span></span><span class="state" data-state="draft"><i data-i="draft"></i>2 more outputs</span></div>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <aside class="home-rail">
+      <div class="panel">
+        <div class="panel__head"><h2><i data-i="champion" style="color:var(--gold)"></i>Who plays which role</h2></div>
+        <ul class="cast-list">
+          <li><div><div class="role">Back-end engineer</div><div class="ws">Software Factory</div></div><span class="who"><span class="avatar avatar--sm" style="--h:200">MS</span>Mock Steady<i data-i="champion" class="crown"></i></span></li>
+          <li><div><div class="role">Stock analyst</div><div class="ws">Stock Review</div></div><span class="who"><span class="avatar avatar--sm" style="--h:200">MS</span>Mock Steady<i data-i="champion" class="crown"></i></span></li>
+          <li><div><div class="role">UI engineer</div><div class="ws">Software Factory</div></div><a class="state" data-state="warning" href="#leaderboard" style="text-decoration:none"><i data-i="sparkle"></i>Confirm Claude Code</a></li>
+          <li><div><div class="role">Researcher</div><div class="ws">Software Factory</div></div><span class="row-tight small muted"><span class="ring ring--sm" style="--p:60">3/5</span>outputs</span></li>
+          <li><div><div class="role">Trip researcher</div><div class="ws">Travel Research</div></div><span class="row-tight small muted"><span class="ring ring--sm" style="--p:60">3/5</span>outputs</span></li>
+          <li><div class="small muted">4 more roles haven't had a run yet</div><a class="small" href="#new-run">Start one</a></li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head"><h2><i data-i="history"></i>Latest</h2></div>
+        <ol class="feed">
+          <li><span class="feed__icon" data-state="done"><i data-i="judge"></i></span><span>An output for <strong>UI engineer</strong> scored 4.4 stars<time>2 minutes ago</time></span></li>
+          <li><span class="feed__icon" data-state="active"><i data-i="play"></i></span><span>You started <strong>Run 9</strong> for Researcher<time>25 minutes ago</time></span></li>
+          <li><span class="feed__icon" data-state="error"><i data-i="error"></i></span><span><strong>Mock Erratic</strong> failed on one task in Run 9<time>24 minutes ago</time></span></li>
+          <li><span class="feed__icon"><i data-i="send"></i></span><span>You pasted <strong>Perplexity</strong>'s Lisbon plan<time>1 hour ago</time></span></li>
+          <li><span class="feed__icon" data-state="champion"><i data-i="champion"></i></span><span><strong>Mock Steady</strong> became Back-end engineer champion<time>4 days ago</time></span></li>
+        </ol>
+      </div>
+    </aside>
   </div>
 </section>
-
 <!-- ======================= 3. WORKSPACE ======================= -->
 <section class="page" data-screen="workspace" hidden>
   <nav class="crumbs" aria-label="Breadcrumb"><a href="#home">Workspaces</a></nav>
   <div class="page-head">
     <div class="row" style="align-items:flex-start; gap: var(--s4)">
-      <span class="avatar avatar--lg" style="--h:330">SF</span>
+      <span class="avatar avatar--lg" style="--h:230">SF</span>
       <div><h1>Software Factory</h1><p class="lede">The champion of each role is the one to use. Click a role to see its rubric, tasks and leaderboard.</p></div>
     </div>
     <div class="row">
@@ -249,7 +289,7 @@
         <span class="hint">You can pick per run, and you can always change the AI's stars.</span>
       </div>
       <div class="field"><label for="ws-ai">AI judge</label>
-        <select class="select" id="ws-ai"><option>Mock Judge</option><option>Mock Steady</option></select>
+        <select class="select" id="ws-ai"><option data-avatar="160:MJ" data-desc="Mock · temperature 0 · made for judging">Mock Judge</option><option data-avatar="200:MS" data-desc="Mock · temperature 0.2">Mock Steady</option></select>
         <span class="hint">Any contender can judge. It rates each output against the rubric and says why in one line.</span>
       </div>
       <div class="field"><label for="ws-min">Outputs needed before suggesting a champion
@@ -289,7 +329,7 @@
     <div class="panel"><div class="panel__body">
       <div class="fields-2">
         <div class="field"><label for="ro-name">Role name</label><input class="input" id="ro-name" value="UI engineer"></div>
-        <div class="field"><label for="ro-stage">Stage</label><select class="select" id="ro-stage"><option>Research</option><option>Spec</option><option>Back-end</option><option selected>UI</option><option>No stage</option></select></div>
+        <div class="field"><label for="ro-stage">Stage</label><select class="select" id="ro-stage"><option data-icon="stage">Research</option><option data-icon="stage">Spec</option><option data-icon="stage">Back-end</option><option data-icon="stage" selected>UI</option><option data-icon="draft" data-desc="Sits on its own, outside the stages">No stage</option></select></div>
       </div>
       <div class="field"><label for="ro-desc">What this role does</label><input class="input" id="ro-desc" value="Builds accessible, responsive screens from a spec."><span class="hint">Goes at the top of every prompt, so contenders know the job.</span></div>
     </div></div>
@@ -307,8 +347,8 @@
         <div class="fields-2">
           <div class="field"><label for="ro-pass"><i data-i="pass-mark"></i>Pass mark
             <button class="info-btn" type="button" popovertarget="pop-pass" aria-label="What is the pass mark?"><i data-i="help"></i></button></label>
-            <select class="select" id="ro-pass"><option>3.0 stars</option><option selected>3.5 stars</option><option>4.0 stars</option></select></div>
-          <div class="field"><label for="ro-type">Usual output</label><select class="select" id="ro-type"><option>Text</option><option>Image</option><option>File</option><option selected>Code</option></select></div>
+            <select class="select" id="ro-pass"><option data-icon="star" data-desc="Usable, needs some fixing">3.0 stars</option><option data-icon="star" data-desc="Solid, with small issues" selected>3.5 stars</option><option data-icon="star" data-desc="Strong, ready to use">4.0 stars</option></select></div>
+          <div class="field"><label for="ro-type">Usual output</label><select class="select" id="ro-type"><option data-icon="text">Text</option><option data-icon="image">Image</option><option data-icon="file">File</option><option data-icon="code" data-desc="Names a repository and commit" selected>Code</option></select></div>
         </div>
         <div class="pop" id="pop-pass" popover>
           <div class="pop__head"><i data-i="pass-mark"></i>Pass mark</div>
@@ -453,9 +493,9 @@
 
     <div class="stack" data-mode="api">
       <div class="fields-2">
-        <div class="field"><label for="cn-conn">Connection</label><select class="select" id="cn-conn"><option>Anthropic</option><option>Mock</option></select></div>
+        <div class="field"><label for="cn-conn">Connection</label><select class="select" id="cn-conn"><option data-icon="key" data-desc="API key saved">Anthropic</option><option data-icon="api" data-desc="Built-in test provider">Mock</option></select></div>
         <div class="field"><label for="cn-model">Model</label><input class="input" id="cn-model" value="claude-opus-5-5"></div>
-        <div class="field"><label for="cn-reason">Reasoning</label><select class="select" id="cn-reason"><option>Off</option><option>Low</option><option>Medium</option><option selected>High</option></select></div>
+        <div class="field"><label for="cn-reason">Reasoning</label><select class="select" id="cn-reason"><option data-desc="Fastest, fewest tokens">Off</option><option data-desc="A little thinking first">Low</option><option data-desc="Balanced">Medium</option><option data-desc="Thinks longest, uses most tokens" selected>High</option></select></div>
         <div class="field"><label for="cn-temp">Temperature <button class="info-btn" type="button" popovertarget="pop-temp" aria-label="What is temperature?"><i data-i="help"></i></button></label><input class="input num" id="cn-temp" value="0.6"></div>
       </div>
       <div class="pop" id="pop-temp" popover>
@@ -490,7 +530,7 @@
   <h1>Start a run</h1>
   <div style="display:grid; gap: var(--s5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); align-items:start">
     <form class="stack" data-demo-form id="run-form" style="min-width:0">
-      <div class="field"><label for="nr-role">Role</label><select class="select" id="nr-role"><option>Researcher</option><option>Spec writer</option><option>Back-end engineer</option><option>UI engineer</option></select></div>
+      <div class="field"><label for="nr-role">Role</label><select class="select" id="nr-role"><optgroup label="Research"><option data-icon="rubric" data-desc="2 tasks · 3 of 5 outputs scored">Researcher</option></optgroup><optgroup label="Spec"><option data-icon="rubric" data-desc="1 task · no runs yet">Spec writer</option></optgroup><optgroup label="Back-end"><option data-icon="rubric" data-desc="Champion: Mock Steady">Back-end engineer</option></optgroup><optgroup label="UI"><option data-icon="rubric" data-desc="Suggested: Claude Code (manual)">UI engineer</option></optgroup></select></div>
       <fieldset class="stack-sm" style="border:0;padding:0;margin:0">
         <legend class="eyebrow" style="margin-bottom:var(--s2)"><i data-i="file"></i>Tasks</legend>
         <div class="check-list">

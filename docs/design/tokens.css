@@ -1,11 +1,14 @@
 /*
- * Audition design tokens, v2.
+ * Audition design tokens, v3.
  *
- * Concept: the audition stage. A velvet accent (the curtain) marks what you can
- * act on and what is waiting for you; gold (the spotlight) is reserved for
- * merit: stars and champions. Neutrals are a soft graphite with a faint rose
- * bias so the velvet sits naturally on them. Every state has its own colour,
- * icon and motion, and colour is never the only signal.
+ * Concept: the audition stage. One brand accent marks what you can act on and
+ * what is waiting for you. Gold (the spotlight) is reserved for merit: stars,
+ * champions and celebration. Neutrals are a cool, quiet graphite so any brand
+ * accent sits on them. Every state has its own colour, icon and motion.
+ *
+ * Brand: four candidates for review, picked with data-brand on <html>
+ * (cobalt is the default). The app ships with one; the others get deleted.
+ * Only the --accent* tokens change between brands.
  *
  * Fonts: Bricolage Grotesque for headings and big numbers, Instrument Sans for
  * everything else. Both are SIL OFL. The app vendors the woff2 files (no
@@ -14,30 +17,30 @@
 
 :root {
   /* ---- Surfaces and ink ---- */
-  --bg: #f6f4f5;
-  --bg-sunk: #efecee;
+  --bg: #f4f5f7;
+  --bg-sunk: #eceef2;
   --surface: #ffffff;
-  --surface-2: #f8f6f7;
-  --surface-hover: #f3eff1;
-  --line: #e5dfe2;
-  --line-strong: #cdc4c9;
-  --text: #1c181b;
-  --text-2: #4a4248;
-  --text-muted: #7a6f76;
+  --surface-2: #f8f9fb;
+  --surface-hover: #f1f3f6;
+  --line: #e1e4ea;
+  --line-strong: #c8cdd6;
+  --text: #15171c;
+  --text-2: #434854;
+  --text-muted: #6c7280;
 
-  /* ---- Accent: velvet (actions, links, selection, "waiting for you") ---- */
-  --accent: #a3175a;
-  --accent-hover: #8a1149;
-  --accent-press: #730d3c;
+  /* ---- Brand accent (default: cobalt) ---- */
+  --accent: #2f4bdb;
+  --accent-hover: #2539b8;
+  --accent-press: #1d2e96;
   --accent-ink: #ffffff;
-  --accent-soft: #fae8f0;
-  --accent-line: #efc3d6;
+  --accent-soft: #eaeefd;
+  --accent-line: #c5cff8;
 
   /* ---- Merit: gold (stars, champion, celebration) ---- */
   --gold: #d99a06;
   --gold-ink: #6b4a00;
   --gold-soft: #fdf3d8;
-  --star-empty: #ddd5d9;
+  --star-empty: #d5d9e0;
 
   /* ---- State system: fg / bg / line per state ----
    * draft     not started, idle                circle-dashed
@@ -50,14 +53,14 @@
    * locked    used, read-only                  lock
    * disabled  not possible yet (say why)       prohibit, 45% opacity
    * champion  confirmed best for a role        crown (gold)          */
-  --draft: #7a6f76;      --draft-bg: #f1edef;    --draft-line: #ddd5d9;
+  --draft: #6c7280;      --draft-bg: #eff1f4;    --draft-line: #d8dce3;
   --queued: #6a5a8c;     --queued-bg: #efebf7;   --queued-line: #d9d0ec;
-  --active: #1f63d6;     --active-bg: #e8f0fd;   --active-line: #c2d6f8;
+  --active: #0b7ea3;     --active-bg: #e2f3f9;   --active-line: #b3dcea;
   --waiting: var(--accent); --waiting-bg: var(--accent-soft); --waiting-line: var(--accent-line);
   --done: #16804a;       --done-bg: #e3f5ea;     --done-line: #b6e2c6;
   --warning: #a35b00;    --warning-bg: #fdf0dc;  --warning-line: #f3d3a3;
   --error: #c8281e;      --error-bg: #fde7e5;    --error-line: #f5bfba;
-  --locked: #5d5560;     --locked-bg: #eeeaec;   --locked-line: #d6ced3;
+  --locked: #555b66;     --locked-bg: #eceef2;   --locked-line: #d3d7de;
   --disabled-opacity: 0.45;
 
   /* ---- Type ---- */
@@ -70,20 +73,21 @@
   --fs-lg: 1.25rem;    /* 20 section titles */
   --fs-xl: 1.75rem;    /* 28 page titles */
   --fs-2xl: 2.5rem;    /* 40 hero numbers */
+  --fs-3xl: 3rem;      /* 48 home greeting */
   --lh-tight: 1.15;
   --lh-body: 1.5;
 
   /* ---- Space (4px grid) ---- */
   --s1: 0.25rem; --s2: 0.5rem; --s3: 0.75rem; --s4: 1rem; --s5: 1.5rem; --s6: 2rem; --s7: 3rem;
 
-  /* ---- Shape and depth ---- */
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 16px;
-  --r-pill: 999px;
-  --shadow-1: 0 1px 2px rgb(40 20 30 / 0.06), 0 1px 1px rgb(40 20 30 / 0.04);
-  --shadow-2: 0 4px 14px -4px rgb(40 20 30 / 0.14), 0 2px 4px rgb(40 20 30 / 0.05);
-  --shadow-pop: 0 18px 40px -12px rgb(40 20 30 / 0.28), 0 4px 10px rgb(40 20 30 / 0.08);
+  /* ---- Shape: crisp, not bubbly ---- */
+  --r-sm: 4px;     /* chips, badges, avatars, inputs inside groups */
+  --r-md: 6px;     /* buttons, inputs, menus items, tiles */
+  --r-lg: 8px;     /* panels, cards, popovers, dialogs */
+  --r-pill: 999px; /* only counts, dots and switches */
+  --shadow-1: 0 1px 2px rgb(16 20 30 / 0.06), 0 1px 1px rgb(16 20 30 / 0.03);
+  --shadow-2: 0 4px 14px -4px rgb(16 20 30 / 0.14), 0 2px 4px rgb(16 20 30 / 0.05);
+  --shadow-pop: 0 18px 40px -12px rgb(16 20 30 / 0.28), 0 4px 10px rgb(16 20 30 / 0.08);
   --focus: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
 
   /* ---- Motion ---- */
@@ -94,49 +98,65 @@
   --t-slow: 420ms;   /* screen enter, progress */
 
   /* ---- Layout ---- */
-  --content-max: 74rem;
+  --content-max: 76rem;
   --reading-max: 40rem;
   --tap: 44px;
 
   color-scheme: light;
 }
 
+/* ---- Brand candidates, light ---- */
+:root[data-brand="spruce"] {
+  --accent: #0b6e5f; --accent-hover: #095b4f; --accent-press: #074a41; --accent-ink: #ffffff; --accent-soft: #e3f3ef; --accent-line: #b5ddd3;
+}
+:root[data-brand="ember"] {
+  --accent: #d9480f; --accent-hover: #b83b0a; --accent-press: #962f07; --accent-ink: #ffffff; --accent-soft: #fdebe2; --accent-line: #f8c8b2;
+}
+:root[data-brand="graphite"] {
+  --accent: #1d1c21; --accent-hover: #34323a; --accent-press: #000000; --accent-ink: #ffffff; --accent-soft: #ececef; --accent-line: #cfcfd6;
+}
+
+/* ---- Dark: neutrals, states and the default brand ---- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #141113; --bg-sunk: #0f0d0e; --surface: #1c181b; --surface-2: #221d21; --surface-hover: #2a2428;
-    --line: #342d32; --line-strong: #4a4147; --text: #f2eef0; --text-2: #cfc6cb; --text-muted: #9a8f96;
-    --accent: #f2709f; --accent-hover: #f68db2; --accent-press: #f9a8c5; --accent-ink: #2a0716;
-    --accent-soft: #3a1726; --accent-line: #5c2640;
-    --gold: #f5c044; --gold-ink: #fbe3a6; --gold-soft: #3a2d0e; --star-empty: #463d43;
-    --draft: #a59aa1; --draft-bg: #262024; --draft-line: #3b3339;
+    --bg: #111215; --bg-sunk: #0c0d0f; --surface: #18191d; --surface-2: #1e2025; --surface-hover: #25272d;
+    --line: #2d3036; --line-strong: #42464e; --text: #eef0f3; --text-2: #c7cad1; --text-muted: #8f949e;
+    --accent: #8199ff; --accent-hover: #9cafff; --accent-press: #b6c4ff; --accent-ink: #0a1240; --accent-soft: #1b2350; --accent-line: #2d3a7a;
+    --gold: #f5c044; --gold-ink: #fbe3a6; --gold-soft: #3a2d0e; --star-empty: #3b3f47;
+    --draft: #9aa0aa; --draft-bg: #23252b; --draft-line: #363a42;
     --queued: #b7a6e0; --queued-bg: #262037; --queued-line: #3d3358;
-    --active: #78a9ff; --active-bg: #172640; --active-line: #26406b;
+    --active: #5cc6e6; --active-bg: #10303b; --active-line: #1c4f60;
     --done: #5fd394; --done-bg: #12301f; --done-line: #1f5236;
     --warning: #f2b45a; --warning-bg: #3a2810; --warning-line: #5e4119;
     --error: #ff8a80; --error-bg: #401715; --error-line: #6b2622;
-    --locked: #b3a9af; --locked-bg: #262024; --locked-line: #3b3339;
+    --locked: #a9aeb8; --locked-bg: #23252b; --locked-line: #363a42;
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-2: 0 4px 14px -4px rgb(0 0 0 / 0.6);
     --shadow-pop: 0 18px 40px -12px rgb(0 0 0 / 0.75), 0 0 0 1px var(--line);
     color-scheme: dark;
   }
+  :root[data-brand="spruce"]:not([data-theme="light"]) { --accent: #4cc7ae; --accent-hover: #6ed6c0; --accent-press: #8fe2d1; --accent-ink: #03251f; --accent-soft: #123631; --accent-line: #1e544b; }
+  :root[data-brand="ember"]:not([data-theme="light"]) { --accent: #ff8a57; --accent-hover: #ffa178; --accent-press: #ffb898; --accent-ink: #3a1203; --accent-soft: #3d1d10; --accent-line: #63301b; }
+  :root[data-brand="graphite"]:not([data-theme="light"]) { --accent: #f2f1f4; --accent-hover: #ffffff; --accent-press: #dddde2; --accent-ink: #141316; --accent-soft: #2a2a30; --accent-line: #3d3d45; }
 }
 
 :root[data-theme="dark"] {
-  --bg: #141113; --bg-sunk: #0f0d0e; --surface: #1c181b; --surface-2: #221d21; --surface-hover: #2a2428;
-  --line: #342d32; --line-strong: #4a4147; --text: #f2eef0; --text-2: #cfc6cb; --text-muted: #9a8f96;
-  --accent: #f2709f; --accent-hover: #f68db2; --accent-press: #f9a8c5; --accent-ink: #2a0716;
-  --accent-soft: #3a1726; --accent-line: #5c2640;
-  --gold: #f5c044; --gold-ink: #fbe3a6; --gold-soft: #3a2d0e; --star-empty: #463d43;
-  --draft: #a59aa1; --draft-bg: #262024; --draft-line: #3b3339;
+  --bg: #111215; --bg-sunk: #0c0d0f; --surface: #18191d; --surface-2: #1e2025; --surface-hover: #25272d;
+  --line: #2d3036; --line-strong: #42464e; --text: #eef0f3; --text-2: #c7cad1; --text-muted: #8f949e;
+  --accent: #8199ff; --accent-hover: #9cafff; --accent-press: #b6c4ff; --accent-ink: #0a1240; --accent-soft: #1b2350; --accent-line: #2d3a7a;
+  --gold: #f5c044; --gold-ink: #fbe3a6; --gold-soft: #3a2d0e; --star-empty: #3b3f47;
+  --draft: #9aa0aa; --draft-bg: #23252b; --draft-line: #363a42;
   --queued: #b7a6e0; --queued-bg: #262037; --queued-line: #3d3358;
-  --active: #78a9ff; --active-bg: #172640; --active-line: #26406b;
+  --active: #5cc6e6; --active-bg: #10303b; --active-line: #1c4f60;
   --done: #5fd394; --done-bg: #12301f; --done-line: #1f5236;
   --warning: #f2b45a; --warning-bg: #3a2810; --warning-line: #5e4119;
   --error: #ff8a80; --error-bg: #401715; --error-line: #6b2622;
-  --locked: #b3a9af; --locked-bg: #262024; --locked-line: #3b3339;
+  --locked: #a9aeb8; --locked-bg: #23252b; --locked-line: #363a42;
   --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-2: 0 4px 14px -4px rgb(0 0 0 / 0.6);
   --shadow-pop: 0 18px 40px -12px rgb(0 0 0 / 0.75), 0 0 0 1px var(--line);
   color-scheme: dark;
 }
+:root[data-theme="dark"][data-brand="spruce"] { --accent: #4cc7ae; --accent-hover: #6ed6c0; --accent-press: #8fe2d1; --accent-ink: #03251f; --accent-soft: #123631; --accent-line: #1e544b; }
+:root[data-theme="dark"][data-brand="ember"] { --accent: #ff8a57; --accent-hover: #ffa178; --accent-press: #ffb898; --accent-ink: #3a1203; --accent-soft: #3d1d10; --accent-line: #63301b; }
+:root[data-theme="dark"][data-brand="graphite"] { --accent: #f2f1f4; --accent-hover: #ffffff; --accent-press: #dddde2; --accent-ink: #141316; --accent-soft: #2a2a30; --accent-line: #3d3d45; }

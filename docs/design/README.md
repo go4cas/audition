@@ -2,7 +2,13 @@
 
 Nov 6, 2026 · Design thread · builds on `docs/SPEC.md` (lean Phase 1) and `docs/NOTES.md`
 
-This folder holds the Phase 1 screens as clickable wireframes, the design tokens, a starter stylesheet and the icon sprite. T4 (UI) builds the real screens from these. Everything is vanilla HTML, CSS and JavaScript with no runtime dependencies and no build step.
+This folder holds the Phase 1 screens as clickable wireframes, the design tokens, a starter stylesheet and the icon sprite. T4 (UI) builds the real screens from these. The wireframes themselves are plain HTML, CSS and JavaScript with no build step, so anyone can open them.
+
+**How this fits the UI build.** Architecture (PR #3) settled on Arrow.js core for the app: reactive state and `html` templates, bundled by Bun, with a small hash router. No Tailwind, Vite or component library. In that setup:
+
+- `tokens.css` and `app.css` are the styling system. Arrow templates use these class names and `data-state` attributes as they are.
+- `icons/sprite.svg` is inlined once in the page shell; templates write `<svg class="i"><use href="#i-done"/></svg>`.
+- `wireframes.js` is reference behaviour, not app code. Its pieces (dropdown, popover placement, toasts, star input, segmented thumb, live run updates) become small Arrow components with the same markup and classes.
 
 | File | What it is |
 | --- | --- |
@@ -14,11 +20,28 @@ This folder holds the Phase 1 screens as clickable wireframes, the design tokens
 
 **To view:** open `wireframes.html` in a browser straight from the folder. Use the Theme picker to check dark mode, and narrow the window (or use a phone) to see the phone layout.
 
+## Round 3 changes (Nov 6, 2026)
+
+Cas's feedback on v2: not a fan of the burgundy, replace native selects, less rounded corners, and a Home page that pulls people in.
+
+- **Brand candidates.** Velvet is gone. The **Brand** picker in the wireframe bar switches live between four accents. Only the `--accent*` tokens change; neutrals are now a cool graphite that suits all four. Gold stays reserved for merit in every option.
+
+  | Brand | Light | Feel | Watch out for |
+  | --- | --- | --- | --- |
+  | **Cobalt** (default) | `#2f4bdb` | Clear, trustworthy, obviously clickable | Common in software |
+  | **Spruce** | `#0b6e5f` | Calm, grown-up, a little editorial | Close to the green "done" state |
+  | **Ember** | `#d9480f` | Warm and energetic, the most distinctive | Close to the amber warning |
+  | **Graphite** | `#1d1c21` | Premium and quiet; gold does all the colour work | "Waiting for you" is less eye-catching |
+
+- **Selects.** Every `<select class="select">` is upgraded to a styled dropdown: a button showing the value with its icon or avatar, and a menu of options with icons, one-line descriptions, group headings and a tick on the selected one. Arrow keys, Home/End, type-ahead, Enter and Escape all work. The native select stays hidden underneath so forms keep their value, and it is styled too in case the script doesn't run.
+- **Corners.** Radius now runs 4 / 6 / 8 px (chips and avatars / buttons and inputs / panels and popovers). Pills remain only for counts, dots and switches.
+- **Home.** A hero greets you and says what's waiting, with one button to pick up the next task. Next to it, **Your cast** shows the champions and how many roles are cast. Below that: one large **Up next** card, a short **Also waiting** queue, workspace cards with a progress ring for roles cast and the contenders involved, a **Who plays which role** list (the routing table), and a **Latest** activity feed. The feed reads the audit log, which Phase 1 already has.
+
 ## Direction (v2)
 
 Cas asked for a more modern look that feels less generic, with micro-interactions, more icons, richer states and extra detail tucked into popovers, so both technical and non-technical people want to use it.
 
-- **The audition stage.** A velvet accent (the curtain) marks what you can act on and what is waiting for you. Gold (the spotlight) is kept for merit only: stars, the champion and the confetti when you confirm one. Neutrals are a soft graphite.
+- **The audition stage.** One brand accent (velvet in v2, now a choice of four) marks what you can act on and what is waiting for you. Gold (the spotlight) is kept for merit only: stars, the champion and the confetti when you confirm one. Neutrals are a soft graphite.
 - **Type with character.** Bricolage Grotesque for headings and big numbers, Instrument Sans for everything else. Both are SIL OFL; the app vendors the woff2 files so it makes no third-party calls. The wireframe loads them from Google Fonts for review only.
 - **Every state looks different** in colour, icon and motion (see the state system below and screen 15).
 - **Calm by default, detail on demand.** AI reasons, contender settings, output tokens and cost, error details and the fitness breakdown sit behind small info buttons that open popovers.
@@ -117,7 +140,7 @@ Each screen uses the reference workspace content from the spec, so the wireframe
 | # | Screen | Job | Popovers |
 | --- | --- | --- | --- |
 | 1 | Sign in | One owner account; the code field shows only when two-step sign-in is on. | |
-| 2 | Home | Three numbers, then **Waiting for you** with one button per item, then workspaces with champion counts. | |
+| 2 | Home | Hero with greeting and Your cast, then Up next, Also waiting, workspaces with rings, Who plays which role, and Latest. | |
 | 3 | Workspace | Numbered stages, role cards with champion, suggestion or progress. This is the routing table. Recent runs below. | |
 | 4 | Workspace settings | Stages (reorder), default judge, AI judge, outputs needed, fitness weights with a live bar and a "needs 100" warning. | Why a minimum |
 | 5 | Role and rubric | Criteria with weights, a weight bar that updates as you type, pass mark, tasks with a read-only chip. | Pass mark |
@@ -136,7 +159,8 @@ Each screen uses the reference workspace content from the spec, so the wireframe
 
 For Cas to confirm in the PR. None of them adds scope; they decide how existing Phase 1 behaviour looks.
 
-- **Visual direction:** velvet accent, gold for merit, Bricolage Grotesque and Instrument Sans (vendored), Phosphor icons (vendored). No Basecoat, no Tailwind.
+- **Brand:** one of Cobalt, Spruce, Ember or Graphite (the others get deleted from `tokens.css`).
+- **Visual direction:** one brand accent, gold for merit, crisp 4/6/8 px corners, styled dropdowns, Bricolage Grotesque and Instrument Sans (vendored), Phosphor icons (vendored). No Basecoat, no Tailwind.
 - **Image-judging grid (answers the spec's open question).** One square card per output, four across on a laptop and one per row on a phone. Each card shows the first image with its letter, a "3 images" tag when there are more, and opens large on tap. Stars sit under the image. The rubric is shown once above the grid.
 - **Judging on a phone.** One output per screen, swipe or tap A–D to move.
 - **"Waiting for you" on Home** (with a count in the top bar) is the main way into handoffs and owner judging. It uses data Phase 1 already has.
@@ -148,7 +172,8 @@ For Cas to confirm in the PR. None of them adds scope; they decide how existing 
 
 ## Notes for T4
 
-- Screens map to hash routes in the wireframe (`#home`, `#run`, ...). T4 picks its own routing.
+- Screens map to hash routes in the wireframe (`#home`, `#run`, ...), which matches the small hash router Architecture chose for Arrow.js.
+- The dropdown, popovers and dialog rely on the native `popover` attribute and `<dialog>`, so the Arrow components only need to render markup and wire events.
 - `JUDGE_DATA` in `wireframes.js` shows the shape the blind endpoint needs: letter, text, files, AI stars and reasons. No contender fields.
 - The call count assumes **one AI judging call per output**. If Architecture judges a whole task in one call, `countRun()` changes.
 - Star inputs are five radio buttons, so they work with a keyboard and screen readers.
