@@ -24,8 +24,7 @@ This folder holds the Phase 1 screens as clickable wireframes, the design tokens
 
 Cas's feedback on v2: not a fan of the burgundy, replace native selects, less rounded corners, and a Home page that pulls people in.
 
-- **Brand: Cobalt** (`#2f4bdb` light, `#8199ff` dark), chosen by Cas from four candidates (Cobalt, Spruce, Ember, Graphite). Neutrals are now a cool graphite. Gold stays reserved for merit. To rebrand later, change only the `--accent*` tokens.
-- **Softer blue (in review).** Cas found cobalt too blue. The wireframe's **Blue** picker compares Cobalt with four calmer candidates: Denim `#3b5a9a`, Navy ink `#1e3a6d`, Slate blue `#4a5875` and Iris `#4f4bb8`. The chosen one replaces cobalt in `tokens.css` and the rest are deleted.
+- **Brand: Denim** (`#3b5a9a` light, `#8fa8db` dark), a muted mid-blue. Cas first picked Cobalt from four candidates (Cobalt, Spruce, Ember, Graphite), found it too blue, then chose Denim over Navy ink, Slate blue and Iris. Neutrals are a cool graphite and gold stays reserved for merit. To rebrand later, change only the `--accent*` tokens.
 - **Selects.** Every `<select class="select">` is upgraded to a styled dropdown: a button showing the value with its icon or avatar, and a menu of options with icons, one-line descriptions, group headings and a tick on the selected one. Arrow keys, Home/End, type-ahead, Enter and Escape all work. The native select stays hidden underneath so forms keep their value, and it is styled too in case the script doesn't run.
 - **Corners.** Radius now runs 4 / 6 / 8 px (chips and avatars / buttons and inputs / panels and popovers). Pills remain only for counts, dots and switches.
 - **Home.** A hero greets you and says what's waiting, with one button to pick up the next task. Next to it, **Your cast** shows the champions and how many roles are cast. Below that: one large **Up next** card, a short **Also waiting** queue, workspace cards with a progress ring for roles cast and the contenders involved, a **Who plays which role** list (the routing table), and a **Latest** activity feed. The feed reads the audit log, which Phase 1 already has.
@@ -34,7 +33,7 @@ Cas's feedback on v2: not a fan of the burgundy, replace native selects, less ro
 
 Cas asked for a more modern look that feels less generic, with micro-interactions, more icons, richer states and extra detail tucked into popovers, so both technical and non-technical people want to use it.
 
-- **The audition stage.** One brand accent (velvet in v2, cobalt from v3) marks what you can act on and what is waiting for you. Gold (the spotlight) is kept for merit only: stars, the champion and the confetti when you confirm one. Neutrals are a soft graphite.
+- **The audition stage.** One brand accent (velvet in v2, denim now) marks what you can act on and what is waiting for you. Gold (the spotlight) is kept for merit only: stars, the champion and the confetti when you confirm one. Neutrals are a soft graphite.
 - **Type with character.** Bricolage Grotesque for headings and big numbers, Instrument Sans for everything else. Both are SIL OFL; the app vendors the woff2 files so it makes no third-party calls. The wireframe loads them from Google Fonts for review only.
 - **Every state looks different** in colour, icon and motion (see the state system below and screen 15).
 - **Calm by default, detail on demand.** AI reasons, contender settings, output tokens and cost, error details and the fitness breakdown sit behind small info buttons that open popovers.
@@ -152,7 +151,7 @@ Each screen uses the reference workspace content from the spec, so the wireframe
 
 For Cas to confirm in the PR. None of them adds scope; they decide how existing Phase 1 behaviour looks.
 
-- **Brand:** Cobalt (decided Nov 6, 2026).
+- **Brand:** Denim (decided Nov 6, 2026).
 - **Visual direction:** one brand accent, gold for merit, crisp 4/6/8 px corners, styled dropdowns, Bricolage Grotesque and Instrument Sans (vendored), Phosphor icons (vendored). No Basecoat, no Tailwind.
 - **Image-judging grid (answers the spec's open question).** One square card per output, four across on a laptop and one per row on a phone. Each card shows the first image with its letter, a "3 images" tag when there are more, and opens large on tap. Stars sit under the image. The rubric is shown once above the grid.
 - **Judging on a phone.** One output per screen, swipe or tap A–D to move.

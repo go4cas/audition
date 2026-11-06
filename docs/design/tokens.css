@@ -6,8 +6,8 @@
  * champions and celebration. Neutrals are a cool, quiet graphite so any brand
  * accent sits on them. Every state has its own colour, icon and motion.
  *
- * Brand: cobalt (chosen by Cas on Nov 6, 2026, from cobalt, spruce, ember
- * and graphite). To rebrand, change only the --accent* tokens.
+ * Brand: denim, a muted mid-blue (chosen by Cas on Nov 6, 2026, after
+ * cobalt felt too blue). To rebrand, change only the --accent* tokens.
  *
  * Fonts: Bricolage Grotesque for headings and big numbers, Instrument Sans for
  * everything else. Both are SIL OFL. The app vendors the woff2 files (no
@@ -27,13 +27,13 @@
   --text-2: #434854;
   --text-muted: #6c7280;
 
-  /* ---- Brand accent: cobalt ---- */
-  --accent: #2f4bdb;
-  --accent-hover: #2539b8;
-  --accent-press: #1d2e96;
+  /* ---- Brand accent: denim ---- */
+  --accent: #3b5a9a;
+  --accent-hover: #304b82;
+  --accent-press: #263c6a;
   --accent-ink: #ffffff;
-  --accent-soft: #eaeefd;
-  --accent-line: #c5cff8;
+  --accent-soft: #e9eef7;
+  --accent-line: #c3d0e6;
 
   /* ---- Merit: gold (stars, champion, celebration) ---- */
   --gold: #d99a06;
@@ -104,18 +104,12 @@
   color-scheme: light;
 }
 
-/* ---- Softer blue candidates (review only; the chosen one replaces cobalt) ---- */
-:root[data-brand="denim"] { --accent: #3b5a9a; --accent-hover: #304b82; --accent-press: #263c6a; --accent-ink: #ffffff; --accent-soft: #e9eef7; --accent-line: #c3d0e6; }
-:root[data-brand="navy"] { --accent: #1e3a6d; --accent-hover: #18305a; --accent-press: #122648; --accent-ink: #ffffff; --accent-soft: #e6ebf4; --accent-line: #bfcbe2; }
-:root[data-brand="slate"] { --accent: #4a5875; --accent-hover: #3d4961; --accent-press: #313a4e; --accent-ink: #ffffff; --accent-soft: #eceff4; --accent-line: #cdd3de; }
-:root[data-brand="iris"] { --accent: #4f4bb8; --accent-hover: #423ea0; --accent-press: #363388; --accent-ink: #ffffff; --accent-soft: #ecebf8; --accent-line: #cbc9ee; }
-
 /* ---- Dark ---- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #111215; --bg-sunk: #0c0d0f; --surface: #18191d; --surface-2: #1e2025; --surface-hover: #25272d;
     --line: #2d3036; --line-strong: #42464e; --text: #eef0f3; --text-2: #c7cad1; --text-muted: #8f949e;
-    --accent: #8199ff; --accent-hover: #9cafff; --accent-press: #b6c4ff; --accent-ink: #0a1240; --accent-soft: #1b2350; --accent-line: #2d3a7a;
+    --accent: #8fa8db; --accent-hover: #a7bbe4; --accent-press: #bfcdeb; --accent-ink: #0d1a33; --accent-soft: #1c2740; --accent-line: #2e3e60;
     --gold: #f5c044; --gold-ink: #fbe3a6; --gold-soft: #3a2d0e; --star-empty: #3b3f47;
     --draft: #9aa0aa; --draft-bg: #23252b; --draft-line: #363a42;
     --queued: #b7a6e0; --queued-bg: #262037; --queued-line: #3d3358;
@@ -129,16 +123,12 @@
     --shadow-pop: 0 18px 40px -12px rgb(0 0 0 / 0.75), 0 0 0 1px var(--line);
     color-scheme: dark;
   }
-  :root[data-brand="denim"]:not([data-theme="light"]) { --accent: #8fa8db; --accent-hover: #a7bbe4; --accent-press: #bfcdeb; --accent-ink: #0d1a33; --accent-soft: #1c2740; --accent-line: #2e3e60; }
-  :root[data-brand="navy"]:not([data-theme="light"]) { --accent: #7f9fd9; --accent-hover: #98b3e2; --accent-press: #b1c6ea; --accent-ink: #0a1730; --accent-soft: #19243d; --accent-line: #2a3b5e; }
-  :root[data-brand="slate"]:not([data-theme="light"]) { --accent: #a3b0c8; --accent-hover: #b8c3d6; --accent-press: #ccd4e2; --accent-ink: #141a26; --accent-soft: #232a38; --accent-line: #364053; }
-  :root[data-brand="iris"]:not([data-theme="light"]) { --accent: #a29ff0; --accent-hover: #b6b4f4; --accent-press: #cac8f7; --accent-ink: #18164a; --accent-soft: #24224a; --accent-line: #38356e; }
 }
 
 :root[data-theme="dark"] {
   --bg: #111215; --bg-sunk: #0c0d0f; --surface: #18191d; --surface-2: #1e2025; --surface-hover: #25272d;
   --line: #2d3036; --line-strong: #42464e; --text: #eef0f3; --text-2: #c7cad1; --text-muted: #8f949e;
-  --accent: #8199ff; --accent-hover: #9cafff; --accent-press: #b6c4ff; --accent-ink: #0a1240; --accent-soft: #1b2350; --accent-line: #2d3a7a;
+  --accent: #8fa8db; --accent-hover: #a7bbe4; --accent-press: #bfcdeb; --accent-ink: #0d1a33; --accent-soft: #1c2740; --accent-line: #2e3e60;
   --gold: #f5c044; --gold-ink: #fbe3a6; --gold-soft: #3a2d0e; --star-empty: #3b3f47;
   --draft: #9aa0aa; --draft-bg: #23252b; --draft-line: #363a42;
   --queued: #b7a6e0; --queued-bg: #262037; --queued-line: #3d3358;
@@ -152,7 +142,3 @@
   --shadow-pop: 0 18px 40px -12px rgb(0 0 0 / 0.75), 0 0 0 1px var(--line);
   color-scheme: dark;
 }
-:root[data-theme="dark"][data-brand="denim"] { --accent: #8fa8db; --accent-hover: #a7bbe4; --accent-press: #bfcdeb; --accent-ink: #0d1a33; --accent-soft: #1c2740; --accent-line: #2e3e60; }
-:root[data-theme="dark"][data-brand="navy"] { --accent: #7f9fd9; --accent-hover: #98b3e2; --accent-press: #b1c6ea; --accent-ink: #0a1730; --accent-soft: #19243d; --accent-line: #2a3b5e; }
-:root[data-theme="dark"][data-brand="slate"] { --accent: #a3b0c8; --accent-hover: #b8c3d6; --accent-press: #ccd4e2; --accent-ink: #141a26; --accent-soft: #232a38; --accent-line: #364053; }
-:root[data-theme="dark"][data-brand="iris"] { --accent: #a29ff0; --accent-hover: #b6b4f4; --accent-press: #cac8f7; --accent-ink: #18164a; --accent-soft: #24224a; --accent-line: #38356e; }
