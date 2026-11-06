@@ -6,9 +6,8 @@
  * champions and celebration. Neutrals are a cool, quiet graphite so any brand
  * accent sits on them. Every state has its own colour, icon and motion.
  *
- * Brand: four candidates for review, picked with data-brand on <html>
- * (cobalt is the default). The app ships with one; the others get deleted.
- * Only the --accent* tokens change between brands.
+ * Brand: cobalt (chosen by Cas on Nov 6, 2026, from cobalt, spruce, ember
+ * and graphite). To rebrand, change only the --accent* tokens.
  *
  * Fonts: Bricolage Grotesque for headings and big numbers, Instrument Sans for
  * everything else. Both are SIL OFL. The app vendors the woff2 files (no
@@ -28,7 +27,7 @@
   --text-2: #434854;
   --text-muted: #6c7280;
 
-  /* ---- Brand accent (default: cobalt) ---- */
+  /* ---- Brand accent: cobalt ---- */
   --accent: #2f4bdb;
   --accent-hover: #2539b8;
   --accent-press: #1d2e96;
@@ -105,18 +104,7 @@
   color-scheme: light;
 }
 
-/* ---- Brand candidates, light ---- */
-:root[data-brand="spruce"] {
-  --accent: #0b6e5f; --accent-hover: #095b4f; --accent-press: #074a41; --accent-ink: #ffffff; --accent-soft: #e3f3ef; --accent-line: #b5ddd3;
-}
-:root[data-brand="ember"] {
-  --accent: #d9480f; --accent-hover: #b83b0a; --accent-press: #962f07; --accent-ink: #ffffff; --accent-soft: #fdebe2; --accent-line: #f8c8b2;
-}
-:root[data-brand="graphite"] {
-  --accent: #1d1c21; --accent-hover: #34323a; --accent-press: #000000; --accent-ink: #ffffff; --accent-soft: #ececef; --accent-line: #cfcfd6;
-}
-
-/* ---- Dark: neutrals, states and the default brand ---- */
+/* ---- Dark ---- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #111215; --bg-sunk: #0c0d0f; --surface: #18191d; --surface-2: #1e2025; --surface-hover: #25272d;
@@ -135,9 +123,6 @@
     --shadow-pop: 0 18px 40px -12px rgb(0 0 0 / 0.75), 0 0 0 1px var(--line);
     color-scheme: dark;
   }
-  :root[data-brand="spruce"]:not([data-theme="light"]) { --accent: #4cc7ae; --accent-hover: #6ed6c0; --accent-press: #8fe2d1; --accent-ink: #03251f; --accent-soft: #123631; --accent-line: #1e544b; }
-  :root[data-brand="ember"]:not([data-theme="light"]) { --accent: #ff8a57; --accent-hover: #ffa178; --accent-press: #ffb898; --accent-ink: #3a1203; --accent-soft: #3d1d10; --accent-line: #63301b; }
-  :root[data-brand="graphite"]:not([data-theme="light"]) { --accent: #f2f1f4; --accent-hover: #ffffff; --accent-press: #dddde2; --accent-ink: #141316; --accent-soft: #2a2a30; --accent-line: #3d3d45; }
 }
 
 :root[data-theme="dark"] {
@@ -157,6 +142,3 @@
   --shadow-pop: 0 18px 40px -12px rgb(0 0 0 / 0.75), 0 0 0 1px var(--line);
   color-scheme: dark;
 }
-:root[data-theme="dark"][data-brand="spruce"] { --accent: #4cc7ae; --accent-hover: #6ed6c0; --accent-press: #8fe2d1; --accent-ink: #03251f; --accent-soft: #123631; --accent-line: #1e544b; }
-:root[data-theme="dark"][data-brand="ember"] { --accent: #ff8a57; --accent-hover: #ffa178; --accent-press: #ffb898; --accent-ink: #3a1203; --accent-soft: #3d1d10; --accent-line: #63301b; }
-:root[data-theme="dark"][data-brand="graphite"] { --accent: #f2f1f4; --accent-hover: #ffffff; --accent-press: #dddde2; --accent-ink: #141316; --accent-soft: #2a2a30; --accent-line: #3d3d45; }
