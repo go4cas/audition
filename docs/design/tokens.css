@@ -1,0 +1,137 @@
+/*
+ * Audition design tokens.
+ *
+ * Layout concept: a quiet working surface. One teal accent marks the next
+ * thing to do; amber is reserved for stars; everything else is neutral ink
+ * with a slight green-teal bias.
+ *
+ * Fonts are the system stacks on purpose: Audition is self-hosted with zero
+ * runtime dependencies, so it loads no web fonts and makes no third-party calls.
+ *
+ * Every colour is defined on bare :root (light) and redefined for dark in two
+ * places: the OS preference (unless light is forced) and an explicit
+ * data-theme="dark" on <html>. Components use tokens only, never literals.
+ */
+
+:root {
+  /* Colour: surfaces and ink */
+  --bg: #f4f6f5;
+  --surface: #ffffff;
+  --surface-2: #eef2f1;
+  --line: #d8e0de;
+  --line-strong: #b9c6c3;
+  --text: #15201f;
+  --text-muted: #566664;
+
+  /* Colour: the one accent (primary actions, links, current place) */
+  --accent: #0b6b66;
+  --accent-hover: #095753;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcefec;
+
+  /* Colour: stars (ratings only, never used for anything else) */
+  --star: #d38f00;
+  --star-empty: #c9d2d0;
+
+  /* Colour: states (separate from the accent) */
+  --ok: #1f7a3d;
+  --ok-soft: #e0f2e6;
+  --warn: #9a5b00;
+  --warn-soft: #fbefd9;
+  --bad: #b3261e;
+  --bad-soft: #fbe3e1;
+  --wait: #3e5b9a;
+  --wait-soft: #e3eaf8;
+
+  /* Type */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --fs-xs: 0.75rem;   /* 12px: captions, badges */
+  --fs-sm: 0.875rem;  /* 14px: secondary text, table cells */
+  --fs-md: 1rem;      /* 16px: body, inputs (16px stops phone zoom) */
+  --fs-lg: 1.25rem;   /* 20px: section headings */
+  --fs-xl: 1.625rem;  /* 26px: page title */
+  --lh-tight: 1.25;
+  --lh-body: 1.5;
+  --fw-regular: 400;
+  --fw-medium: 550;
+  --fw-bold: 700;
+
+  /* Space (4px grid) */
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 3rem;
+
+  /* Shape and depth */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-pill: 999px;
+  --shadow-pop: 0 6px 24px rgb(10 30 28 / 0.14);
+  --focus: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent);
+
+  /* Layout */
+  --content-max: 72rem;
+  --reading-max: 40rem;
+  --tap: 44px;          /* minimum touch target */
+  --phone: 40rem;       /* 640px: below this, one column */
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1514;
+    --surface: #151f1e;
+    --surface-2: #1b2826;
+    --line: #283735;
+    --line-strong: #3a4d4a;
+    --text: #e4edeb;
+    --text-muted: #94a6a3;
+    --accent: #4fc0b6;
+    --accent-hover: #6fd1c8;
+    --accent-ink: #04211f;
+    --accent-soft: #15403c;
+    --star: #f2b42a;
+    --star-empty: #3a4a48;
+    --ok: #63c787;
+    --ok-soft: #173826;
+    --warn: #e9b35a;
+    --warn-soft: #3b2c12;
+    --bad: #f08a83;
+    --bad-soft: #43201d;
+    --wait: #93acec;
+    --wait-soft: #1f2a45;
+    --shadow-pop: 0 6px 24px rgb(0 0 0 / 0.5);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1514;
+  --surface: #151f1e;
+  --surface-2: #1b2826;
+  --line: #283735;
+  --line-strong: #3a4d4a;
+  --text: #e4edeb;
+  --text-muted: #94a6a3;
+  --accent: #4fc0b6;
+  --accent-hover: #6fd1c8;
+  --accent-ink: #04211f;
+  --accent-soft: #15403c;
+  --star: #f2b42a;
+  --star-empty: #3a4a48;
+  --ok: #63c787;
+  --ok-soft: #173826;
+  --warn: #e9b35a;
+  --warn-soft: #3b2c12;
+  --bad: #f08a83;
+  --bad-soft: #43201d;
+  --wait: #93acec;
+  --wait-soft: #1f2a45;
+  --shadow-pop: 0 6px 24px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}

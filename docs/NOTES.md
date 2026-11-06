@@ -74,3 +74,7 @@ Small choices made while folding the decisions into the spec, for Cas to confirm
 - **`handoff_templates` stays** as a collection with one seeded generic row, so later templates need no schema change.
 - **Fitness normalisation:** Q maps stars 1 to 5 onto 0 to 1; tokens and time are divided by the largest mean in the role. The suggested champion is the qualifying contender with the highest fitness, which is the highest score under the default weights.
 - **A submitted handoff output can't be replaced.** Run again gives a fresh one.
+
+## Design thread choices (Nov 6, 2026)
+
+The wireframes, tokens and design decisions are in `docs/design/`. The decisions for Cas to confirm are listed in `docs/design/README.md` under "Decisions made in this thread". The image-judging grid question in the spec is answered there.

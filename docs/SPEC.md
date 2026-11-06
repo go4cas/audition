@@ -314,7 +314,7 @@ T0 answers the first four from the Vaultbase docs and records the answers in `do
 - [ ] Can a cloud session download the pinned release from GitHub, or does the binary need to be committed or cached?
 - [ ] How are images passed to the AI judge (vision input) for Marketing? Can the Anthropic adapter send images to the judge? (Architecture)
 - [ ] Which demo repo and commit do the Software Factory coding tasks name? (Architecture proposes; Cas confirms)
-- [ ] How does the image-judging grid look? (Design)
+- [x] How does the image-judging grid look? (Design) Answered in `docs/design/README.md`: square cards in a responsive grid, stars per criterion under each image, tap to enlarge.
 - [ ] Is vector search reachable through MCP, or only through a custom route? (Phase 2)
 - [ ] Does "Audition" need a qualifier or distinct domain to stay clear of Adobe Audition, if this is ever offered publicly?
 
