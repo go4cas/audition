@@ -435,7 +435,7 @@
       $("[data-score] span", card).textContent = full ? vals.reduce(function (s, v, i) { return s + v * IMG_W[i]; }, 0).toFixed(1) : "–";
       $("[data-card-state]", card).innerHTML = full
         ? '<span class="state' + (was ? "" : " is-new") + '" data-state="done">' + icon("done") + "Rated</span>"
-        : started ? '<span class="state" data-state="active">' + icon("edit") + "In progress</span>"
+        : started ? '<span class="state" data-state="active">' + icon("edit", "i--write") + "In progress</span>"
                   : '<span class="state" data-state="draft">' + icon("draft") + "Not rated</span>";
     });
     $("#img-progress").textContent = rated + " of 4 rated";

@@ -192,7 +192,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 /* ---------- State chips ---------- */
 .state {
   --fg: var(--draft); --bg: var(--draft-bg); --ln: var(--draft-line);
-  display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px 2px 6px; border-radius: var(--r-sm);
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 7px; border-radius: var(--r-pill);
   font-size: var(--fs-xs); font-weight: 650; white-space: nowrap; color: var(--fg); background: var(--bg); border: 1px solid var(--ln);
 }
 .state .i { width: 14px; height: 14px; }
@@ -212,6 +212,10 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .state--solid[data-state="champion"], :root[data-chips="solid"] .state:not(.state--soft)[data-state="champion"] { color: #241900; background: var(--gold); border-color: var(--gold); }
 .state--solid[data-state="champion"] .i, :root[data-chips="solid"] .state:not(.state--soft)[data-state="champion"] .i { color: inherit; }
 .state[data-state="active"] .i { animation: spin 900ms linear infinite; }
+th.col-state, td.col-state { text-align: right; }
+td.col-state > .row-tight { justify-content: flex-end; }
+.state[data-state="active"] .i.i--write { animation: write 1.4s var(--ease-out) infinite; transform-origin: 20% 85%; }
+@keyframes write { 0%, 100% { transform: rotate(0) translateX(0); } 25% { transform: rotate(-10deg) translateX(-1px); } 50% { transform: rotate(4deg) translateX(1px); } 75% { transform: rotate(-6deg) translateX(0); } }
 .state[data-state="queued"] .i { animation: tip 2.4s var(--ease-out) infinite; }
 .state[data-state="done"].is-new .i, .state[data-state="error"].is-new .i { animation: pop-in 480ms var(--ease-spring); }
 /* The "waiting for you" dot breathes so it reads as alive and asking */
@@ -516,6 +520,8 @@ tr.is-suggested td { background: color-mix(in srgb, var(--gold-soft) 70%, transp
 .stage__name { display: flex; align-items: center; gap: 8px; }
 .stage__name::before { counter-increment: stage; content: counter(stage); width: 22px; height: 22px; border-radius: var(--r-sm); display: grid; place-items: center; background: var(--bg-sunk); border: 1px solid var(--line); font-size: var(--fs-xs); font-weight: 700; color: var(--text-2); }
 .stage__name::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.stage > .role-card { flex: 1; }
+.role-card > :last-child { margin-top: auto; }
 .role-card .cast { font-size: var(--fs-sm); display: flex; align-items: center; gap: 8px; }
 
 /* Rubric editor */
@@ -701,3 +707,4 @@ tr.is-suggested td { background: color-mix(in srgb, var(--gold-soft) 70%, transp
 @media (min-width: 40.01rem) { .dd__btn { font-size: var(--fs-sm); } }
 :root[data-theme="dark"] .count { color: #160b33; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .count { color: #160b33; } }
+@media (prefers-reduced-motion: reduce) { .state .i.i--write { animation: none; } }
