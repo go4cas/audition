@@ -63,6 +63,9 @@
   --error: #c8281e;      --error-bg: #fde7e5;    --error-line: #f5bfba;
   --locked: #555555;     --locked-bg: #ededed;   --locked-line: #d4d4d4;
   --disabled-opacity: 0.45;
+  /* Chip style is switched with one attribute on <html>, not a token, because it swaps
+   * several properties at once: data-chips="soft" (default) | "solid" | "outline".
+   * Cas plans to move to "outline" later; nothing else needs to change. */
 
   /* ---- Type ---- */
   --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;

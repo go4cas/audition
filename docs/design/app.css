@@ -206,11 +206,14 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .state[data-state="disabled"] { opacity: var(--disabled-opacity); border-style: dashed; }
 .state[data-state="champion"] { --fg: var(--gold-ink); --bg: var(--gold-soft); --ln: color-mix(in srgb, var(--gold) 45%, transparent); }
 .state[data-state="champion"] .i { color: var(--gold); }
-/* Solid variant (in review): the state colour fills the chip, text flips to the surface colour.
-   The wireframe's Chips switch sets data-chips="solid" on <html> to preview it everywhere. */
-.state--solid, :root[data-chips="solid"] .state:not(.state--soft) { color: var(--surface); background: var(--fg); border-color: var(--fg); }
-.state--solid[data-state="champion"], :root[data-chips="solid"] .state:not(.state--soft)[data-state="champion"] { color: #241900; background: var(--gold); border-color: var(--gold); }
-.state--solid[data-state="champion"] .i, :root[data-chips="solid"] .state:not(.state--soft)[data-state="champion"] .i { color: inherit; }
+/* Chip style: ONE setting on <html>, data-chips="soft" (default, also used when unset), "solid" or "outline".
+   Soft: tinted fill + matching border. Solid: state colour fills the chip. Outline: transparent with a coloured border.
+   .state--soft / --solid / --outline pin one chip to a style regardless of the setting (used on the State system screen). */
+.state--solid, :root[data-chips="solid"] .state:not(.state--soft):not(.state--outline) { color: var(--surface); background: var(--fg); border-color: var(--fg); }
+.state--solid[data-state="champion"], :root[data-chips="solid"] .state:not(.state--soft):not(.state--outline)[data-state="champion"] { color: #241900; background: var(--gold); border-color: var(--gold); }
+.state--solid[data-state="champion"] .i, :root[data-chips="solid"] .state:not(.state--soft):not(.state--outline)[data-state="champion"] .i { color: inherit; }
+.state--outline, :root[data-chips="outline"] .state:not(.state--soft):not(.state--solid) { background: transparent; border-color: color-mix(in srgb, var(--fg) 55%, transparent); }
+.state--outline[data-state="champion"], :root[data-chips="outline"] .state:not(.state--soft):not(.state--solid)[data-state="champion"] { border-color: var(--gold); }
 .state[data-state="active"] .i { animation: spin 900ms linear infinite; }
 th.col-state, td.col-state { text-align: right; }
 td.col-state > .row-tight { justify-content: flex-end; }
@@ -705,3 +708,19 @@ tr.is-suggested td { background: color-mix(in srgb, var(--gold-soft) 70%, transp
 @media (min-width: 40.01rem) { .dd__btn { font-size: var(--fs-sm); } }
 :root[data-theme="dark"] .count { color: #160b33; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .count { color: #160b33; } }
+
+/* ---------- Logo concepts (wireframe screen 16) ---------- */
+.lg { flex: none; display: block; }
+.lg .lg-ink { fill: var(--text); }
+.lg .lg-stroke { stroke: var(--text); }
+.lg .lg-paper { stroke: var(--surface); }
+.lg .lg-gold { fill: var(--gold); }
+.logo-grid { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+.logo-card { overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; }
+.logo-card > .panel__body { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+.logo-stage { display: grid; place-items: center; padding: 28px 0; background: var(--surface); transition: transform var(--t-med) var(--ease-out); }
+.logo-stage--dark { background: #111111; }
+.logo-stage--dark .lg-ink { fill: #f0f0f0; } .logo-stage--dark .lg-stroke { stroke: #f0f0f0; } .logo-stage--dark .lg-paper { stroke: #111111; }
+.logo-card:hover .logo-stage .lg { transform: scale(1.04); transition: transform var(--t-med) var(--ease-spring); }
+.logo-sizes { align-items: center; gap: 14px; flex-wrap: wrap; }
+.logo-word { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-family: var(--font-display); font-weight: 750; font-size: 1.15rem; letter-spacing: -0.02em; }
