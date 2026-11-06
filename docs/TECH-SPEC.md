@@ -64,8 +64,9 @@ T0 builds `vb:bump` and `test/upgrade.test.ts`. The upgrade test can only be mea
 | Server logic | TypeScript files in `vb_hooks/` (hooks, custom routes, queue workers), run by Vaultbase's built-in Bun | Spec rule: logic lives in the repo |
 | Schema | `schema/snapshot.json`, applied by `vaultbase --apply-snapshot` | Q1 |
 | AI providers | Anthropic Messages API over raw HTTP (`helpers.http`, API version `2026-10-21`); an OpenAI-compatible chat-completions adapter; an in-process mock | No SDK, so no runtime dependency. Anthropic is the first real provider. |
-| Frontend language | Vanilla JavaScript (ES modules) and CSS, no framework, bundled with `Bun.build` | Spec rule |
-| Frontend look: components, icons, motion | **Pending Cas's approval in the Design thread (PR #4).** Cas asked for a more modern feel, with micro-animations, icons, richer state design and popovers. The current proposal is Design's own components (no Basecoat) and Phosphor icons copied in as one SVG sprite, so there are still no runtime dependencies. | Whatever Design picks, Architecture's constraint is only this: it is served as static files from `ui/dist` and adds no JavaScript framework. Copying CSS or SVG files into `ui/` is a build-time choice Cas can approve as compatible with "no runtime dependencies". T4 follows the Design decision. |
+| Frontend language | JavaScript (ES modules) and CSS, bundled with `Bun.build` | Spec rule |
+| Frontend reactivity | **[Arrow.js](https://arrow-js.com) core** (`@arrow-js/core`, pinned to an exact version, 1.0.6 at the time of writing, MIT, no dependencies of its own): `reactive()` state and `html` templates, bundled into `ui/dist`. Routing is Audition's own hash router (about 60 lines, `ui/src/router.js`). Quiver's conventions (pages, layouts, composables, state) guide the folder structure, but its Vite, Tailwind and file router are not used. | Cas chose this on Nov 6, 2026. It is the one named exception to "no runtime dependencies": it gives reactivity for the live run view, star judging and the rubric editor, without a framework. |
+| Frontend look: components, icons, motion | **Pending Cas's approval in the Design thread (PR #4).** Cas asked for a more modern feel, with micro-animations, icons, richer state design and popovers. The current proposal is Design's own components (no Basecoat) and Phosphor icons copied in as one SVG sprite, so there are still no runtime dependencies. | Whatever Design picks, Architecture's constraint is only this: it is served as static files from `ui/dist` and adds no JavaScript dependency beyond Arrow.js core. Copying CSS or SVG files into `ui/` is a build-time choice Cas can approve as compatible with "no runtime dependencies". T4 follows the Design decision. |
 | Browser APIs | `fetch`; native `<dialog>` and the Popover API for popovers; CSS transitions and `@starting-style` for motion; `navigator.clipboard` for the copy button | All built into current browsers, no library needed |
 | UI hosting | Served by Vaultbase itself through a custom route (`/api/custom/app/`) | Q2: one process, one origin |
 | Tooling | Bun (scripts, build, `bun test`). Playwright as a dev dependency for T4 browser tests. | Bun is the runtime Vaultbase is built on |
@@ -79,7 +80,7 @@ These are the spec's first six open questions. T0 confirms the first four agains
 
 **Q2. Can Vaultbase serve the static UI?** Not as static files: there is no public-folder feature, and the server only answers `/_/` (the admin UI), the API and realtime. **But a custom route can return any `Response`** (`src/api/routes.ts`, `tryDispatchCustom`: "A handler that returns a Response… is answered with it as is"). Custom routes live under `/api/custom/…` (also `/api/v1/custom/…`, `src/core/api-paths.ts`). So T0 adds one route file, `vb_hooks/routes/app.ts`, `GET /app/*`, which serves the built UI from `ui/dist/` with the right MIME type and a strict Content-Security-Policy. The UI is reached at `http://localhost:8091/api/custom/app/`. One process, one origin, no CORS. In production the reverse proxy maps `/` to `/api/custom/app/` (Release thread). No Cloudflare Worker is needed. The UI is a **single-page app, rendered in the browser** (no server-side rendering). It is one `index.html` plus JS and CSS, with hash routes (`#/runs/123`) as in the Design wireframes, so the route only ever serves files and needs no knowledge of screens. Data comes from the REST API and the custom routes as JSON.
 
-**Q3. `@vaultbase/sdk` or plain `fetch`?** **Plain `fetch`.** The rule is zero runtime dependencies, and Phase 1 needs only a small slice of the API: sign-in, list, view, create, update, file upload and the custom routes. T4 writes `ui/src/api.js` (about 150 lines). Realtime isn't used in Phase 1 (see F1), so no WebSocket client is needed either.
+**Q3. `@vaultbase/sdk` or plain `fetch`?** **Plain `fetch`.** The only runtime dependency is Arrow.js core (see Tech stack), and Phase 1 needs only a small slice of the API: sign-in, list, view, create, update, file upload and the custom routes. T4 writes `ui/src/api.js` (about 150 lines). Realtime isn't used in Phase 1 (see F1), so no WebSocket client is needed either.
 
 **Q4. Can a cloud session download the pinned release?** **Yes.** This session fetched `SHA256SUMS` and the 126 MB `vaultbase-linux-x64` binary (v0.37.0 and v0.40.2) from GitHub Releases through the session proxy, and both checksums matched. The binary is therefore not committed; `scripts/fetch-vaultbase.ts` downloads it into `.vaultbase/bin/` (git-ignored) and checks it. One caution: in this session an automated safety check blocked running the downloaded binary, so this thread could not boot it. T0 must boot it and capture the output for its PR. If a cloud session can't run it, T0 records that in `NOTES.md` and asks before working around it.
 
@@ -133,7 +134,7 @@ Each finding names the file it comes from at tag v0.37.0; all were re-checked at
 ```
 audition/
 ├── vaultbase.lock.json        # version, release URL, sha256 per asset (T0)
-├── package.json               # bun scripts only; no runtime dependencies
+├── package.json               # bun scripts; one runtime dependency: @arrow-js/core (exact version)
 ├── bunfig.toml
 ├── schema/
 │   └── snapshot.json          # all 14 collections + the leaderboard view
@@ -146,7 +147,7 @@ audition/
 │   ├── workers/               # generate.ts, judge.ts
 │   └── lib/                   # pure TS: store, handoff, scoring, fitness, judge, providers/
 ├── ui/
-│   ├── src/                   # vanilla JS modules, CSS from docs/design tokens
+│   ├── src/                   # Arrow.js pages, layouts, components, state; hash router; CSS from docs/design
 │   └── dist/                  # built by `bun run build:ui` (git-ignored)
 ├── scripts/
 │   ├── fetch-vaultbase.ts     # download + checksum
@@ -720,7 +721,7 @@ The spec's thread plan stands: T0 merges first, then T1 to T4 run in parallel, t
    - Run again;
    - see the leaderboard and confirm a champion.
 2. Screenshots at 1280 px and 375 px are in the PR.
-3. No framework, no runtime dependency, and the UI build is under 150 KB unminified.
+3. No runtime dependency other than `@arrow-js/core` (exact version), no Tailwind or Vite, and the UI build is under 150 KB unminified.
 4. The judging screen calls only the blind route, never `/collections/attempts` (checked by a test that greps the judging module).
 5. Screens say "outputs", never "attempts".
 
