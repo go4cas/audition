@@ -95,10 +95,10 @@ test("1. every handoff and API attempt on that run and task stores the identical
 
   const r = await h.api("owner", "GET", `/api/custom/handoff/${run}/${task.id}`);
   expect(r.status).toBe(200);
-  expect(sha(r.body.prompt)).toBe(sha(prompt));
-  expect(r.body.attachments).toEqual([]);
-  expect(r.body.waiting.map((w: any) => w.contender_name).sort()).toEqual(["Claude Code (manual)", "Codex (manual)"]);
-  expect(r.body.waiting.map((w: any) => w.attempt).sort()).toEqual([attempts["Claude Code (manual)"], attempts["Codex (manual)"]].sort());
+  expect(sha(r.body.data.prompt)).toBe(sha(prompt));
+  expect(r.body.data.attachments).toEqual([]);
+  expect(r.body.data.waiting.map((w: any) => w.contender_name).sort()).toEqual(["Claude Code (manual)", "Codex (manual)"]);
+  expect(r.body.data.waiting.map((w: any) => w.attempt).sort()).toEqual([attempts["Claude Code (manual)"], attempts["Codex (manual)"]].sort());
 });
 
 test("the handoff route lists task attachments with their names and URLs, and is owner only", async () => {
@@ -106,8 +106,8 @@ test("the handoff route lists task attachments with their names and URLs, and is
   const { run, prompt } = await startRun(task, ["Codex (manual)"]);
   expect(prompt).toContain("Attached files: settings-spec.md, mockup.png");
   const r = await h.api("owner", "GET", `/api/custom/handoff/${run}/${task.id}`);
-  expect(r.body.attachments.map((a: any) => a.name)).toEqual(["settings-spec.md", "mockup.png"]);
-  const file = await fetch(`${h.url}${r.body.attachments[1].url}`, { headers: { authorization: `Bearer ${h.ownerToken}` } });
+  expect(r.body.data.attachments.map((a: any) => a.name)).toEqual(["settings-spec.md", "mockup.png"]);
+  const file = await fetch(`${h.url}${r.body.data.attachments[1].url}`, { headers: { authorization: `Bearer ${h.ownerToken}` } });
   expect(file.status).toBe(200);
   expect(file.headers.get("content-type")).toBe("image/png");
 
