@@ -347,7 +347,7 @@ Rules: list and view `OWNER` · create, update and delete `—`.
 | error | text | Why it failed, or why AI judging failed |
 | submitted_at | date | |
 
-Rules: list and view `OWNER` · create and delete `—` · update `OWNER && mode = "handoff" && status = "waiting"`. Because file uploads use the update rule, files can be attached only while the output is waiting.
+Rules: list and view `OWNER` · create and delete `—` · update `OWNER && mode = "handoff" && (status = "waiting" || (status = "submitted" && @request.body.status = "submitted" && @request.body.status:changed = true))`. Vaultbase checks an update rule on the record before and after the change (NOTES.md F14), so the rule allows a waiting output to be edited and to move once to submitted, and nothing after. Files can be attached only while the output is waiting (the upload route checks the same).
 
 The `beforeUpdate` hook allows the owner to change only `output`, `output_files`, `tokens_in`, `tokens_out`, `duration_ms` and `status`. `status` may only go from `waiting` to `submitted`, and that change needs a non-empty `output` or at least one file. On submit it sets `metrics_source = manual`, `submitted_at`, and `cost` when prices and tokens allow, and it re-checks file names and types (F4). The `afterUpdate` hook enqueues AI judging when the run's judge is `ai`, then refreshes the run's status.
 
@@ -427,6 +427,7 @@ All routes need the owner (`requireAuth: true`, plus a check that the caller is 
 | `GET /leaderboard/:roleId` | T3 | `{ terms_used: ["quality", "tokens"], dropped: [{ term: "time", reason: "Codex (manual) has no time data" }], rows: [{ contender, name, group, n, mean_score, ci_low, ci_high, mean_tokens, mean_time_ms, mean_cost, fitness, qualifies, enough_data }], suggested: contenderId \| null, casting: { contender, since } \| null }` |
 | `POST /castings` | T3 | `{ role, contender, rationale? }`. Refuses unless the contender qualifies (§11). Creates a confirmed casting with `suggested_by` set to `system` if it was the suggestion, otherwise `human`. |
 | `DELETE /connections/:id/key` | T1 | Removes the stored key (F2) |
+| `POST /files/:collection/:id/:field` | T2 | The owner's upload path while Vaultbase's own is broken (NOTES.md F9, F15, O6). Multipart, parts named `file`. Only `attempts/output_files` (handoff, waiting) and `tasks/attachments` (unlocked). 25 MB per file, Phase 1 types, all or nothing. Returns `{ data: record }`. |
 
 ## 8. Workers and the run lifecycle
 
