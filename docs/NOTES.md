@@ -192,3 +192,31 @@ T1 (API execution) checked these against the pinned Vaultbase **0.40.2** binary;
 - **An empty answer is a failure.** A reply with no text and no files fails the output, and says so when it was cut off at max output tokens.
 - **Attachments to API contenders.** Images (PNG, JPEG, GIF, WebP) and PDFs go as base64 blocks, and text files (`.txt`, `.md`, `.csv`, `.log`, `.json`, or any `text/*` type) as text blocks headed with the file name. Anything else, SVG and zip included, is listed by name. The OpenAI-compatible adapter lists PDFs by name too.
 - **One extra file**, `lib/providers/shared.ts`, holds what the two HTTP adapters share (the `http` type, attachment sorting, error mapping). Without it the adapters would import `index.ts`, which imports them.
+
+## T3 findings (Nov 7, 2026)
+
+The T3 build thread (judging and fitness) ran against Vaultbase **0.40.2** on fresh instances. Behaviour claims were read from the source at tag v0.40.2 and then checked by the tests named.
+
+### Findings
+
+- **T3-F1. After-hooks are fire and forget.** `runAfterHook` (`src/core/hooks.ts`) runs after the response is sent and only logs errors. So when the owner posts a verdict, the response comes back `active` before the `afterCreate` hook has marked the AI verdict `overridden`, the output `judged` and the run `done`. The UI (T4) should re-fetch the judging payload after saving, not trust the order. `test/judging.test.ts` waits for the hook to finish.
+- **T3-F2. Workers load from `vb_hooks/workers/`.** `workers/judge.ts` (`defineWorker`, queue `judge`) picks up the jobs that `lib/runs.ts` (generate) and `lib/handoff.ts` (submit) enqueue within a second. Like generate, it sets `retries: 1`, which is one try (F17), because `lib/judge.ts` retries a bad reply once itself and never throws for a provider or reply problem.
+- **T3-F3. `helpers.find` and `helpers.query` read through the records layer**, so JSON fields come back decoded and view columns come back as text (as O4 found). The leaderboard route reads the `leaderboard` view through `helpers.query` and parses the numbers with `Number()`.
+- **T3-F4. The admin passes the verdict hook unchanged.** As with `locked` (F12), the admin may write any verdict through REST, so T0's `store.ts` round-trip test still holds. The owner gets the full checks. The T0 rules test now creates its owner verdict on a submitted output with stars for every criterion, since the hook refuses the old body.
+
+### T3 choices to confirm
+
+- **Route responses use T1's `ownerRoute`** (`lib/runs.ts`), so like every custom route they answer `{ data: … }`: the leaderboard `{ terms_used, dropped, rows, suggested, casting }`, the judging route the §10 payload, and `POST /castings` `{ casting }`. Errors are `{ error, code }`.
+- **The blind payload adds two harmless fields**: `task.id`, and `status` (`active` or `overridden`) on each `verdict.history` entry, so the UI can show the AI's stars as overridden.
+- **A provider error from the judge is final.** `helpers.http` has already retried the network, so the judge doesn't call again. Only a reply that misses the rubric is retried once. Either way the output stays `submitted`, `attempt.error` says "AI judging failed: …", and the owner judges it by hand.
+- **If an owner verdict lands first**, a late AI verdict is stored as `overridden`, so it stays in the history without replacing the owner's stars.
+- **Dropped terms** are listed only when their weight is above 0. With the default weights (quality only), `dropped` is always empty.
+- **Rows are sorted best first**: by fitness, then mean score, then number of outputs, then name. That is the same order as the champion tie-break.
+
+### Shared with T1 and T2 (after merging main)
+
+- The run status refresh is T1's `lib/runs.ts` `refreshRunStatus`; the judging screen's `prompt_text` uses T2's `lib/handoff.ts` `htmlToText`. T3's own copies were removed.
+- The judge worker calls the judge through T1's `lib/providers/index.ts` `callProvider`, and reads its key through `helpers.query` (F16), as the generate worker does.
+- The same-provider warning is T1's `lib/runs.ts` `sameProviderWarnings` (preview, Done-when 7, tested in `test/runs.test.ts`). T3's copy was removed.
+- Done-when 9 is checked where the judge hands the request to the provider: both PNGs as attachments and a note naming the skipped SVG. T1's Anthropic adapter turns those attachments into `image` blocks (`test/providers.test.ts`, golden request).
+- `test/judging.test.ts` now also runs Done-when 1 end to end: `POST /runs` with an AI judge, the generate worker, the judge worker, and the run ending `done`.
