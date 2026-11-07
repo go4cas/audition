@@ -169,3 +169,26 @@ The T2 Handoff thread checked these against Vaultbase **0.40.2** (same binary an
 - **Drafts.** The owner may save `output` and the metrics while the output is waiting, without submitting.
 - **Files on PATCH.** A PATCH may keep or drop files already uploaded to that output, but can't name any other file. On submit, every file is re-checked against the Phase 1 list (F4).
 - **Run status and cost.** Until T1 merges, `lib/handoff.ts` carries the run-status rule (§8) and the cost formula; whichever of T1 and T2 merges second swaps them for `lib/runs.ts` and `lib/cost.ts`.
+
+## T1 findings (Nov 7, 2026)
+
+T1 (API execution) checked these against the pinned Vaultbase **0.40.2** binary; the tests are `test/runs.test.ts` (on a fresh instance) and `test/providers.test.ts` (fake `http`, no server).
+
+### Confirmed against the binary
+
+- **F16. Server code reads `connection_keys` despite its admin-only rules.** `helpers.query("connection_keys", { filter })` in a worker returns the record with `api_key` decrypted, so the generate worker gets the key while the owner still can't list or view it. Test: an OpenAI-compatible contender with a key gets past "no API key" and is stopped by the egress denylist instead, and no response contains the key.
+- **F17. A worker's `retries` is the total number of tries.** Vaultbase re-queues a job only while `job.attempt < retries` (`src/core/queues.ts`, `runJob`), so `retries: 1` means one try and no retry, as §8 wants. The generate worker never throws: the `fail` mock's job ends `succeeded` in `vaultbase_jobs_log`, with its attempt `failed`.
+- **F18. Attempt order for the mock seed.** `n` (earlier attempts of a task by a contender) is counted by SQLite `rowid`, which follows insert order, because `created_at` has one-second resolution and a quick Run again shares the second. Run again therefore gives the erratic mock new, repeatable outputs.
+- **F19. A route path's parameters don't clash.** `POST /runs`, `POST /runs/preview`, `POST /runs/:id/again` and `GET /runs/:id` are four route files, and each one gets only its own requests.
+- **Egress (F3) in practice.** A connection with `base_url` `https://127.0.0.1:1/v1` fails with Vaultbase's `egress … blocked` message, and the attempt records it. Audition's own host check (`lib/providers/index.ts`, `egressGuard`) refuses any URL whose host isn't the connection's before Vaultbase sees it.
+
+### T1 choices to confirm
+
+- **Prompt rendering** uses T2's `lib/handoff.ts` `promptForTask` (T2 merged first). T1 replaced the stand-in, and `lib/handoff.ts` now uses T1's `refreshRunStatus` (`lib/runs.ts`) and `deriveCost` (`lib/cost.ts`) in place of its own copies.
+- **The retry evidence for the flaky mock** is the worker's log line `generate attempt=<id> status=submitted calls=2`. `attempts` has no call-count field, and adding one would be a schema change. The in-process mock retries a retryable error up to 3 tries, as `helpers.http` does for real providers.
+- **The AI judge contender is locked** when a run uses it, like the contenders it judges, so verdicts stay tied to the exact judge configuration.
+- **Call count with the mock judge.** `judge_calls` always shows how many outputs the AI judge will score. Calls to the mock judge are left out of `total_provider_calls` (and `runs.call_count`) because they cost nothing (§8).
+- **An extra warning** appears when the AI judge is itself one of the run's contenders ("it judges its own output").
+- **An empty answer is a failure.** A reply with no text and no files fails the output, and says so when it was cut off at max output tokens.
+- **Attachments to API contenders.** Images (PNG, JPEG, GIF, WebP) and PDFs go as base64 blocks, and text files (`.txt`, `.md`, `.csv`, `.log`, `.json`, or any `text/*` type) as text blocks headed with the file name. Anything else, SVG and zip included, is listed by name. The OpenAI-compatible adapter lists PDFs by name too.
+- **One extra file**, `lib/providers/shared.ts`, holds what the two HTTP adapters share (the `http` type, attachment sorting, error mapping). Without it the adapters would import `index.ts`, which imports them.

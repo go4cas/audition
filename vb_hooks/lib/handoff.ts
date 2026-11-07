@@ -4,6 +4,8 @@
 // every contender sees the identical text. No "vaultbase" import (F7).
 import { parseJson, type Criterion } from "./validation.ts";
 import type { Sql } from "./store.ts";
+import { deriveCost } from "./cost.ts";
+import { refreshRunStatus } from "./runs.ts";
 
 type Rec = Record<string, unknown>;
 export type Render = (template: string, vars: Rec) => string;
@@ -212,13 +214,8 @@ const SYSTEM_KEYS = new Set(["id", "created", "updated", "created_at", "updated_
 
 const sameValue = (a: unknown, b: unknown) => JSON.stringify(parseJson(a) ?? null) === JSON.stringify(parseJson(b) ?? null);
 
-/** `cost` from prices per million tokens, or null when anything is missing (§8). */
-export function costOf(tokensIn: unknown, tokensOut: unknown, priceIn: unknown, priceOut: unknown): number | null {
-  const n = [tokensIn, tokensOut, priceIn, priceOut].map((v) => (v === null || v === undefined || v === "" ? NaN : Number(v)));
-  if (n.some((v) => !Number.isFinite(v))) return null;
-  const [ti, to, pi, po] = n as [number, number, number, number];
-  return (ti * pi + to * po) / 1_000_000;
-}
+/** A stored number, or null when it is empty or not a number. */
+const numOrNull = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
 export interface SubmitCtx {
   record: Rec;
@@ -284,7 +281,7 @@ export async function attemptBeforeUpdate(ctx: SubmitCtx): Promise<void> {
   r["metrics_source"] = "manual";
   r["submitted_at"] = Math.floor(Date.now() / 1000);
   const contender = await ctx.helpers.find("contenders", String(existing!["contender"]));
-  const cost = costOf(merged["tokens_in"], merged["tokens_out"], contender?.["price_in_per_mtok"], contender?.["price_out_per_mtok"]);
+  const cost = deriveCost(numOrNull(merged["tokens_in"]), numOrNull(merged["tokens_out"]), numOrNull(contender?.["price_in_per_mtok"]), numOrNull(contender?.["price_out_per_mtok"]));
   r["cost"] = cost;
 }
 
@@ -367,13 +364,6 @@ export function uploadTargetError(collection: string, field: string, record: Rec
   return { code: 404, error: "Files can be uploaded only to an output or a task." };
 }
 
-/** Run status after an attempt changes (§8). The same rules as T1's lib/runs.ts refreshRunStatus. */
-export function runStatusOf(statuses: string[]): "running" | "judging" | "done" {
-  if (statuses.some((s) => s === "queued" || s === "in_progress" || s === "waiting")) return "running";
-  if (statuses.some((s) => s === "submitted")) return "judging";
-  return "done";
-}
-
 export interface AfterCtx {
   record: Rec;
   existing: Rec | null;
@@ -389,7 +379,7 @@ export interface AfterCtx {
  * if the run's judge is AI, then refresh the run's status. Runs after the
  * response (Vaultbase fires after-hooks without waiting).
  */
-export async function attemptAfterUpdate(ctx: AfterCtx, update: (collection: string, id: string, data: Rec) => Promise<unknown>): Promise<void> {
+export async function attemptAfterUpdate(ctx: AfterCtx): Promise<void> {
   const before = ctx.existing?.["status"];
   const after = ctx.record["status"];
   if (before !== "waiting" || after !== "submitted") return;
@@ -399,7 +389,5 @@ export async function attemptAfterUpdate(ctx: AfterCtx, update: (collection: str
   const run = await ctx.helpers.find("runs", runId);
   if (!run) return;
   if (run["judge"] === "ai") await ctx.helpers.enqueue("judge", { attempt: attemptId }, { uniqueKey: `judge:${attemptId}` });
-  const rows = await ctx.helpers.sql.query<{ status: string }>(`SELECT status FROM vb_attempts WHERE run = ?`, [runId]);
-  const status = runStatusOf(rows.map((r) => r.status));
-  if (status !== run["status"]) await update("runs", runId, { status });
+  await refreshRunStatus(ctx.helpers.sql, runId);
 }

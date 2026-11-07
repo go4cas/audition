@@ -2,9 +2,11 @@
 // the upload checks (TECH-SPEC §9, F4, F6).
 import { expect, test } from "bun:test";
 import {
-  checkUpload, costOf, htmlToText, renderPrompt, renderTemplate, returnInstructionsFor, rubricText, runStatusOf,
+  checkUpload, htmlToText, renderPrompt, renderTemplate, returnInstructionsFor, rubricText,
   uploadTargetError, uploadTypeError,
 } from "../vb_hooks/lib/handoff.ts";
+import { deriveCost } from "../vb_hooks/lib/cost.ts";
+import { runStatusFrom } from "../vb_hooks/lib/runs.ts";
 import { GENERIC_TEMPLATE } from "../seed/reference.ts";
 
 const role = { name: "Researcher", description: "Compares options.", rubric: [{ name: "Accuracy", weight: 60, guidance: "Facts are right." }, { name: "Clarity", weight: 40 }] };
@@ -68,16 +70,16 @@ test("the same input always gives the same prompt", () => {
 });
 
 test("cost needs both prices and both token counts", () => {
-  expect(costOf(1000, 2000, 3, 15)).toBeCloseTo(0.033, 10);
-  expect(costOf(1000, 2000, 3, null)).toBeNull();
-  expect(costOf(null, 2000, 3, 15)).toBeNull();
+  expect(deriveCost(1000, 2000, 3, 15)).toBeCloseTo(0.033, 10);
+  expect(deriveCost(1000, 2000, 3, null)).toBeNull();
+  expect(deriveCost(null, 2000, 3, 15)).toBeNull();
 });
 
 test("run status follows TECH-SPEC §8", () => {
-  expect(runStatusOf(["submitted", "waiting"])).toBe("running");
-  expect(runStatusOf(["submitted", "judged", "failed"])).toBe("judging");
-  expect(runStatusOf(["judged", "failed"])).toBe("done");
-  expect(runStatusOf(["failed"])).toBe("done");
+  expect(runStatusFrom(["submitted", "waiting"])).toBe("running");
+  expect(runStatusFrom(["submitted", "judged", "failed"])).toBe("judging");
+  expect(runStatusFrom(["judged", "failed"])).toBe("done");
+  expect(runStatusFrom(["failed"])).toBe("done");
 });
 
 test("upload checks: size, type by name, and content", () => {
