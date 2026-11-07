@@ -151,7 +151,8 @@ test("Software Factory: edit the workspace, a stage, a role's rubric and a task"
   await go(`/r/${role.id}`);
   await p.getByLabel("Guidance 1", { exact: true }).fill("Facts are right and every claim has a source");
   await p.getByRole("button", { name: "Save role" }).click();
-  await toastSays(/saved/i);
+  // Wait for this save's own toast: "Settings saved" may still be showing.
+  await toastSays("Role saved");
   const saved = await one("roles", `id = "${role.id}"`);
   expect(saved.rubric[0].guidance).toBe("Facts are right and every claim has a source");
   await shot("role");
@@ -160,7 +161,9 @@ test("Software Factory: edit the workspace, a stage, a role's rubric and a task"
   await go(`/t/${task.id}`);
   await p.fill("#tk-title", "Summarise SQLite versus Postgres for a single-user app");
   await p.getByRole("button", { name: "Save task" }).click();
-  await toastSays(/saved/i);
+  // This save's own toast, not an earlier one still showing: the page moves on
+  // right after it, and the next step must not race that.
+  await toastSays("Task saved");
   expect((await one("tasks", `id = "${task.id}"`)).title).toBe("Summarise SQLite versus Postgres for a single-user app");
 }, 90_000);
 

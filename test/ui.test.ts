@@ -45,10 +45,13 @@ describe("build", () => {
       const full = join(ROOT, "node_modules", "@arrow-js", "core", "dist", p);
       return n + (statSync(full).isDirectory() ? files(full).filter((f) => f.endsWith(".mjs")).reduce((m, f) => m + statSync(f).size, 0) : statSync(full).size);
     }, 0);
-    console.log(`UI build, unminified: JS ${kb(size(".js"))} (Arrow.js package files: ${kb(arrow)}), CSS ${kb(size(".css"))}, HTML ${kb(size(".html"))}`);
-    // TECH-SPEC T4 Done-when 3 asks for under 150 KB; see the PR for the measured
-    // size and the open question. This guard stops it growing unnoticed.
-    expect(size(".js")).toBeLessThan(210 * 1024);
+    console.log(`UI build, minified: JS ${kb(size(".js"))} (Arrow.js package files: ${kb(arrow)}), CSS ${kb(size(".css"))}, HTML ${kb(size(".html"))}`);
+    // TECH-SPEC T4 Done-when 3: under 150 KB of minified JS (CSS not counted).
+    expect(size(".js")).toBeLessThan(150 * 1024);
+    // The bundle is minified and ships a linked source map.
+    const main = readFileSync(join(dist, "main.js"), "utf8");
+    expect(main).toContain("//# sourceMappingURL=main.js.map");
+    expect(JSON.parse(readFileSync(join(dist, "main.js.map"), "utf8")).sources.length).toBeGreaterThan(1);
   });
 });
 

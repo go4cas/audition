@@ -723,7 +723,7 @@ The spec's thread plan stands: T0 merges first, then T1 to T4 run in parallel, t
    - Run again;
    - see the leaderboard and confirm a champion.
 2. Screenshots at 1280 px and 375 px are in the PR.
-3. No runtime dependency other than `@arrow-js/core` (exact version), no Tailwind or Vite, and the UI build is under 150 KB unminified.
+3. No runtime dependency other than `@arrow-js/core` (exact version), no Tailwind or Vite, and the UI build is under 150 KB minified JS (CSS is not counted), with a source map.
 4. The judging screen calls only the blind route, never `/collections/attempts` (checked by a test that greps the judging module).
 5. Screens say "outputs", never "attempts".
 

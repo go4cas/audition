@@ -4,6 +4,8 @@
 // code path: it reads each workspace's own judge, roles, rubrics and output
 // types from the API and does the same thing for all of them. It names no
 // workspace either; the last test checks that for the app's code.
+// A workspace whose seed lists its own contenders (the spec's table) is also
+// run with exactly those: one API contender, or copy-and-paste contenders only.
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -27,15 +29,28 @@ beforeAll(async () => {
 }, 120_000);
 afterAll(async () => { await h?.cleanup(); });
 
+/**
+ * An owner API call that waits out Vaultbase's default rate limit (60 creates
+ * per 5 s) as any client would: on 429 it sleeps for Retry-After and tries again.
+ * The end-to-end runs make more creates than a person would, in bursts.
+ */
+async function api(method: string, path: string, body?: unknown): Promise<{ status: number; body: any }> {
+  for (let i = 0; ; i++) {
+    const r = await h.api("owner", method, path, body);
+    if (r.status !== 429 || i >= 10) return r;
+    await Bun.sleep(1000);
+  }
+}
+
 async function list(collection: string, filter = ""): Promise<Rec[]> {
-  const r = await h.api("owner", "GET", `/api/v1/${collection}?perPage=200${filter ? `&filter=${encodeURIComponent(filter)}` : ""}`);
+  const r = await api("GET", `/api/v1/${collection}?perPage=200${filter ? `&filter=${encodeURIComponent(filter)}` : ""}`);
   expect(r.status, `list ${collection}`).toBe(200);
   return r.body.data;
 }
 
 /** A custom route's `{ data }`, failing the test with the body on any non-200. */
 async function route(method: string, path: string, body?: unknown): Promise<any> {
-  const r = await h.api("owner", method, path, body);
+  const r = await api(method, path, body);
   expect(r.status, `${method} ${path}: ${JSON.stringify(r.body)}`).toBe(200);
   return r.body.data;
 }
@@ -53,7 +68,12 @@ function castFor(role: Rec): Rec[] {
 /** How the owner rates an output when judging by hand: the mock's own quality, else 3 stars. */
 const starsFor = (output: string) => qualityMarker(output) ?? 3;
 
-async function pasteHandoffOutputs(runId: string, tasks: Rec[]) {
+/**
+ * Paste every waiting handoff output. `rate` is the stars the owner will give a
+ * contender's pasted output, written into it as the mock's quality marker; by
+ * default nothing is written and the owner gives 3 stars.
+ */
+async function pasteHandoffOutputs(runId: string, tasks: Rec[], rate?: (contenderName: string) => number) {
   for (const t of tasks) {
     const handoff = await route("GET", `/api/custom/handoff/${runId}/${t.id}`);
     expect(handoff.prompt).toContain(t.title);
@@ -66,8 +86,8 @@ async function pasteHandoffOutputs(runId: string, tasks: Rec[]) {
         });
         expect(up.status, await up.clone().text()).toBe(200);
       }
-      const r = await h.api("owner", "PATCH", `/api/v1/attempts/${w.attempt}`, {
-        output: `Pasted from another tool for: ${t.title}`, tokens_in: 900, tokens_out: 400, duration_ms: 30_000, status: "submitted",
+      const r = await api("PATCH", `/api/v1/attempts/${w.attempt}`, {
+        output: `Pasted from another tool for: ${t.title}${rate ? `\n\n[[mock-quality:${rate(w.contender_name)}]]` : ""}`, tokens_in: 900, tokens_out: 400, duration_ms: 30_000, status: "submitted",
       });
       expect(r.status, JSON.stringify(r.body)).toBe(200);
     }
@@ -82,19 +102,19 @@ async function judgeByHand(runId: string, tasks: Rec[]) {
       if (o.verdict) continue;
       const stars = starsFor(o.output);
       const scores = Object.fromEntries(blind.rubric.map((c: Rec) => [c.name, { stars, reason: "e2e" }]));
-      const r = await h.api("owner", "POST", "/api/v1/verdicts", { attempt: o.attempt, scores });
+      const r = await api("POST", "/api/v1/verdicts", { attempt: o.attempt, scores });
       expect(r.status, JSON.stringify(r.body)).toBe(200);
     }
   }
 }
 
 /** One run from start to done: API outputs generate, handoff outputs are pasted, then judging. */
-async function driveRun(runId: string, tasks: Rec[], judge: string) {
+async function driveRun(runId: string, tasks: Rec[], judge: string, rate?: (contenderName: string) => number) {
   await until(async () => {
     const v = await route("GET", `/api/custom/runs/${runId}`);
     return v.counts.queued === 0 && v.counts.in_progress === 0;
   }, `run ${runId} to generate`, 30_000);
-  await pasteHandoffOutputs(runId, tasks);
+  await pasteHandoffOutputs(runId, tasks, rate);
   if (judge === "me") {
     await until(async () => (await route("GET", `/api/custom/runs/${runId}`)).run.status === "judging", `run ${runId} to wait for judging`);
     await judgeByHand(runId, tasks);
@@ -108,62 +128,101 @@ async function driveRun(runId: string, tasks: Rec[], judge: string) {
   expect(done.counts.judged).toBe(done.attempts.length);
 }
 
+/** The workspace seeded i-th, in creation order. */
+async function workspaceAt(i: number): Promise<Rec> {
+  return (await list("workspaces", "")).sort((a, b) => a.created - b.created || a.id.localeCompare(b.id))[i]!;
+}
+
+/**
+ * Tasks → runs → judging → casting for one role with the given contenders.
+ * Outputs a contender already had (from an earlier test) are counted first, so
+ * the leaderboard check holds whatever ran before.
+ */
+async function castRole(ws: Rec, role: Rec, cast: Rec[], opts: { addTask: boolean; rate?: (contenderName: string) => number }) {
+  const judge = ws.default_judge as string;
+  if (opts.addTask) {
+    // Tasks: the seeded ones, plus one the owner adds now.
+    const created = await api("POST", "/api/v1/tasks", {
+      role: role.id, title: `A new task for the ${role.name}`, prompt: `<p>Another task for the ${role.name}, written during the end-to-end test.</p>`,
+    });
+    expect(created.status, JSON.stringify(created.body)).toBe(200);
+    expect(created.body.data.output_type).toBe(role.default_output_type);
+  }
+  const tasks = await list("tasks", `role = "${role.id}"`);
+  expect(tasks.length).toBeGreaterThanOrEqual(opts.addTask ? 2 : 1);
+  const handoffs = cast.filter((c) => connections.get(c.connection)?.provider === "manual").length;
+  const body = { role: role.id, tasks: tasks.map((t) => t.id), contenders: cast.map((c) => c.id), judge };
+  const before = await route("GET", `/api/custom/leaderboard/${role.id}`);
+  const had = (id: string) => before.rows.find((r: Rec) => r.contender === id)?.n ?? 0;
+
+  // The preview counts what the run will cost before it starts.
+  const preview = await route("POST", "/api/custom/runs/preview", body);
+  expect(preview.outputs).toBe(tasks.length * cast.length);
+  expect(preview.handoff_outputs).toBe(tasks.length * handoffs);
+
+  // Runs: the first, then Run again until every contender has the workspace minimum.
+  const runsNeeded = Math.ceil(ws.min_outputs / tasks.length);
+  let run = (await route("POST", "/api/custom/runs", body)).run;
+  expect(run.call_count).toBe(preview.total_provider_calls);
+  await driveRun(run.id, tasks, judge, opts.rate);
+  for (let n = 1; n < runsNeeded; n++) {
+    const again = (await route("POST", `/api/custom/runs/${run.id}/again`)).run;
+    expect(again.rerun_of).toBe(run.id);
+    run = again;
+    await driveRun(run.id, tasks, judge, opts.rate);
+  }
+
+  // Tasks and contenders used are locked now.
+  for (const t of tasks) expect((await route("GET", `/api/v1/tasks/${t.id}`)).locked).toBe(true);
+
+  // Judging was by the workspace's own judge.
+  const verdicts = await list("verdicts", `run = "${run.id}" && status = "active"`);
+  expect(verdicts.length).toBe(tasks.length * cast.length);
+  for (const v of verdicts) expect(v.judge_kind).toBe(judge === "ai" ? "ai" : "human");
+
+  // Casting: the leaderboard suggests a champion with enough outputs, and the owner confirms it.
+  const board = await route("GET", `/api/custom/leaderboard/${role.id}`);
+  for (const c of cast) expect(board.rows.find((r: Rec) => r.contender === c.id)?.n).toBe(had(c.id) + tasks.length * runsNeeded);
+  expect(board.suggested, `a suggested champion for role ${role.id}`).toBeTruthy();
+  const champ = board.rows.find((r: Rec) => r.contender === board.suggested);
+  expect(champ.qualifies).toBe(true);
+  expect(champ.mean_score).toBeGreaterThan(role.pass_mark);
+  const { casting } = await route("POST", "/api/custom/castings", { role: role.id, contender: board.suggested, rationale: "Best fitness in the end-to-end test." });
+  expect(casting.suggested_by).toBe("system");
+  const after = await route("GET", `/api/custom/leaderboard/${role.id}`);
+  expect(after.casting?.contender).toBe(board.suggested);
+  return { board, cast };
+}
+
+// The spec's table gives some workspaces their own contenders (SPEC "Reference
+// workspaces"): one API contender, or copy-and-paste contenders only. Run each
+// such workspace with exactly those, read from the seed, never by name. These
+// run first, so the role has no other contender's outputs yet.
+for (const [i, def] of WORKSPACES.entries()) {
+  if (!def.contenders) continue;
+  test(`reference workspace ${i + 1}: runs with only its own ${def.contenders.length} contender(s)`, async () => {
+    const ws = await workspaceAt(i);
+    const own = def.contenders!.map((name) => contenders.find((c) => c.name === name)!);
+    expect(own.every(Boolean)).toBe(true);
+    // The owner rates the first pasted contender 4 stars and the rest 3, so a
+    // copy-and-paste-only role still has a champion above the pass mark.
+    const first = own[0]!.name;
+    const rate = (name: string) => (name === first ? 4 : 3);
+    const roles = await list("roles", `workspace = "${ws.id}"`);
+    for (const role of roles) {
+      const { board } = await castRole(ws, role, own, { addTask: false, rate });
+      if (own.length === 1) expect(board.suggested).toBe(own[0]!.id);
+      if (own.every((c) => connections.get(c.connection)?.provider === "manual")) expect(board.suggested).toBe(own[0]!.id);
+    }
+  }, 300_000);
+}
+
 for (const [i] of WORKSPACES.entries()) {
   test(`reference workspace ${i + 1}: tasks → runs → judging → casting, against the mock`, async () => {
-    const ws = (await list("workspaces", "")).sort((a, b) => a.created - b.created || a.id.localeCompare(b.id))[i]!;
+    const ws = await workspaceAt(i);
     const roles = await list("roles", `workspace = "${ws.id}"`);
     expect(roles.length).toBeGreaterThan(0);
-    const judge = ws.default_judge as string;
-
-    await Promise.all(roles.map(async (role) => {
-      // Tasks: the seeded ones, plus one the owner adds now.
-      const created = await h.api("owner", "POST", "/api/v1/tasks", {
-        role: role.id, title: `A new task for the ${role.name}`, prompt: `<p>Another task for the ${role.name}, written during the end-to-end test.</p>`,
-      });
-      expect(created.status, JSON.stringify(created.body)).toBe(200);
-      expect(created.body.data.output_type).toBe(role.default_output_type);
-      const tasks = await list("tasks", `role = "${role.id}"`);
-      expect(tasks.length).toBeGreaterThanOrEqual(2);
-      const cast = castFor(role);
-      const body = { role: role.id, tasks: tasks.map((t) => t.id), contenders: cast.map((c) => c.id), judge };
-
-      // The preview counts what the run will cost before it starts.
-      const preview = await route("POST", "/api/custom/runs/preview", body);
-      expect(preview.outputs).toBe(tasks.length * cast.length);
-      expect(preview.handoff_outputs).toBe(tasks.length);
-
-      // Runs: the first, then Run again until every contender has the workspace minimum.
-      const runsNeeded = Math.ceil(ws.min_outputs / tasks.length);
-      let run = (await route("POST", "/api/custom/runs", body)).run;
-      expect(run.call_count).toBe(preview.total_provider_calls);
-      await driveRun(run.id, tasks, judge);
-      for (let n = 1; n < runsNeeded; n++) {
-        const again = (await route("POST", `/api/custom/runs/${run.id}/again`)).run;
-        expect(again.rerun_of).toBe(run.id);
-        run = again;
-        await driveRun(run.id, tasks, judge);
-      }
-
-      // Tasks and contenders used are locked now.
-      for (const t of tasks) expect((await route("GET", `/api/v1/tasks/${t.id}`)).locked).toBe(true);
-
-      // Judging was by the workspace's own judge.
-      const verdicts = await list("verdicts", `run = "${run.id}" && status = "active"`);
-      expect(verdicts.length).toBe(tasks.length * cast.length);
-      for (const v of verdicts) expect(v.judge_kind).toBe(judge === "ai" ? "ai" : "human");
-
-      // Casting: the leaderboard suggests a champion with enough outputs, and the owner confirms it.
-      const board = await route("GET", `/api/custom/leaderboard/${role.id}`);
-      for (const c of cast) expect(board.rows.find((r: Rec) => r.contender === c.id)?.n).toBe(tasks.length * runsNeeded);
-      expect(board.suggested, `a suggested champion for role ${role.id}`).toBeTruthy();
-      const champ = board.rows.find((r: Rec) => r.contender === board.suggested);
-      expect(champ.qualifies).toBe(true);
-      expect(champ.mean_score).toBeGreaterThan(role.pass_mark);
-      const { casting } = await route("POST", "/api/custom/castings", { role: role.id, contender: board.suggested, rationale: "Best fitness in the end-to-end test." });
-      expect(casting.suggested_by).toBe("system");
-      const after = await route("GET", `/api/custom/leaderboard/${role.id}`);
-      expect(after.casting?.contender).toBe(board.suggested);
-    }));
+    await Promise.all(roles.map((role) => castRole(ws, role, castFor(role), { addTask: true })));
   }, 300_000);
 }
 
