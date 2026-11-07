@@ -3,7 +3,7 @@
 // passed in. No "vaultbase" import here (TECH-SPEC F7).
 import { mockSeed, ProviderError, type FileOut, type GenerateInput, type GenerateResult } from "./providers/mock.ts";
 import { refreshRunStatus } from "./runs.ts";
-import { storeAiVerdict, type Scores } from "./scoring.ts";
+import { neutralName, storeAiVerdict, type Scores } from "./scoring.ts";
 import { updateRecord, type Sql } from "./store.ts";
 import { parseJson, type Criterion } from "./validation.ts";
 
@@ -149,9 +149,10 @@ async function outputFiles(sql: Sql, attemptId: string, stored: string[]): Promi
     `SELECT filename, original_name, mime_type, size FROM vaultbase_files WHERE record_id = ? AND field_name = 'output_files'`, [attemptId],
   );
   const by = new Map(rows.map((r) => [r.filename, r]));
-  return stored.map((s) => {
+  return stored.map((s, i) => {
     const r = by.get(s);
-    return { stored: s, name: r?.original_name || s, mime: r?.mime_type || "application/octet-stream", size: Number(r?.size ?? 0) };
+    // The judge sees neutral names (file-1.png), so a file's own name can't sway it.
+    return { stored: s, name: neutralName("file", i, r?.original_name || s), mime: r?.mime_type || "application/octet-stream", size: Number(r?.size ?? 0) };
   });
 }
 

@@ -267,7 +267,9 @@ test("Stock Review: add a connection with a key and a contender; paste an output
   expect(prompt).toContain("northwind-foods-q3.txt");
   await waitFor(async () => (await runStatus(run)) === "done", "the Stock Review run to be judged");
   await go(`/judge/${run}/${task.id}`);
-  await p.getByText("notes.md").first().waitFor();
+  // Blind judging shows a neutral name (A-1.md), never the uploaded "notes.md".
+  await p.getByText(/^[A-Z]-1\.md$/).first().waitFor();
+  expect(await p.getByText("notes.md").count()).toBe(0);
   await p.getByText("Judged by AI").first().waitFor();
 }, 180_000);
 

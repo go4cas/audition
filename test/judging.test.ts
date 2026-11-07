@@ -141,10 +141,12 @@ test("Done-when 9: an image output's judge request carries the images and names 
   expect(r.status).toBe(200);
   const [call] = r.body.data.calls;
   expect(call.attachments).toEqual([
-    { name: "bag.png", mime: "image/png", bytes: testImage(0).byteLength },
-    { name: "label.png", mime: "image/png", bytes: testImage(1).byteLength },
+    // Neutral names in upload order: bag.png, logo.svg, label.png.
+    { name: "file-1.png", mime: "image/png", bytes: testImage(0).byteLength },
+    { name: "file-3.png", mime: "image/png", bytes: testImage(1).byteLength },
   ]);
-  expect(call.prompt).toContain("an image `logo.svg` was supplied but could not be shown to you");
+  expect(call.prompt).toContain("an image `file-2.svg` was supplied but could not be shown to you");
+  expect(call.prompt).not.toContain("bag.png");
   expect(call.prompt).toContain("TASK: Draw");
   expect(call.hasSchema).toBe(true);
   expect(call.system).toContain("strict, fair judge");
