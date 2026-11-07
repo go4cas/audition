@@ -1,0 +1,185 @@
+// T5 end to end (TECH-SPEC §15 T5, Done-when 1): every seeded reference
+// workspace goes through tasks → runs → judging → casting against the mock,
+// through the same owner routes the UI uses. The test has no workspace-specific
+// code path: it reads each workspace's own judge, roles, rubrics and output
+// types from the API and does the same thing for all of them. It names no
+// workspace either; the last test checks that for the app's code.
+import { afterAll, beforeAll, expect, test } from "bun:test";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
+import { boot, type Harness } from "./harness.ts";
+import { until } from "./t3-helpers.ts";
+import { WORKSPACES, seedReference } from "../seed/reference.ts";
+import { testImage } from "../vb_hooks/lib/png.ts";
+import { qualityMarker } from "../vb_hooks/lib/providers/mock.ts";
+
+type Rec = Record<string, any>;
+
+let h: Harness;
+let contenders: Rec[];
+let connections: Map<string, Rec>;
+
+beforeAll(async () => {
+  h = await boot();
+  await seedReference(h.url, h.adminToken);
+  contenders = await list("contenders");
+  connections = new Map((await list("connections")).map((c) => [c.id, c]));
+}, 120_000);
+afterAll(async () => { await h?.cleanup(); });
+
+async function list(collection: string, filter = ""): Promise<Rec[]> {
+  const r = await h.api("owner", "GET", `/api/v1/${collection}?perPage=200${filter ? `&filter=${encodeURIComponent(filter)}` : ""}`);
+  expect(r.status, `list ${collection}`).toBe(200);
+  return r.body.data;
+}
+
+/** A custom route's `{ data }`, failing the test with the body on any non-200. */
+async function route(method: string, path: string, body?: unknown): Promise<any> {
+  const r = await h.api("owner", method, path, body);
+  expect(r.status, `${method} ${path}: ${JSON.stringify(r.body)}`).toBe(200);
+  return r.body.data;
+}
+
+const behaviour = (c: Rec): string | undefined => c.config?.mock?.behaviour;
+const byBehaviour = (b: string) => contenders.find((c) => behaviour(c) === b)!;
+const handoffContender = () => contenders.find((c) => connections.get(c.connection)?.provider === "manual")!;
+
+/** The contenders a role is tried with: by output type, never by workspace. */
+function castFor(role: Rec): Rec[] {
+  const api = role.default_output_type === "image" ? [byBehaviour("image")] : [byBehaviour("steady"), byBehaviour("erratic")];
+  return [...api, handoffContender()];
+}
+
+/** How the owner rates an output when judging by hand: the mock's own quality, else 3 stars. */
+const starsFor = (output: string) => qualityMarker(output) ?? 3;
+
+async function pasteHandoffOutputs(runId: string, tasks: Rec[]) {
+  for (const t of tasks) {
+    const handoff = await route("GET", `/api/custom/handoff/${runId}/${t.id}`);
+    expect(handoff.prompt).toContain(t.title);
+    for (const w of handoff.waiting) {
+      if (t.output_type === "image") {
+        const form = new FormData();
+        form.append("file", new File([testImage(1)], "result.png", { type: "image/png" }));
+        const up = await fetch(`${h.url}/api/custom/files/attempts/${w.attempt}/output_files`, {
+          method: "POST", headers: { authorization: `Bearer ${h.ownerToken}` }, body: form,
+        });
+        expect(up.status, await up.clone().text()).toBe(200);
+      }
+      const r = await h.api("owner", "PATCH", `/api/v1/attempts/${w.attempt}`, {
+        output: `Pasted from another tool for: ${t.title}`, tokens_in: 900, tokens_out: 400, duration_ms: 30_000, status: "submitted",
+      });
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+    }
+  }
+}
+
+async function judgeByHand(runId: string, tasks: Rec[]) {
+  for (const t of tasks) {
+    const blind = await route("GET", `/api/custom/judging/${runId}/${t.id}`);
+    expect(blind.outputs.length).toBeGreaterThan(0);
+    for (const o of blind.outputs) {
+      if (o.verdict) continue;
+      const stars = starsFor(o.output);
+      const scores = Object.fromEntries(blind.rubric.map((c: Rec) => [c.name, { stars, reason: "e2e" }]));
+      const r = await h.api("owner", "POST", "/api/v1/verdicts", { attempt: o.attempt, scores });
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+    }
+  }
+}
+
+/** One run from start to done: API outputs generate, handoff outputs are pasted, then judging. */
+async function driveRun(runId: string, tasks: Rec[], judge: string) {
+  await until(async () => {
+    const v = await route("GET", `/api/custom/runs/${runId}`);
+    return v.counts.queued === 0 && v.counts.in_progress === 0;
+  }, `run ${runId} to generate`, 30_000);
+  await pasteHandoffOutputs(runId, tasks);
+  if (judge === "me") {
+    await until(async () => (await route("GET", `/api/custom/runs/${runId}`)).run.status === "judging", `run ${runId} to wait for judging`);
+    await judgeByHand(runId, tasks);
+  }
+  const done = await until(async () => {
+    const v = await route("GET", `/api/custom/runs/${runId}`);
+    return v.run.status === "done" ? v : null;
+  }, `run ${runId} to be done`, 45_000);
+  // Nothing was left behind: every output was made and judged.
+  expect(done.counts.failed).toBe(0);
+  expect(done.counts.judged).toBe(done.attempts.length);
+}
+
+for (const [i] of WORKSPACES.entries()) {
+  test(`reference workspace ${i + 1}: tasks → runs → judging → casting, against the mock`, async () => {
+    const ws = (await list("workspaces", "")).sort((a, b) => a.created - b.created || a.id.localeCompare(b.id))[i]!;
+    const roles = await list("roles", `workspace = "${ws.id}"`);
+    expect(roles.length).toBeGreaterThan(0);
+    const judge = ws.default_judge as string;
+
+    await Promise.all(roles.map(async (role) => {
+      // Tasks: the seeded ones, plus one the owner adds now.
+      const created = await h.api("owner", "POST", "/api/v1/tasks", {
+        role: role.id, title: `A new task for the ${role.name}`, prompt: `<p>Another task for the ${role.name}, written during the end-to-end test.</p>`,
+      });
+      expect(created.status, JSON.stringify(created.body)).toBe(200);
+      expect(created.body.data.output_type).toBe(role.default_output_type);
+      const tasks = await list("tasks", `role = "${role.id}"`);
+      expect(tasks.length).toBeGreaterThanOrEqual(2);
+      const cast = castFor(role);
+      const body = { role: role.id, tasks: tasks.map((t) => t.id), contenders: cast.map((c) => c.id), judge };
+
+      // The preview counts what the run will cost before it starts.
+      const preview = await route("POST", "/api/custom/runs/preview", body);
+      expect(preview.outputs).toBe(tasks.length * cast.length);
+      expect(preview.handoff_outputs).toBe(tasks.length);
+
+      // Runs: the first, then Run again until every contender has the workspace minimum.
+      const runsNeeded = Math.ceil(ws.min_outputs / tasks.length);
+      let run = (await route("POST", "/api/custom/runs", body)).run;
+      expect(run.call_count).toBe(preview.total_provider_calls);
+      await driveRun(run.id, tasks, judge);
+      for (let n = 1; n < runsNeeded; n++) {
+        const again = (await route("POST", `/api/custom/runs/${run.id}/again`)).run;
+        expect(again.rerun_of).toBe(run.id);
+        run = again;
+        await driveRun(run.id, tasks, judge);
+      }
+
+      // Tasks and contenders used are locked now.
+      for (const t of tasks) expect((await route("GET", `/api/v1/tasks/${t.id}`)).locked).toBe(true);
+
+      // Judging was by the workspace's own judge.
+      const verdicts = await list("verdicts", `run = "${run.id}" && status = "active"`);
+      expect(verdicts.length).toBe(tasks.length * cast.length);
+      for (const v of verdicts) expect(v.judge_kind).toBe(judge === "ai" ? "ai" : "human");
+
+      // Casting: the leaderboard suggests a champion with enough outputs, and the owner confirms it.
+      const board = await route("GET", `/api/custom/leaderboard/${role.id}`);
+      for (const c of cast) expect(board.rows.find((r: Rec) => r.contender === c.id)?.n).toBe(tasks.length * runsNeeded);
+      expect(board.suggested, `a suggested champion for role ${role.id}`).toBeTruthy();
+      const champ = board.rows.find((r: Rec) => r.contender === board.suggested);
+      expect(champ.qualifies).toBe(true);
+      expect(champ.mean_score).toBeGreaterThan(role.pass_mark);
+      const { casting } = await route("POST", "/api/custom/castings", { role: role.id, contender: board.suggested, rationale: "Best fitness in the end-to-end test." });
+      expect(casting.suggested_by).toBe("system");
+      const after = await route("GET", `/api/custom/leaderboard/${role.id}`);
+      expect(after.casting?.contender).toBe(board.suggested);
+    }));
+  }, 300_000);
+}
+
+// Done-when 1, second half: no workspace name appears in the app's code.
+// seed/ holds the reference content; tests that check that content may name it.
+test("no reference workspace name appears outside seed/ in the app's code", () => {
+  const root = join(import.meta.dir, "..");
+  const dirs = ["vb_hooks", "ui/src", "ui/index.html", "scripts", "test/e2e.test.ts"];
+  const names = WORKSPACES.map((w) => w.name);
+  const hits: string[] = [];
+  const walk = (p: string) => {
+    const s = statSync(p);
+    if (s.isDirectory()) { for (const e of readdirSync(p)) walk(join(p, e)); return; }
+    const text = readFileSync(p, "utf8");
+    for (const n of names) if (text.includes(n)) hits.push(`${relative(root, p)}: ${n}`);
+  };
+  for (const d of dirs) { try { walk(join(root, d)); } catch (e: any) { if (e.code !== "ENOENT") throw e; } }
+  expect(hits).toEqual([]);
+});
