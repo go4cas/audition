@@ -658,6 +658,13 @@
           }
         },
         {
+          "name": "provider_calls",
+          "type": "number",
+          "options": {
+            "min": 0
+          }
+        },
+        {
           "name": "cost",
           "type": "number"
         },
