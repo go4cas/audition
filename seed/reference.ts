@@ -19,6 +19,8 @@ interface RoleDef { stage?: string; name: string; description: string; rubric: C
 interface WorkspaceDef {
   name: string; description: string; judge: "me" | "ai"; weights: { quality: number; tokens: number; time: number };
   stages: string[]; roles: RoleDef[];
+  /** The contenders the SPEC's "Reference workspaces" table names for this workspace, when it names them. Not seeded as data; the end-to-end test runs them as-is. */
+  contenders?: string[];
 }
 
 export const CONNECTIONS = [
@@ -142,6 +144,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     name: "Stock Review",
     description: "A short, balanced review of one listed company. One role, one contender.",
     judge: "ai",
+    contenders: ["Mock Steady"],
     weights: { quality: 100, tokens: 0, time: 0 },
     stages: [],
     roles: [
@@ -158,6 +161,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     name: "Travel Research",
     description: "Practical travel plans with real places. Copy, paste, rate.",
     judge: "me",
+    contenders: ["ChatGPT (manual)", "Perplexity (manual)"],
     weights: { quality: 100, tokens: 0, time: 0 },
     stages: [],
     roles: [

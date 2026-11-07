@@ -22,6 +22,7 @@ describe("resolveAsset (pure)", () => {
   test("mime types", () => {
     expect(mimeFor("a.js")).toBe("text/javascript; charset=utf-8");
     expect(mimeFor("a.svg")).toBe("image/svg+xml");
+    expect(mimeFor("main.js.map")).toBe("application/json");
     expect(mimeFor("a.bin")).toBe("application/octet-stream");
   });
 });
