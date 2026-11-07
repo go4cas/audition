@@ -156,7 +156,7 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 | Uploads and outputs | Files with MIME and size validation and thumbnails | 1 |
 | Leaderboard | View collection plus aggregations | 1 |
 | Task and contender versions | Record history | 1 |
-| Every judgement and casting | Audit log | 1 |
+| Every judgement and casting | Audition's own records keep the history: verdicts are never deleted, an owner override marks the AI verdict "overridden", and each confirmation adds a new casting. Server writes go through `helpers.sql`, so they skip record history, realtime and record hooks (`docs/TECH-SPEC.md` F1). Vaultbase's audit log covers admin and schema actions only. | 1 |
 | Agent report-back endpoint | Custom route with per-IP rate limit | Later |
 | Routing table for agents | MCP with scoped, read-only tokens | Later |
 | Stale-attempt sweep | Cron | Later |
@@ -196,6 +196,8 @@ Phase 1 proves the whole loop — tasks → runs → judging → casting — wit
 | 1 — Core loop | Workspaces, stages, roles, tasks; connections and contenders; API mode and handoff by copy and paste with one generic template; star-rubric judging by Me or AI with owner override; Run again; leaderboard with tokens, time and optional cost; champion suggestion and casting; single owner | All four reference workspaces run end to end against the mock provider. Then Cas runs one real check with Anthropic on their own machine, outside any Claude session, after T5 merges. |
 | 2 — Living arena | Composer utility role; scheduled runs; outcome verdicts; push and email alerts; guest voters; vector match of new tasks to roles; Levare reads castings | A scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
 | 3 — Runners | Automated runners for harness contenders, with sandboxes outside Vaultbase reporting through signed webhooks | A coding task runs on two harnesses with no manual step |
+
+**First after Phase 1:** move server writes onto the Vaultbase records API (an API token plus a `hooks.http.allow` loopback exception, or a write helper if Vaultbase adds one: https://github.com/vaultbase-sh/vaultbase/discussions/10), then turn on record history for verdicts and castings and realtime for the run page (NOTES R5).
 
 **Deferred from Phase 1, phase not yet set:** agent report tokens and self-report; MCP, including MCP reads of castings; the coding-harness and app templates; pairwise judging; platform-run checks and screenshot capture; the stale-attempt cron; API adapters for image models; cost estimates before a run.
 
