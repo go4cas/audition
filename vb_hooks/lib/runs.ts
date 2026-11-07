@@ -27,7 +27,7 @@ export interface WorkerDeps extends Deps {
   now?: () => number;
 }
 
-/** A prompt renderer: lib/handoff.ts's promptForTask (T2), or the stand-in below. */
+/** A prompt renderer: lib/handoff.ts's promptForTask (T2), bound to helpers. */
 export type PromptForTask = (taskId: string) => Promise<string>;
 
 export class RunError extends Error {
@@ -269,59 +269,12 @@ export async function runView(deps: Deps, runId: string) {
   return { run, counts, attempts };
 }
 
-// ── Prompt rendering stand-in (until T2's lib/handoff.ts lands) ──────────────
-
-interface TemplateDeps extends Deps { render(template: string, vars: Record<string, unknown>): string }
-
-/**
- * A minimal renderer with the shape of T2's promptForTask(helpers, taskId),
- * used until lib/handoff.ts is merged; then routes/runs*.ts import that one.
- */
-export function fallbackPromptForTask(deps: TemplateDeps): PromptForTask {
-  return async (taskId) => {
-    const task = await deps.find("tasks", taskId);
-    if (!task) throw new RunError(404, "A chosen task does not exist.");
-    const role = await deps.find("roles", String(task["role"]));
-    const tpl = (await deps.query("handoff_templates", { filter: `kind = "generic"`, perPage: 1 })).data[0];
-    if (!role || !tpl) throw new RunError(422, "The generic prompt template is missing. Run the seed.");
-    const rubric = (parseJson(role["rubric"]) as Array<{ name: string; weight: number; guidance?: string }> | null) ?? [];
-    const type = String(task["output_type"] || "text");
-    const ret = String(tpl["return_instructions"] ?? "").split("\n")
-      .map((l) => /^(\w+):\s*(.*)$/.exec(l)).find((m) => m?.[1] === type)?.[2] ?? "";
-    const names = await attachmentNames(deps.sql, task["attachments"]);
-    return deps.render(String(tpl["body"]), {
-      role: { name: role["name"], description: role["description"] ?? "" },
-      task: { title: task["title"], prompt: htmlToText(String(task["prompt"] ?? "")), base_ref: parseJson(task["base_ref"]) || "" },
-      attachments_text: names.join(", "),
-      rubric_text: rubric.map((c, i) => `${i + 1}. ${c.name} (${c.weight}%)${c.guidance ? `: ${c.guidance}` : ""}`).join("\n"),
-      return_instructions: ret,
-    }).trim();
-  };
-}
-
-function htmlToText(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|li|h[1-6])>/gi, "\n").replace(/<li[^>]*>/gi, "- ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&")
-    .replace(/\n{3,}/g, "\n\n").trim();
-}
-
 // ── Files ────────────────────────────────────────────────────────────────────
 
 const storedNames = (v: unknown): string[] => {
   const p = parseJson(v);
   return Array.isArray(p) ? p.map(String) : typeof p === "string" && p ? [p] : [];
 };
-
-async function attachmentNames(sql: Sql, field: unknown): Promise<string[]> {
-  const out: string[] = [];
-  for (const name of storedNames(field)) {
-    const row = await sql.queryOne<{ original_name: string }>(`SELECT original_name FROM vaultbase_files WHERE filename = ?`, [name]);
-    out.push(row?.original_name ?? name);
-  }
-  return out;
-}
 
 /** A task's attachments with their original names and types, for API calls. */
 export async function taskAttachments(deps: WorkerDeps, task: Rec): Promise<FileOut[]> {
@@ -481,6 +434,12 @@ export async function ownerRoute(ctx: { auth: any; set: { status: number } }, fn
     return { data: await fn() };
   } catch (e) {
     if (e instanceof RunError) { ctx.set.status = e.code; return errorBody(e); }
+    // lib/handoff.ts's HandoffError (prompt rendering) carries its own code.
+    const code = (e as { code?: unknown })?.code;
+    if (e instanceof Error && e.name !== "RunError" && typeof code === "number" && code >= 400 && code < 600) {
+      ctx.set.status = code;
+      return { error: e.message, code };
+    }
     throw e;
   }
 }
