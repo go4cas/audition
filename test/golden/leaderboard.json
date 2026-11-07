@@ -1,0 +1,71 @@
+{
+  "terms_used": [
+    "quality",
+    "tokens",
+    "time"
+  ],
+  "dropped": [],
+  "rows": [
+    {
+      "contender": "Gamma",
+      "name": "Gamma",
+      "group": "gamma-model",
+      "n": 3,
+      "mean_score": 5,
+      "ci_low": 5,
+      "ci_high": 5,
+      "mean_tokens": 300,
+      "mean_time_ms": 500,
+      "mean_cost": null,
+      "fitness": 0.5,
+      "qualifies": false,
+      "enough_data": false
+    },
+    {
+      "contender": "Alpha",
+      "name": "Alpha",
+      "group": "alpha-model",
+      "n": 6,
+      "mean_score": 4,
+      "ci_low": 3.34,
+      "ci_high": 4.66,
+      "mean_tokens": 600,
+      "mean_time_ms": 1000,
+      "mean_cost": 0.01,
+      "fitness": 0.25,
+      "qualifies": true,
+      "enough_data": true
+    },
+    {
+      "contender": "Beta",
+      "name": "Beta",
+      "group": "beta-model",
+      "n": 5,
+      "mean_score": 4.8,
+      "ci_low": 4.24,
+      "ci_high": 5,
+      "mean_tokens": 1200,
+      "mean_time_ms": 2000,
+      "mean_cost": null,
+      "fitness": 0.17,
+      "qualifies": true,
+      "enough_data": true
+    },
+    {
+      "contender": "Delta",
+      "name": "Delta",
+      "group": "delta-model",
+      "n": 8,
+      "mean_score": 3,
+      "ci_low": 3,
+      "ci_high": 3,
+      "mean_tokens": 400,
+      "mean_time_ms": 800,
+      "mean_cost": null,
+      "fitness": 0.16,
+      "qualifies": false,
+      "enough_data": true
+    }
+  ],
+  "suggested": "Alpha"
+}

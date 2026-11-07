@@ -8,8 +8,8 @@ const FIXTURES = join(import.meta.dir, "fixtures");
 
 /** The demo repo for the Software Factory coding tasks (open question O2). */
 export const DEMO_REPO = "github.com/go4cas/audition-factory-demo";
-/** Placeholder until Cas pushes fixtures/factory-demo; T5 fails while it is still here. */
-export const PLACEHOLDER_COMMIT = "0000000";
+// First commit of go4cas/audition-factory-demo (Cas pushed fixtures/factory-demo/ on Nov 7, 2026).
+export const DEMO_COMMIT = "9c4bb7aef4c84adaf7b5aa523c1e56f9fada8a55";
 
 type Rec = Record<string, unknown> & { id: string };
 type Criterion = [name: string, weight: number, guidance: string];
@@ -239,7 +239,7 @@ export async function seedReference(base: string, adminToken: string): Promise<S
         const before = report.created.length;
         const task = await ensure("tasks", `role = "${role.id}" && title = "${q(t.title)}"`, {
           role: role.id, title: t.title, prompt: t.prompt, output_type: t.output_type ?? r.output_type,
-          base_ref: t.base_ref ? { repo: DEMO_REPO, commit: PLACEHOLDER_COMMIT } : null,
+          base_ref: t.base_ref ? { repo: DEMO_REPO, commit: DEMO_COMMIT } : null,
         }, `${r.name} / ${t.title}`);
         if (t.attachments && report.created.length > before) await attach("tasks", task, "attachments", t.attachments);
       }

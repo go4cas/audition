@@ -14,6 +14,8 @@ beforeAll(async () => {
   const run = await h.store("insert", "runs", { workspace: f.workspace.id, role: f.role.id, tasks: [f.task.id], contenders: [f.handoff.id], judge: "me", status: "running", call_count: 0 });
   const attempt = await h.store("insert", "attempts", { run, task: f.task.id, contender: f.handoff.id, mode: "handoff", status: "waiting", prompt_sent: "x" });
   const verdict = await h.store("insert", "verdicts", { attempt, run, method: "rubric", judge_kind: "human", scores: {}, rubric_snapshot: [], score: 3, status: "active" });
+  // The owner judges submitted outputs only, with stars for every criterion (T3's verdict hooks).
+  const submitted = await h.store("insert", "attempts", { run, task: f.task.id, contender: f.handoff.id, mode: "handoff", status: "submitted", prompt_sent: "x", output: "y" });
   const casting = await h.store("insert", "castings", { role: f.role.id, contender: f.contender.id, since: Date.now(), suggested_by: "human", confirmed: true });
   const template = (await create(h, "handoff_templates", { name: "Generic", kind: "generic", body: "x" }, "admin")).id;
   await h.api("owner", "POST", "/api/v1/connection_keys", { connection: f.mock.id, api_key: "k" });
@@ -37,7 +39,7 @@ beforeAll(async () => {
     handoff_templates: { create: { name: "Other", kind: "generic", body: "b" }, update: { return_instructions: "r" } },
     runs: { create: { workspace: f.workspace.id, role: f.role.id, judge: "me", status: "running" }, update: { status: "done" } },
     attempts: { create: { run, task: f.task.id, contender: f.handoff.id, mode: "handoff", status: "waiting" }, update: { output: "pasted" } },
-    verdicts: { create: { attempt, run, method: "rubric", judge_kind: "human", scores: {}, score: 3, status: "active" }, update: { score: 5 } },
+    verdicts: { create: { attempt: submitted, scores: { Accuracy: { stars: 4 }, Clarity: { stars: 3 } } }, update: { score: 5 } },
     castings: { create: { role: f.role.id, contender: f.contender.id, suggested_by: "human", confirmed: true }, update: { rationale: "r" } },
   };
 });
