@@ -626,7 +626,7 @@ T0 must prove this with a test: attach through `lib/files.ts`, then fetch the fi
 | # | Question | Who | Recommendation |
 | --- | --- | --- | --- |
 | O1 | ~~Pin v0.37.0 or move to v0.40.2?~~ Decided Nov 6, 2026: pin v0.40.2, with the upgrade policy in §1. | Cas | Done |
-| O2 | Create `go4cas/audition-factory-demo` for the Software Factory coding tasks? | Cas | Created Nov 6, 2026. Cas pushes `fixtures/factory-demo/`; until then T0 seeds a placeholder commit. |
+| O2 | Create `go4cas/audition-factory-demo` for the Software Factory coding tasks? | Cas | Created Nov 6, 2026. Cas pushed `fixtures/factory-demo/` on Nov 7, 2026; the seed names commit `9c4bb7a`. Done. |
 | O3 | Can a cloud session run the binary? This thread was stopped from executing it by a safety check, so the boot is unproven here. | T0 | T0 boots it first thing and records the result in `NOTES.md`. |
 | O4 | The leaderboard view joins `vb_runs` for the role. T0 confirms table and column names. | T0 | — |
 | O5 | Does `--apply-snapshot` create view collections in the right order (after their tables) on a fresh data directory? | T0 | If not, apply the snapshot twice, or split it into base and view snapshots. |

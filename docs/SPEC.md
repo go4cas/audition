@@ -314,7 +314,7 @@ The Architecture thread answered the first six in `docs/TECH-SPEC.md` §2. T0 co
 - [x] Is the `@vaultbase/sdk` client worth taking on? No, plain `fetch`.
 - [x] Can a cloud session download the pinned release from GitHub? Yes, checked by checksum. Running it there is for T0 to confirm.
 - [x] How are images passed to the AI judge? As base64 image blocks, one judge call per output. The Anthropic adapter supports this.
-- [ ] Which demo repo and commit do the Software Factory coding tasks name? The repo is `go4cas/audition-factory-demo` (Cas created it on Nov 6, 2026). The commit is pending: Cas pushes `fixtures/factory-demo/` to it, and the seed's placeholder commit is replaced with that commit's SHA.
+- [x] Which demo repo and commit do the Software Factory coding tasks name? The repo is `go4cas/audition-factory-demo` (Cas created it on Nov 6, 2026). Cas pushed `fixtures/factory-demo/` to it on Nov 7, 2026, and the seed names its first commit, `9c4bb7aef4c84adaf7b5aa523c1e56f9fada8a55`.
 - [x] Pin Vaultbase 0.37.0 or move to 0.40.2? Pinned at v0.40.2 (Cas, Nov 6, 2026), with the monthly upgrade policy in `docs/TECH-SPEC.md` §1.
 - [x] How does the image-judging grid look? (Design) Answered in `docs/design/README.md`: square cards in a responsive grid, stars per criterion under each image, tap to enlarge.
 - [ ] Is vector search reachable through MCP, or only through a custom route? (Phase 2)
