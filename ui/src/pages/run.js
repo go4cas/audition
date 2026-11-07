@@ -112,5 +112,5 @@ function attemptRow(d, r, a) {
   const state = a.status === "failed"
     ? html`<span class="row-tight"><button class="info-btn" type="button" popovertarget="${pop}" aria-label="Why it failed">${icon("info")}</button>${chip("error", "Failed", "is-new")}<div class="pop" id="${pop}" popover><div class="pop__head text-error">${icon("error")}This output failed</div><div class="pop__body"><p>It won't be scored. Use <strong>Run again</strong> once the run finishes to try it fresh.</p>${a.error ? html`<code class="xs">${a.error}</code>` : ""}</div></div></span>`
     : outputChip(a.status, r.judge);
-  return html`<tr><td>${html`<span class="who">${avatar(name, "sm")}${name}</span>`}</td><td class="col-state">${state}</td><td class="num${tokens == null ? " muted" : ""}">${tokens == null ? "–" : num(tokens)}</td><td class="num${a.duration_ms == null ? " muted" : ""}">${duration(a.duration_ms)}</td><td class="num">${action}</td></tr>`.key(a.id + a.status);
+  return html`<tr><td>${html`<span class="who">${avatar(name, "sm")}${name}</span>`}</td><td class="col-state">${state}</td><td class="${"num" + (tokens == null ? " muted" : "")}">${tokens == null ? "–" : num(tokens)}</td><td class="${"num" + (a.duration_ms == null ? " muted" : "")}">${duration(a.duration_ms)}</td><td class="num">${action}</td></tr>`.key(a.id + a.status);
 }

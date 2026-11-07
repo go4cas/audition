@@ -75,9 +75,9 @@ export default function leaderboard({ params }) {
           <td class="num">${r.n}</td>
           <td class="num"><span class="score">${icon("star")}${stars1(r.mean_score)}</span></td>
           <td>${range ? html`<span class="range" data-tip="${`${stars1(r.ci_low)} to ${stars1(r.ci_high)}${r.ci_high - r.ci_low > 1.5 ? ": wide, so not consistent yet" : ""}`}"><span class="range__band" style="${`left:${pos(r.ci_low)}%;width:${pos(r.ci_high) - pos(r.ci_low)}%`}"></span><span class="range__pass" style="${`left:${pos(role.pass_mark)}%`}"></span><span class="range__dot" style="${`left:${pos(r.mean_score)}%`}"></span></span>` : html`<span class="xs muted">needs 2 outputs</span>`}</td>
-          <td class="num${r.mean_tokens == null ? " muted" : ""}">${r.mean_tokens == null ? "N/A" : short(r.mean_tokens)}</td>
-          <td class="num${r.mean_time_ms == null ? " muted" : ""}">${r.mean_time_ms == null ? "N/A" : duration(r.mean_time_ms)}</td>
-          <td class="num${r.mean_cost == null ? " muted" : ""}">${money(r.mean_cost)}</td>
+          <td class="${"num" + (r.mean_tokens == null ? " muted" : "")}">${r.mean_tokens == null ? "N/A" : short(r.mean_tokens)}</td>
+          <td class="${"num" + (r.mean_time_ms == null ? " muted" : "")}">${r.mean_time_ms == null ? "N/A" : duration(r.mean_time_ms)}</td>
+          <td class="${"num" + (r.mean_cost == null ? " muted" : "")}">${money(r.mean_cost)}</td>
           <td>${r.enough_data === false || r.n < min ? chip("draft", `${Math.min(r.n, min)} of ${min} outputs`) : html`<span class="fitness-bar"><span class="fitness-bar__track"><span class="fitness-bar__fill" style="${"width:" + Math.max(0, (r.fitness / maxFit) * 100) + "%"}"></span></span><strong class="num">${(r.fitness ?? 0).toFixed(2)}</strong><button class="info-btn" type="button" popovertarget="${fitPop}" aria-label="${"How fitness is worked out for " + r.name}">${icon("help")}</button></span>
             <div class="pop" id="${fitPop}" popover><div class="pop__head">${icon("trophy")}Fitness for ${r.name}</div><div class="pop__body"><dl>
               <dt>${icon("star")}Quality × ${w.quality}</dt><dd>+${q.toFixed(2)}</dd>

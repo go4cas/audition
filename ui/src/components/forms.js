@@ -92,12 +92,22 @@ export const fileIcon = (name) => (/\.(png|jpe?g|gif|webp|svg)$/i.test(name) ? "
 export const kb = (bytes) => (bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + " MB" : Math.max(1, Math.round(bytes / 1024)) + " KB");
 
 /** files: a reactive array the picker adds File objects to. */
-export function filePicker({ id, files, disabled = () => false, hint = "Text, images, PDF or zip, up to 25 MB each" }) {
+// File objects can't live inside reactive state (a Proxy breaks their native
+// getters), so the picker keeps {key, name, size} there and the File here.
+const RAW = new Map();
+let rawSeq = 0;
+/** The File objects behind a picker's list, ready for upload(). */
+export const rawFiles = (files) => [...files].map((x) => RAW.get(x.key)).filter(Boolean);
+
+/** state[key] holds the picked files; it is replaced (not mutated) so the list redraws. */
+export function filePicker({ id, state, key: field = "files", disabled = () => false, hint = "Text, images, PDF or zip, up to 25 MB each" }) {
   const add = (list) => {
     for (const f of list) {
       if (f.size > MAX_FILE) { toast(`${f.name} is over 25 MB`, "error", "error"); continue; }
       if (!OK_FILE.test(f.name)) { toast(`${f.name}: only text, images, PDF or zip`, "error", "error"); continue; }
-      files.push(f);
+      const key = ++rawSeq;
+      RAW.set(key, f);
+      state[field] = [...state[field], { key, name: f.name, size: f.size }];
     }
   };
   const over = (e, on) => { e.preventDefault(); e.currentTarget.classList.toggle("is-over", on); };
@@ -110,6 +120,6 @@ export function filePicker({ id, files, disabled = () => false, hint = "Text, im
       @drop="${(e) => { over(e, false); if (!disabled()) add(e.dataTransfer.files || []); }}">
       ${icon("upload", "i--xl")}<span><strong>Choose files</strong> or drop them here</span><span class="xs">${hint}</span>
     </div>
-    <ul class="files">${() => files.map((f, i) => html`<li>${icon(fileIcon(f.name))}${f.name} · ${kb(f.size)}<button class="icon-btn icon-btn--xs" type="button" aria-label="${"Remove " + f.name}" @click="${() => files.splice(i, 1)}">${icon("close")}</button></li>`)}</ul>
+    <ul class="files">${() => state[field].map((f) => html`<li>${icon(fileIcon(f.name))}${f.name} · ${kb(f.size)}<button class="icon-btn icon-btn--xs" type="button" aria-label="${"Remove " + f.name}" @click="${() => { RAW.delete(f.key); state[field] = state[field].filter((x) => x.key !== f.key); }}">${icon("close")}</button></li>`)}</ul>
   </div>`;
 }

@@ -3,7 +3,7 @@
 import { html, reactive } from "@arrow-js/core";
 import { custom, fileLabel, fileUrl, update, upload } from "../api.js";
 import { go } from "../router.js";
-import { filePicker, fileIcon } from "../components/forms.js";
+import { filePicker, fileIcon, rawFiles } from "../components/forms.js";
 import { crumbs, empty, page } from "../components/page.js";
 import { avatar, bump, chip, copyText, errorToast, icon, outputChip, toast } from "../lib/ui.js";
 import { load, runLabel } from "../state/data.js";
@@ -38,7 +38,7 @@ export default function handoff({ params, query }) {
       const submit = async () => {
         f.sending = true;
         try {
-          if (f.files.length) await upload("attempts", f.attempt, "output_files", [...f.files]);
+          if (f.files.length) await upload("attempts", f.attempt, "output_files", rawFiles(f.files));
           const body = { output: f.reply, status: "submitted" };
           if (f.tin !== "") body.tokens_in = Number(f.tin);
           if (f.tout !== "") body.tokens_out = Number(f.tout);
@@ -84,7 +84,7 @@ export default function handoff({ params, query }) {
           <li class="${stepCls(3)}"><form class="stack minw0" @submit="${(e) => { e.preventDefault(); f.confirm = true; }}">
             <h2>Paste the reply here</h2>
             <div class="field"><label for="ho-reply">Reply</label><textarea class="textarea" id="ho-reply" rows="7" placeholder="Paste the whole reply" readonly="${() => f.done}" @focus="${() => { if (!f.reply) f.step = 3; }}" @input="${(e) => { f.reply = e.target.value; if (f.reply) f.step = 3; }}"></textarea><span class="hint">${() => (words() ? words() + " words pasted" : "Nothing pasted yet")}</span></div>
-            <div class="field"><span class="label">Files <span class="muted">(optional)</span></span>${filePicker({ id: "ho-files", files: f.files, disabled: () => f.done })}</div>
+            <div class="field"><span class="label">Files <span class="muted">(optional)</span></span>${filePicker({ id: "ho-files", state: f, disabled: () => f.done })}</div>
             <details>
               <summary class="small row-tight summary-link">${icon("caret-right")}Add tokens and time <span class="muted">optional, if the tool showed them</span></summary>
               <div class="fields-2 mt-3">

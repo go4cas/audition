@@ -3,7 +3,7 @@
 import { html, reactive } from "@arrow-js/core";
 import { create, fileLabel, fileUrl, remove, update, upload } from "../api.js";
 import { go } from "../router.js";
-import { filePicker, fileIcon, seg } from "../components/forms.js";
+import { filePicker, fileIcon, rawFiles, seg } from "../components/forms.js";
 import { busy, crumbs, page } from "../components/page.js";
 import { TYPE_ICON, TYPE_LABEL, chip, errorToast, htmlToText, icon, textToHtml, toast } from "../lib/ui.js";
 import { load } from "../state/data.js";
@@ -49,7 +49,7 @@ export default function task({ params }) {
           if (f.draft) rec = await create("tasks", { ...body, previous_version: t.id });
           else if (t) rec = await update("tasks", t.id, body);
           else rec = await create("tasks", body);
-          const files = [...f.files];
+          const files = rawFiles(f.files);
           if (f.draft) for (const name of f.keep) { const blob = await (await fetch(await fileUrl(name))).blob(); files.push(new File([blob], fileLabel(name))); }
           else if (t && f.keep.length !== (t.attachments || []).length) rec = await update("tasks", rec.id, { attachments: [...f.keep] });
           if (files.length) {
@@ -89,7 +89,7 @@ export default function task({ params }) {
           </div></div>
           <div class="field"><span class="label">Attachments</span>
             ${() => (f.keep.length ? html`<ul class="files">${f.keep.map((n, i) => html`<li>${icon(fileIcon(n))}<button class="link-btn" type="button" @click="${() => open(n)}">${fileLabel(n)}</button>${f.editing && !f.draft ? html`<button class="icon-btn icon-btn--xs" type="button" aria-label="${"Remove " + fileLabel(n)}" @click="${() => f.keep.splice(i, 1)}">${icon("close")}</button>` : ""}</li>`)}</ul>` : html`<span class="small muted">${f.editing ? "None yet." : "None."}</span>`)}
-            ${() => (f.editing ? filePicker({ id: "tk-files", files: f.files }) : "")}
+            ${() => (f.editing ? filePicker({ id: "tk-files", state: f }) : "")}
           </div>
           ${() => (f.editing ? html`<div class="row"><button class="btn btn--primary btn--lg" type="submit">${icon("check")}${f.draft ? `Save version ${version + 1}` : t ? "Save task" : "Add task"}</button>
             <a class="btn btn--quiet" href="${"#/r/" + role.id}">Cancel</a>
