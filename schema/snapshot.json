@@ -687,7 +687,7 @@
       "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
       "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
       "create_rule": "",
-      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\" && mode = \"handoff\" && status = \"waiting\"",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\" && mode = \"handoff\" && (status = \"waiting\" || (status = \"submitted\" && @request.body.status = \"submitted\" && @request.body.status:changed = true))",
       "delete_rule": "",
       "history_enabled": false
     },

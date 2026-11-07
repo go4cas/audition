@@ -151,7 +151,47 @@ The T0 build thread ran the pinned binary in a Claude Code cloud session (Cas ap
 - **Mock images** are drawn by `vb_hooks/lib/png.ts`, a 60-line PNG encoder, rather than read from `seed/fixtures/images/`. That avoids file paths inside bundled hook code. `scripts/make-fixtures.ts` writes the same images to `seed/fixtures/images/`.
 - **The mock judge** takes the criteria names as `criteria` on its input, and the flaky mock takes `tryNumber`. T1 and T3 pass these.
 - **The generic template's `return_instructions`** holds one line per output type (`text: …`, `image: …`, `file: …`, `code: …`), and T2's `lib/handoff.ts` picks the task's line.
-- **The demo repo** is `go4cas/audition-factory-demo`, which Cas created on Nov 6, 2026. Its contents are in `fixtures/factory-demo/` (a Bun app with a JSON settings store, `GET /api/settings`, three tests, `settings-spec.md` and `mockup.png`) for Cas to push. The seeded coding tasks name the placeholder commit `0000000` until then.
+- **The demo repo** is `go4cas/audition-factory-demo`, which Cas created on Nov 6, 2026. Its contents are in `fixtures/factory-demo/` (a Bun app with a JSON settings store, `GET /api/settings`, three tests, `settings-spec.md` and `mockup.png`) Cas pushed them on Nov 7, 2026 (commit `9c4bb7aef4c84adaf7b5aa523c1e56f9fada8a55`, identical to `fixtures/factory-demo/`), and the seeded coding tasks name that commit. Cas accepted the other T0 choices above on Nov 7, 2026.
+
+## T2 findings (Nov 7, 2026)
+
+The T2 Handoff thread checked these against Vaultbase **0.40.2** (same binary and checksum as T0). `test/handoff.test.ts` and `test/handoff-lib.test.ts` cover them.
+
+- **F14. Update rules are checked on the record before and after the change.** `checkUpdateRule` (`src/api/_rules.ts`, v0.40.2) evaluates the rule on the current record and again on the current record merged with the patch, and allows the write only if both pass. The spec's attempts rule, `OWNER && mode = "handoff" && status = "waiting"`, therefore refuses the submit itself: `PATCH /api/v1/attempts/<id>` with `{"output":"Use SQLite.","status":"submitted"}` answered `403 {"error":"Forbidden","code":403}` on a waiting handoff output. Fix (pending Cas's approval, as it is a schema change): the rule becomes `OWNER && mode = "handoff" && (status = "waiting" || (status = "submitted" && @request.body.status = "submitted" && @request.body.status:changed = true))`, which allows exactly one transition, waiting to submitted. A later PATCH on a submitted output fails the rule on the current record. `:changed` must sit in a comparison (`= true`); a bare `@request.body.status:changed` is refused at start with `snapshot error in collection 'attempts': Collection validation failed`.
+- **F15. A custom route can read a multipart body itself.** F4 holds (`ctx.body` is not the form), but `ctx.req.formData()` works inside a custom route, because the route dispatcher clones only JSON and text bodies. A 26 MB multipart file reached a test route intact (`size: 27262976`, `bodyUsed: false`). This makes an owner upload route possible without base64 (open question O6).
+- **O6 (proposed). Owner uploads go through `POST /api/custom/files/:collection/:id/:field`** until Vaultbase's own endpoint is fixed (F9). It takes `multipart/form-data` with one or more parts named `file`, only for `attempts/output_files` (handoff, waiting) and `tasks/attachments` (unlocked), and applies 25 MB per file, the Phase 1 types by extension (text, PNG, JPEG, GIF, WebP, PDF, zip), and a magic-byte check for binary types, all or nothing. It stores each file through `lib/files.ts` with the MIME type F4 prescribes, and returns the updated record. Cas has the choice in the T2 thread.
+
+### T2 choices to confirm
+
+- **Return instructions.** `lib/handoff.ts` picks the `type: …` line of the template's `return_instructions` for the task's output type. A template without such prefixes applies its text to every type, and a missing type falls back to the spec's line (§9).
+- **Editor HTML to text.** Paragraphs and headings become blank-line-separated text, `<br>` a line break, list items `- item`, entities are decoded, and script and style content is dropped.
+- **Rubric lines** without guidance read `2. Clarity (40%)`, with no trailing colon.
+- **Drafts.** The owner may save `output` and the metrics while the output is waiting, without submitting.
+- **Files on PATCH.** A PATCH may keep or drop files already uploaded to that output, but can't name any other file. On submit, every file is re-checked against the Phase 1 list (F4).
+- **Run status and cost.** Until T1 merges, `lib/handoff.ts` carries the run-status rule (§8) and the cost formula; whichever of T1 and T2 merges second swaps them for `lib/runs.ts` and `lib/cost.ts`.
+
+## T1 findings (Nov 7, 2026)
+
+T1 (API execution) checked these against the pinned Vaultbase **0.40.2** binary; the tests are `test/runs.test.ts` (on a fresh instance) and `test/providers.test.ts` (fake `http`, no server).
+
+### Confirmed against the binary
+
+- **F16. Server code reads `connection_keys` despite its admin-only rules.** `helpers.query("connection_keys", { filter })` in a worker returns the record with `api_key` decrypted, so the generate worker gets the key while the owner still can't list or view it. Test: an OpenAI-compatible contender with a key gets past "no API key" and is stopped by the egress denylist instead, and no response contains the key.
+- **F17. A worker's `retries` is the total number of tries.** Vaultbase re-queues a job only while `job.attempt < retries` (`src/core/queues.ts`, `runJob`), so `retries: 1` means one try and no retry, as §8 wants. The generate worker never throws: the `fail` mock's job ends `succeeded` in `vaultbase_jobs_log`, with its attempt `failed`.
+- **F18. Attempt order for the mock seed.** `n` (earlier attempts of a task by a contender) is counted by SQLite `rowid`, which follows insert order, because `created_at` has one-second resolution and a quick Run again shares the second. Run again therefore gives the erratic mock new, repeatable outputs.
+- **F19. A route path's parameters don't clash.** `POST /runs`, `POST /runs/preview`, `POST /runs/:id/again` and `GET /runs/:id` are four route files, and each one gets only its own requests.
+- **Egress (F3) in practice.** A connection with `base_url` `https://127.0.0.1:1/v1` fails with Vaultbase's `egress … blocked` message, and the attempt records it. Audition's own host check (`lib/providers/index.ts`, `egressGuard`) refuses any URL whose host isn't the connection's before Vaultbase sees it.
+
+### T1 choices to confirm
+
+- **Prompt rendering** uses T2's `lib/handoff.ts` `promptForTask` (T2 merged first). T1 replaced the stand-in, and `lib/handoff.ts` now uses T1's `refreshRunStatus` (`lib/runs.ts`) and `deriveCost` (`lib/cost.ts`) in place of its own copies.
+- **The retry evidence for the flaky mock** is the worker's log line `generate attempt=<id> status=submitted calls=2`. `attempts` has no call-count field, and adding one would be a schema change. The in-process mock retries a retryable error up to 3 tries, as `helpers.http` does for real providers.
+- **The AI judge contender is locked** when a run uses it, like the contenders it judges, so verdicts stay tied to the exact judge configuration.
+- **Call count with the mock judge.** `judge_calls` always shows how many outputs the AI judge will score. Calls to the mock judge are left out of `total_provider_calls` (and `runs.call_count`) because they cost nothing (§8).
+- **An extra warning** appears when the AI judge is itself one of the run's contenders ("it judges its own output").
+- **An empty answer is a failure.** A reply with no text and no files fails the output, and says so when it was cut off at max output tokens.
+- **Attachments to API contenders.** Images (PNG, JPEG, GIF, WebP) and PDFs go as base64 blocks, and text files (`.txt`, `.md`, `.csv`, `.log`, `.json`, or any `text/*` type) as text blocks headed with the file name. Anything else, SVG and zip included, is listed by name. The OpenAI-compatible adapter lists PDFs by name too.
+- **One extra file**, `lib/providers/shared.ts`, holds what the two HTTP adapters share (the `http` type, attachment sorting, error mapping). Without it the adapters would import `index.ts`, which imports them.
 
 ## T3 findings (Nov 7, 2026)
 
@@ -160,24 +200,23 @@ The T3 build thread (judging and fitness) ran against Vaultbase **0.40.2** on fr
 ### Findings
 
 - **T3-F1. After-hooks are fire and forget.** `runAfterHook` (`src/core/hooks.ts`) runs after the response is sent and only logs errors. So when the owner posts a verdict, the response comes back `active` before the `afterCreate` hook has marked the AI verdict `overridden`, the output `judged` and the run `done`. The UI (T4) should re-fetch the judging payload after saving, not trust the order. `test/judging.test.ts` waits for the hook to finish.
-- **T3-F2. Workers load from `vb_hooks/workers/`.** `workers/judge.ts` (`defineWorker`, queue `judge`) picks up jobs from `helpers.enqueue("judge", { attempt })` within a second. `ctx.attempt` is the worker's 1-based retry count. The judge worker sets `retries: 0`, because `lib/judge.ts` retries a bad reply once itself and never throws for a provider or reply problem.
+- **T3-F2. Workers load from `vb_hooks/workers/`.** `workers/judge.ts` (`defineWorker`, queue `judge`) picks up the jobs that `lib/runs.ts` (generate) and `lib/handoff.ts` (submit) enqueue within a second. Like generate, it sets `retries: 1`, which is one try (F17), because `lib/judge.ts` retries a bad reply once itself and never throws for a provider or reply problem.
 - **T3-F3. `helpers.find` and `helpers.query` read through the records layer**, so JSON fields come back decoded and view columns come back as text (as O4 found). The leaderboard route reads the `leaderboard` view through `helpers.query` and parses the numbers with `Number()`.
 - **T3-F4. The admin passes the verdict hook unchanged.** As with `locked` (F12), the admin may write any verdict through REST, so T0's `store.ts` round-trip test still holds. The owner gets the full checks. The T0 rules test now creates its owner verdict on a submitted output with stars for every criterion, since the hook refuses the old body.
 
 ### T3 choices to confirm
 
-- **Route responses are the bare shapes in TECH-SPEC §7**, with no `data` wrapper: the leaderboard route returns `{ terms_used, dropped, rows, suggested, casting }`, the judging route returns the §10 payload, and `POST /castings` returns `{ casting }`. Errors are `{ error, code }`.
+- **Route responses use T1's `ownerRoute`** (`lib/runs.ts`), so like every custom route they answer `{ data: … }`: the leaderboard `{ terms_used, dropped, rows, suggested, casting }`, the judging route the §10 payload, and `POST /castings` `{ casting }`. Errors are `{ error, code }`.
 - **The blind payload adds two harmless fields**: `task.id`, and `status` (`active` or `overridden`) on each `verdict.history` entry, so the UI can show the AI's stars as overridden.
 - **A provider error from the judge is final.** `helpers.http` has already retried the network, so the judge doesn't call again. Only a reply that misses the rubric is retried once. Either way the output stays `submitted`, `attempt.error` says "AI judging failed: …", and the owner judges it by hand.
 - **If an owner verdict lands first**, a late AI verdict is stored as `overridden`, so it stays in the history without replacing the owner's stars.
 - **Dropped terms** are listed only when their weight is above 0. With the default weights (quality only), `dropped` is always empty.
-- **The same-provider heuristic** for handoff contenders matches a few words per provider: `anthropic` and `claude`; `openai`, `chatgpt` and `gpt`; `mock`.
 - **Rows are sorted best first**: by fitness, then mean score, then number of outputs, then name. That is the same order as the champion tie-break.
 
-### For T5 (overlaps with parallel threads)
+### Shared with T1 and T2 (after merging main)
 
-- `lib/scoring.ts` `refreshRunStatusFromAttempts` uses the same rule as T1's `lib/runs.ts` `refreshRunStatus`. Keep one.
-- `lib/scoring.ts` `htmlToText` (the judging screen's `prompt_text`) does what T2's `lib/handoff.ts` does for the prompt. Keep one.
-- `workers/judge.ts` knows only the mock adapter. Point its `PROVIDERS` at T1's `lib/providers/index.ts`.
-- `lib/judge.ts` `sameProviderWarnings` is for T1's `POST /runs/preview` and the run page. T3 tests it as a pure function only (Done-when 7).
-- Done-when 9 is checked at the adapter boundary: the request the judge hands the provider holds both PNGs as attachments and names the SVG it skipped. Turning attachments into Anthropic `image` blocks is T1's adapter, so T5 checks the blocks end to end with the fake `http`.
+- The run status refresh is T1's `lib/runs.ts` `refreshRunStatus`; the judging screen's `prompt_text` uses T2's `lib/handoff.ts` `htmlToText`. T3's own copies were removed.
+- The judge worker calls the judge through T1's `lib/providers/index.ts` `callProvider`, and reads its key through `helpers.query` (F16), as the generate worker does.
+- The same-provider warning is T1's `lib/runs.ts` `sameProviderWarnings` (preview, Done-when 7, tested in `test/runs.test.ts`). T3's copy was removed.
+- Done-when 9 is checked where the judge hands the request to the provider: both PNGs as attachments and a note naming the skipped SVG. T1's Anthropic adapter turns those attachments into `image` blocks (`test/providers.test.ts`, golden request).
+- `test/judging.test.ts` now also runs Done-when 1 end to end: `POST /runs` with an AI judge, the generate worker, the judge worker, and the run ending `done`.

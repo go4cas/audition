@@ -1,9 +1,9 @@
 // The AI judge (TECH-SPEC §10, Q5): the fixed system prompt and reply schema,
-// which files the judge is shown, the reply check, the same-provider warning,
-// and judgeAttempt(), the judge worker's whole job with its dependencies
+// which files the judge is shown, the reply check, and judgeAttempt(), the judge worker's whole job with its dependencies
 // passed in. No "vaultbase" import here (TECH-SPEC F7).
 import { mockSeed, ProviderError, type FileOut, type GenerateInput, type GenerateResult } from "./providers/mock.ts";
-import { refreshRunStatusFromAttempts, storeAiVerdict, type Scores } from "./scoring.ts";
+import { refreshRunStatus } from "./runs.ts";
+import { storeAiVerdict, type Scores } from "./scoring.ts";
 import { updateRecord, type Sql } from "./store.ts";
 import { parseJson, type Criterion } from "./validation.ts";
 
@@ -114,34 +114,6 @@ export function parseJudgeReply(text: string, rubric: Criterion[]): { scores: Sc
   return { scores: Object.fromEntries(rubric.map((c) => [c.name, scores[c.name]!])) };
 }
 
-// ── same-provider warning ────────────────────────────────────────────────────
-
-// Words that suggest a handoff contender runs on a provider (a heuristic).
-const PROVIDER_WORDS: Record<string, string[]> = {
-  anthropic: ["anthropic", "claude"],
-  "openai-compatible": ["openai", "chatgpt", "gpt"],
-  mock: ["mock"],
-};
-
-export interface WarnContender { name: string; mode: string; provider: string }
-
-/**
- * The judge shares a provider with an API contender, or a handoff
- * contender's name suggests the judge's provider ("may share").
- */
-export function sameProviderWarnings(judge: { provider: string }, contenders: WarnContender[]): string[] {
-  const out: string[] = [];
-  const words = PROVIDER_WORDS[judge.provider] ?? [judge.provider];
-  for (const c of contenders) {
-    if (c.mode === "api" && c.provider === judge.provider) {
-      out.push(`The AI judge shares a provider with ${c.name}.`);
-    } else if (c.mode === "handoff" && words.some((w) => c.name.toLowerCase().includes(w))) {
-      out.push(`The AI judge may share a provider with ${c.name}.`);
-    }
-  }
-  return out;
-}
-
 // ── the judge worker's job ───────────────────────────────────────────────────
 
 type Rec = Record<string, unknown>;
@@ -149,8 +121,10 @@ export type Generate = (input: GenerateInput) => Promise<GenerateResult>;
 
 export interface JudgeDeps {
   sql: Sql;
-  /** helpers.find: decoded records, including the decrypted key on connection_keys. */
+  /** helpers.find: decoded records. */
   find(collection: string, id: string): Promise<Rec | null>;
+  /** helpers.query: used for the judge's key on connection_keys (F16). */
+  query(collection: string, opts: { filter?: string; perPage?: number }): Promise<{ data: Rec[] }>;
   /** The bytes of an uploaded file, by its stored name. */
   readFile(stored: string): Promise<Uint8Array>;
   /** The adapter for a connection provider, or null when there is none. */
@@ -201,7 +175,7 @@ export async function judgeAttempt(deps: JudgeDeps, attemptId: string): Promise<
   const fail = async (error: string, tries: number): Promise<JudgeOutcome> => {
     const message = `AI judging failed: ${error}`;
     await updateRecord(sql, "attempts", attemptId, { error: message });
-    await refreshRunStatusFromAttempts(sql, String(run["id"]));
+    await refreshRunStatus(sql, String(run["id"]));
     return { outcome: "failed", error: message, tries };
   };
 
@@ -217,9 +191,9 @@ export async function judgeAttempt(deps: JudgeDeps, attemptId: string): Promise<
   if (!generate) return fail(`there is no adapter for the ${provider} provider`, 0);
 
   let apiKey: string | undefined;
-  if (provider !== "mock" && provider !== "manual") {
-    const keyRow = await sql.queryOne<{ id: string }>(`SELECT id FROM vb_connection_keys WHERE connection = ?`, [conn["id"]]);
-    const key = keyRow ? await find("connection_keys", keyRow.id) : null;
+  if (provider !== "mock") {
+    // Server code reads the key through helpers.query (F16); the owner never can.
+    const key = (await deps.query("connection_keys", { filter: `connection = "${String(conn["id"])}"`, perPage: 1 })).data[0];
     apiKey = (key?.["api_key"] as string | undefined) || undefined;
     if (!apiKey) return fail(`the connection ${String(conn["name"])} has no key`, 0);
   }
@@ -257,7 +231,7 @@ export async function judgeAttempt(deps: JudgeDeps, attemptId: string): Promise<
     }
     const snapshot = rubric.map((c) => ({ name: c.name, weight: c.weight, guidance: c.guidance ?? "" }));
     const v = await storeAiVerdict(sql, { attempt: attemptId, run: String(run["id"]), judgeContender: String(judge["id"]), scores: parsed.scores, rubric: snapshot });
-    if (v.status === "overridden") await refreshRunStatusFromAttempts(sql, String(run["id"]));
+    if (v.status === "overridden") await refreshRunStatus(sql, String(run["id"]));
     return { outcome: "judged", verdict: v.id, status: v.status, tries: tryNumber };
   }
   return fail(`${lastError} (after one retry)`, 2);

@@ -2,7 +2,7 @@
 // creates nothing new.
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { boot, type Harness } from "./harness.ts";
-import { CONTENDERS, DEMO_REPO, PLACEHOLDER_COMMIT, WORKSPACES, seedReference } from "../seed/reference.ts";
+import { CONTENDERS, DEMO_REPO, DEMO_COMMIT, WORKSPACES, seedReference } from "../seed/reference.ts";
 
 let h: Harness;
 let first: Awaited<ReturnType<typeof seedReference>>;
@@ -63,10 +63,12 @@ test("every role's rubric sums to 100 and matches the spec", async () => {
   expect(image.rubric.map((c: { name: string }) => c.name)).toEqual(["Matches the brief", "Visual quality", "On brand", "Usable as-is"]);
 });
 
-test("coding tasks name the demo repo and the placeholder commit (O2)", async () => {
+test("coding tasks name the demo repo and its first commit (O2)", async () => {
   const coding = (await all("tasks")).filter((t) => t.base_ref);
   expect(coding.map((t) => t.output_type)).toEqual(["code", "code"]);
-  for (const t of coding) expect(t.base_ref).toEqual({ repo: DEMO_REPO, commit: PLACEHOLDER_COMMIT });
+  expect(DEMO_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+  expect(DEMO_COMMIT).not.toBe("0000000");
+  for (const t of coding) expect(t.base_ref).toEqual({ repo: DEMO_REPO, commit: DEMO_COMMIT });
 });
 
 test("Stock Review attaches the Northwind summary; the UI task its spec and mockup", async () => {

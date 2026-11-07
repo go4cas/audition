@@ -2,7 +2,8 @@
 // human verdicts and the override, a judge reply that misses a criterion,
 // and the files an image output's judge request carries.
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { boot, RUBRIC, type Harness } from "./harness.ts";
+import { boot, create, RUBRIC, type Harness } from "./harness.ts";
+import { GENERIC_TEMPLATE } from "../seed/reference.ts";
 import { aiRun, attach, enqueueJudge, testImage, until } from "./t3-helpers.ts";
 
 let h: Harness;
@@ -75,7 +76,7 @@ test("Done-when 4: an owner verdict on an AI-judged output becomes active, and t
   expect((await get("runs", s.run)).status).toBe("done");
 
   // The leaderboard counts the owner's 3.2, not the AI's 4.
-  const board = (await h.api("owner", "GET", `/api/custom/leaderboard/${s.role.id}`)).body;
+  const board = (await h.api("owner", "GET", `/api/custom/leaderboard/${s.role.id}`)).body.data;
   const row = board.rows.find((x: { contender: string }) => x.contender === s.contender.id);
   expect(row.n).toBe(2);
   expect(row.mean_score).toBe(3.6); // (3.2 + 4) / 2
@@ -160,4 +161,24 @@ test("the mock judge adds one star per image to Visual quality, capped at 5", as
   expect(v.scores["Matches the brief"].stars).toBe(3);
   expect(v.scores["Visual quality"].stars).toBe(4);
   expect(v.score).toBe(3.5);
+});
+
+test("Done-when 1, end to end: POST /runs with the AI judge ends done, every submitted output judged by the mock judge", async () => {
+  await create(h, "handoff_templates", GENERIC_TEMPLATE, "admin");
+  expect((await h.api("owner", "PATCH", `/api/v1/workspaces/${s.workspace.id}`, { judge_contender: s.judge.id })).status).toBe(200);
+  const r = await h.api("owner", "POST", "/api/custom/runs", { role: s.role.id, tasks: [s.task.id, s.task2.id], contenders: [s.contender.id, s.erratic.id, s.failing.id], judge: "ai" });
+  expect(r.status, JSON.stringify(r.body)).toBe(200);
+  const runId = r.body.data.run.id;
+  await until(async () => (await get("runs", runId)).status === "done", "the started run to be done", 30000);
+  const attempts = (await h.api("owner", "GET", `/api/v1/attempts?filter=${encodeURIComponent(`run = "${runId}"`)}&perPage=50`)).body.data as any[];
+  expect(attempts.length).toBe(6);
+  expect(attempts.filter((a) => a.status === "judged").length).toBe(4);
+  expect(attempts.filter((a) => a.status === "failed").length).toBe(2);
+  for (const a of attempts.filter((x) => x.status === "judged")) {
+    const [v] = await verdictsOf(a.id);
+    expect(v.judge_kind).toBe("ai");
+    expect(v.rubric_snapshot).toEqual(RUBRIC);
+    const marker = Number(/\[\[mock-quality:(\d)\]\]/.exec(a.output)![1]);
+    expect(v.score).toBe(marker);
+  }
 });

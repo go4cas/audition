@@ -10,8 +10,10 @@ const golden = await Bun.file(`${import.meta.dir}/golden/leaderboard.json`).json
 beforeAll(async () => { h = await boot(); });
 afterAll(async () => { await h?.cleanup(); });
 
-const board = (role: string, as: "owner" | "admin" | "anon" = "owner") => h.api(as, "GET", `/api/custom/leaderboard/${role}`);
-const cast = (body: object) => h.api("owner", "POST", "/api/custom/castings", body);
+// Custom routes answer { data } (lib/runs.ts, ownerRoute); errors stay { error, code }.
+const unwrap = async (p: Promise<any>) => { const r = await p; return r.status === 200 ? { ...r, body: r.body.data } : r; };
+const board = (role: string, as: "owner" | "admin" | "anon" = "owner") => unwrap(h.api(as, "GET", `/api/custom/leaderboard/${role}`));
+const cast = (body: object) => unwrap(h.api("owner", "POST", "/api/custom/castings", body));
 
 /** A role whose contenders each have the given scored outputs, written as the workers write them. */
 async function seedRole(opts: { weights: object; minOutputs: number; passMark: number; contenders: Array<{ name: string; group?: string; manual?: boolean; scores: number[]; tokensIn?: number | null; tokensOut?: number | null; durationMs?: number | null; cost?: number | null }> }) {

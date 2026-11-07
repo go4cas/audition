@@ -1,7 +1,8 @@
 // lib/judge.ts without a server: which files the judge sees, the prompt,
-// the reply check and the same-provider warning (TECH-SPEC §10, Q5).
+// and the reply check (TECH-SPEC §10, Q5). The same-provider
+// warning is lib/runs.ts sameProviderWarnings (T1), tested in test/runs.test.ts.
 import { expect, test } from "bun:test";
-import { chooseFiles, JUDGE_IMAGE_MAX_BYTES, JUDGE_SCHEMA, JUDGE_SYSTEM, judgePrompt, parseJudgeReply, sameProviderWarnings } from "../vb_hooks/lib/judge.ts";
+import { chooseFiles, JUDGE_IMAGE_MAX_BYTES, JUDGE_SCHEMA, JUDGE_SYSTEM, judgePrompt, parseJudgeReply } from "../vb_hooks/lib/judge.ts";
 
 const RUBRIC = [{ name: "Matches the brief", weight: 60, guidance: "Shows what the brief asks for." }, { name: "Visual quality", weight: 40 }];
 const file = (name: string, mime: string, size = 1000) => ({ name, mime, size, stored: `${name}.stored` });
@@ -54,19 +55,4 @@ test("bad replies are refused with a reason", () => {
   expect(parseJudgeReply(one({ name: "Style", stars: 3, reason: "r" }), RUBRIC)).toEqual({ error: 'the reply scored an unknown criterion "Style"' });
   expect("error" in parseJudgeReply(one({ name: "Visual quality", stars: 6, reason: "r" }), RUBRIC)).toBe(true);
   expect("error" in parseJudgeReply(one({ name: "Visual quality", stars: 3.5, reason: "r" }), RUBRIC)).toBe(true);
-});
-
-test("same-provider warning: an API contender on the judge's provider, or a handoff name that suggests it", () => {
-  const contenders = [
-    { name: "Mock Steady", mode: "api", provider: "mock" },
-    { name: "Opus 5.5 high", mode: "api", provider: "anthropic" },
-    { name: "Claude Code (manual)", mode: "handoff", provider: "manual" },
-    { name: "Codex (manual)", mode: "handoff", provider: "manual" },
-  ];
-  expect(sameProviderWarnings({ provider: "mock" }, contenders)).toEqual(["The AI judge shares a provider with Mock Steady."]);
-  expect(sameProviderWarnings({ provider: "anthropic" }, contenders)).toEqual([
-    "The AI judge shares a provider with Opus 5.5 high.",
-    "The AI judge may share a provider with Claude Code (manual).",
-  ]);
-  expect(sameProviderWarnings({ provider: "openai-compatible" }, contenders)).toEqual([]);
 });

@@ -1,10 +1,12 @@
 // Scoring (TECH-SPEC §10): the weighted score, star checks, the blind order,
-// the run status after judging, and the verdict hooks of §6. Pure apart from
+// the blind payload, and the verdict hooks of §6. Pure apart from
 // the hook functions, which take the hook context. No "vaultbase" import here
 // (TECH-SPEC F7), so `bun test` can import this file directly.
 import { createHash } from "node:crypto";
 import { insertRecord, updateRecord, type Sql } from "./store.ts";
 import { parseJson, type Criterion } from "./validation.ts";
+import { htmlToText } from "./handoff.ts";
+import { refreshRunStatus } from "./runs.ts";
 
 export interface Score { stars: number; reason?: string }
 export type Scores = Record<string, Score>;
@@ -79,34 +81,6 @@ export function blindOrder<T extends { id: string }>(runId: string, taskId: stri
     .map(({ a }, i) => ({ attempt: a, label: label(i) }));
 }
 
-// ── run status ───────────────────────────────────────────────────────────────
-
-export type RunStatus = "running" | "judging" | "done";
-
-/**
- * TECH-SPEC §8: running while anything is queued, in progress or waiting;
- * judging while anything is submitted; done when everything is judged or failed.
- */
-export function runStatusFor(counts: Partial<Record<string, number>>): RunStatus {
-  const n = (k: string) => counts[k] ?? 0;
-  if (n("queued") + n("in_progress") + n("waiting") > 0) return "running";
-  if (n("submitted") > 0) return "judging";
-  return "done";
-}
-
-/**
- * Recompute and store a run's status from its attempts. T1's lib/runs.ts
- * has the same rule (refreshRunStatus); T5 keeps one of the two.
- */
-export async function refreshRunStatusFromAttempts(sql: Sql, runId: string): Promise<RunStatus | null> {
-  const run = await sql.queryOne<{ status: string }>(`SELECT status FROM vb_runs WHERE id = ?`, [runId]);
-  if (!run) return null;
-  const rows = await sql.query<{ status: string; n: number }>(`SELECT status, COUNT(*) AS n FROM vb_attempts WHERE run = ? GROUP BY status`, [runId]);
-  const status = runStatusFor(Object.fromEntries(rows.map((r) => [r.status, Number(r.n)])));
-  if (status !== run.status) await updateRecord(sql, "runs", runId, { status });
-  return status;
-}
-
 // ── verdicts ─────────────────────────────────────────────────────────────────
 
 /** Mark every other active verdict on the attempt overridden, and the attempt judged. */
@@ -117,7 +91,7 @@ export async function activateVerdict(sql: Sql, attemptId: string, verdictId: st
   for (const o of others) await updateRecord(sql, "verdicts", o.id, { status: "overridden" });
   const a = await sql.queryOne<{ status: string; run: string | null }>(`SELECT status, run FROM vb_attempts WHERE id = ?`, [attemptId]);
   if (a && a.status !== "judged" && a.status !== "failed") await updateRecord(sql, "attempts", attemptId, { status: "judged" });
-  if (a?.run) await refreshRunStatusFromAttempts(sql, a.run);
+  if (a?.run) await refreshRunStatus(sql, a.run);
 }
 
 /** Store an AI verdict from the judge worker, and make it the active one. */
@@ -184,19 +158,6 @@ export async function verdictAfterCreate(ctx: VerdictCtx): Promise<void> {
 }
 
 // ── the blind judging payload (TECH-SPEC §10) ────────────────────────────────
-
-/** Editor HTML to plain text with line breaks (T2's lib/handoff.ts does the same for the prompt). */
-export function htmlToText(html: string): string {
-  return html
-    .replace(/<\s*br\s*\/?>/gi, "\n")
-    .replace(/<\s*li[^>]*>/gi, "\n- ")
-    .replace(/<\/\s*(p|div|h[1-6]|ul|ol|blockquote|pre|tr)\s*>/gi, "\n")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
 
 /** Keys the blind payload must never hold: they can reveal who made an output. */
 export const BLIND_FORBIDDEN_KEYS = [

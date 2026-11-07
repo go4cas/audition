@@ -14,13 +14,17 @@ beforeAll(async () => {
   // Judge half of them, so verdicts are in the payload too.
   for (const a of s.attempts.filter((x) => x.status === "submitted" && x.task === s.task.id)) await enqueueJudge(h, a.id);
   await until(async () => {
-    const r = await h.api("owner", "GET", `/api/custom/judging/${s.run}/${s.task.id}`);
+    const r = await judging(s.run, s.task.id);
     return r.body.outputs?.every((o: { verdict: unknown }) => o.verdict);
   }, "verdicts on the first task");
 });
 afterAll(async () => { await h?.cleanup(); });
 
-const judging = (runId: string, taskId: string, as: "owner" | "admin" | "anon" = "owner") => h.api(as, "GET", `/api/custom/judging/${runId}/${taskId}`);
+// Custom routes answer { data } (lib/runs.ts, ownerRoute); errors stay { error, code }.
+const judging = async (runId: string, taskId: string, as: "owner" | "admin" | "anon" = "owner") => {
+  const r = await h.api(as, "GET", `/api/custom/judging/${runId}/${taskId}`);
+  return r.status === 200 ? { ...r, body: r.body.data } : r;
+};
 
 /** Every key and every string value anywhere in a JSON value. */
 function walk(v: unknown, keys: string[] = [], values: string[] = []): { keys: string[]; values: string[] } {

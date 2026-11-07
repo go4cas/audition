@@ -1,7 +1,8 @@
-// lib/scoring.ts without a server: the weighted score, star checks, the
-// blind order and the run status rule (TECH-SPEC §8, §10).
+// lib/scoring.ts without a server: the weighted score, star checks and the
+// blind order (TECH-SPEC §10). The run status rule and HTML to text are T1's
+// and T2's (lib/runs.ts, lib/handoff.ts), tested there.
 import { expect, test } from "bun:test";
-import { blindKey, blindOrder, cleanScores, htmlToText, label, runStatusFor, scoresError, weightedScore } from "../vb_hooks/lib/scoring.ts";
+import { blindKey, blindOrder, cleanScores, label, scoresError, weightedScore } from "../vb_hooks/lib/scoring.ts";
 
 const RUBRIC = [
   { name: "Accuracy", weight: 40 }, { name: "Relevance", weight: 25 },
@@ -44,16 +45,4 @@ test("the blind order is by SHA-256 of run + task + attempt, the same on every c
   expect([...keys].sort()).toEqual(keys);
   // Another task shuffles differently.
   expect(blindOrder("run", "task-2", attempts).map((o) => o.attempt.id)).not.toEqual(one.map((o) => o.attempt.id));
-});
-
-test("run status: running, then judging, then done", () => {
-  expect(runStatusFor({ queued: 1, submitted: 2 })).toBe("running");
-  expect(runStatusFor({ waiting: 1, judged: 2 })).toBe("running");
-  expect(runStatusFor({ submitted: 1, judged: 2, failed: 1 })).toBe("judging");
-  expect(runStatusFor({ judged: 2, failed: 1 })).toBe("done");
-  expect(runStatusFor({ failed: 3 })).toBe("done");
-});
-
-test("editor HTML becomes plain text", () => {
-  expect(htmlToText("<p>Compare <strong>three</strong> options.</p><ul><li>One</li><li>Two &amp; more</li></ul>")).toBe("Compare three options.\n\n- One\n- Two & more");
 });

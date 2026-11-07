@@ -28,6 +28,7 @@ export default defineRoute({
     const result = await judgeAttempt({
       sql: ctx.helpers.sql,
       find: (c: string, id: string) => ctx.helpers.find(c, id),
+      query: (c: string, o: object) => ctx.helpers.query(c, o),
       readFile: (s: string) => ctx.helpers.fs.readBytes(ctx.helpers.path.join(dataDir, "uploads", s)),
       provider: () => fake,
     }, b.attempt);
