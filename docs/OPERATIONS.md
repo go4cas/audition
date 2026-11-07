@@ -1,6 +1,6 @@
 # Operations
 
-How to run Audition on your own machine, and the Phase 1 check with a real Anthropic key. Setup is in the [README](../README.md). Release, systemd, backups and Vaultbase upgrades come with the Release step (docs/RELEASE.md).
+How to run Audition on your own machine, and the Phase 1 check with a real Anthropic key. Setup is in the [README](../README.md). Running it on a server (systemd, backups, restores and Vaultbase upgrades) is in [RELEASE.md](RELEASE.md).
 
 ## Day to day
 

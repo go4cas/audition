@@ -51,7 +51,7 @@ Vaultbase ships about one release a day and is pre-1.0, where a minor version ma
    - `bun test` passes on a fresh instance of the new version.
    - `test/upgrade.test.ts` starts the *old* pinned version, runs a full seeded loop on it (seed, run, judge, cast), stops it, starts the *new* version on the same data folder, and checks that every record, file, key and sign-in is still there and the loop still works.
    - The PR quotes the changelog sections it read.
-6. **Production upgrades** (the Release thread documents them in `docs/RELEASE.md`) follow these steps: `vaultbase backup`, stop, swap the binary, start, smoke test. Vaultbase upgrades a data folder on start and has no downgrade, so **rollback means restoring the backup** with the old binary, never starting the old binary on upgraded data.
+6. **Production upgrades** (documented in `docs/RELEASE.md`) follow these steps: stop, a cold copy of the whole data folder, swap the binary, start, smoke test. (`vaultbase backup` was planned here, but it copies the database only, without files or keys: NOTES.md RL2.) Vaultbase upgrades a data folder on start and has no downgrade, so **rollback means restoring the backup** with the old binary, never starting the old binary on upgraded data.
 
 T0 builds `vb:bump` and `test/upgrade.test.ts`. The upgrade test can only be meaningful from the first upgrade on, so in T0 it runs the old and new version as the same pinned binary.
 
@@ -166,6 +166,7 @@ audition/
 | --- | --- |
 | `bun run setup` | Fetch and check the binary |
 | `bun run vb:bump <version>` | Rewrite `vaultbase.lock.json` for a new release (upgrade policy, §1) |
+| `bun run provision` | Set up a production instance that is already running: settings, backup schedule, owner, seed (Release, `docs/RELEASE.md`) |
 | `bun run dev` | Setup, build the UI, start Vaultbase with `--apply-snapshot schema/snapshot.json --snapshot-mode sync`, create the admin and the owner if missing, apply settings, seed if empty, then print the UI URL |
 | `bun run stop` | Stop the instance started by `dev` (PID file in `.vaultbase/`) |
 | `bun run seed` | Seed the reference workspaces into a running instance (idempotent by name) |
