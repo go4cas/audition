@@ -3,7 +3,7 @@
 // task (promptForTask), stored on every attempt, handoff attempts `waiting`.
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { boot, create, type Harness } from "./harness.ts";
-import { seedReference, DEMO_REPO, PLACEHOLDER_COMMIT } from "../seed/reference.ts";
+import { seedReference, DEMO_REPO, DEMO_COMMIT } from "../seed/reference.ts";
 import { testImage } from "../vb_hooks/lib/png.ts";
 
 let h: Harness;
@@ -66,7 +66,7 @@ const BACKEND_PROMPT = [
   "TASK: Add a REST endpoint that saves and reads user settings, with tests",
   "Add a REST endpoint that saves and reads user settings (PUT and GET /api/settings), with tests.",
   "",
-  `Work in the repository ${DEMO_REPO}, starting from commit ${PLACEHOLDER_COMMIT}.`,
+  `Work in the repository ${DEMO_REPO}, starting from commit ${DEMO_COMMIT}.`,
   "",
   "You will be judged on:",
   "1. Correctness (40%): Does what the task asks, including edge cases.",
