@@ -8,6 +8,7 @@
     "dev": "bun scripts/dev.ts",
     "stop": "bun scripts/stop.ts",
     "seed": "bun scripts/seed.ts",
+    "provision": "bun scripts/provision.ts",
     "build:ui": "bun scripts/build-ui.ts"
   },
   "dependencies": {
