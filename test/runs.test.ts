@@ -108,6 +108,8 @@ describe("a run of 2 tasks × 3 mock contenders (Done-when 1)", () => {
       const line = lines.find((l) => l.includes(`attempt=${a.id} `));
       expect(line).toBeDefined();
       expect(line).toContain(a.contender === C.flaky!.id ? "calls=2" : "calls=1");
+      // and on the output itself (attempts.provider_calls), for the run page
+      expect(a.provider_calls).toBe(a.contender === C.flaky!.id ? 2 : 1);
     }
   });
 
@@ -200,6 +202,7 @@ describe("a failing contender (Done-when 6)", () => {
     const byC = Object.fromEntries(view.attempts.map((a: any) => [a.contender, a]));
     expect(byC[C.fail!.id].status).toBe("failed");
     expect(byC[C.fail!.id].error).toBe("Mock Fail always fails.");
+    expect(byC[C.fail!.id].provider_calls).toBe(1);
     expect(byC[C.steady!.id].status).toBe("submitted");
     expect(byC[C.image!.id].status).toBe("submitted");
     expect(view.counts).toMatchObject({ failed: 1, submitted: 2 });
@@ -256,6 +259,7 @@ describe("handoff contenders", () => {
     const ho = view.attempts.find((a: any) => a.contender === f.handoff.id);
     expect(ho.mode).toBe("handoff");
     expect(ho.status).toBe("waiting");
+    expect(ho.provider_calls).toBeNull();
     expect(view.run.status).toBe("running");
     const rows = await h.sql<{ prompt_sent: string }>(`SELECT prompt_sent FROM vb_attempts WHERE run = ?`, [view.run.id]);
     expect(new Set(rows.map((x) => x.prompt_sent)).size).toBe(1);

@@ -262,7 +262,7 @@ export async function runView(deps: Deps, runId: string) {
   const run = await deps.find("runs", runId);
   if (!run) throw new RunError(404, "That run does not exist.");
   const attempts = await deps.sql.query<Rec>(
-    `SELECT id, task, contender, mode, status, tokens_in, tokens_out, duration_ms, cost, finish_reason, error
+    `SELECT id, task, contender, mode, status, tokens_in, tokens_out, duration_ms, provider_calls, cost, finish_reason, error
        FROM vb_attempts WHERE run = ? ORDER BY rowid`, [runId]);
   const counts = Object.fromEntries(COUNT_KEYS.map((k) => [k, 0])) as Record<AttemptStatus, number>;
   for (const a of attempts) if (a["status"] in counts) counts[a["status"] as AttemptStatus]++;
@@ -370,6 +370,7 @@ export async function runGenerate(deps: WorkerDeps, attemptId: string): Promise<
         tokens_in: r.tokensIn,
         tokens_out: r.tokensOut,
         duration_ms: Math.round(out.durationMs),
+        provider_calls: calls,
         cost: deriveCost(r.tokensIn, r.tokensOut, num(target.contender["price_in_per_mtok"]), num(target.contender["price_out_per_mtok"])),
         finish_reason: r.finishReason,
         metrics_source: "measured",
@@ -380,7 +381,7 @@ export async function runGenerate(deps: WorkerDeps, attemptId: string): Promise<
       status = "submitted";
     } catch (e) {
       calls = (e as { calls?: number }).calls ?? calls;
-      await updateRecord(deps.sql, "attempts", attemptId, { status: "failed", error: errorText(e) });
+      await updateRecord(deps.sql, "attempts", attemptId, { status: "failed", error: errorText(e), provider_calls: calls });
     }
     deps.log(`generate attempt=${attemptId} status=${status} calls=${calls}`);
     if (status === "submitted" && run["judge"] === "ai") {

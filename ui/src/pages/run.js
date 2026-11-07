@@ -108,7 +108,7 @@ function attemptRow(d, r, a) {
       <dt>${icon("tokens")}Tokens in</dt><dd>${num(a.tokens_in)}</dd><dt>${icon("tokens")}Tokens out</dt><dd>${num(a.tokens_out)}</dd>
       <dt>${icon("time")}Time</dt><dd>${duration(a.duration_ms)}</dd><dt>${icon("cost")}Cost</dt><dd>${money(a.cost)}</dd>
       <dt>Measured by</dt><dd>${a.mode === "handoff" ? "You" : "Audition"}</dd>
-    </dl>${a.finish_reason === "max_tokens" ? html`<p class="xs">Cut off at max output tokens.</p>` : ""}${a.error ? html`<p class="xs muted">${a.error}</p>` : ""}</div></div>`;
+    </dl>${a.finish_reason === "max_tokens" ? html`<p class="xs">Cut off at max output tokens.</p>` : ""}${a.provider_calls > 1 ? html`<p class="xs muted">Took ${a.provider_calls} tries: the provider failed and Audition retried.</p>` : ""}${a.error ? html`<p class="xs muted">${a.error}</p>` : ""}</div></div>`;
   const state = a.status === "failed"
     ? html`<span class="row-tight"><button class="info-btn" type="button" popovertarget="${pop}" aria-label="Why it failed">${icon("info")}</button>${chip("error", "Failed", "is-new")}<div class="pop" id="${pop}" popover><div class="pop__head text-error">${icon("error")}This output failed</div><div class="pop__body"><p>It won't be scored. Use <strong>Run again</strong> once the run finishes to try it fresh.</p>${a.error ? html`<code class="xs">${a.error}</code>` : ""}</div></div></span>`
     : outputChip(a.status, r.judge);

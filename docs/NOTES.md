@@ -185,8 +185,8 @@ T1 (API execution) checked these against the pinned Vaultbase **0.40.2** binary;
 ### T1 choices to confirm
 
 - **Prompt rendering** uses T2's `lib/handoff.ts` `promptForTask` (T2 merged first). T1 replaced the stand-in, and `lib/handoff.ts` now uses T1's `refreshRunStatus` (`lib/runs.ts`) and `deriveCost` (`lib/cost.ts`) in place of its own copies.
-- **The retry evidence for the flaky mock** is the worker's log line `generate attempt=<id> status=submitted calls=2`. `attempts` has no call-count field, and adding one would be a schema change. The in-process mock retries a retryable error up to 3 tries, as `helpers.http` does for real providers.
-- **The AI judge contender is locked** when a run uses it, like the contenders it judges, so verdicts stay tied to the exact judge configuration.
+- **The retry evidence for the flaky mock** is `attempts.provider_calls` (2 for the flaky mock, 1 otherwise), added on Nov 7, 2026 after Cas approved the schema change, and shown on the run page as "Took N tries" when above 1. The worker's log line `generate attempt=<id> status=… calls=N` stays.
+- **The AI judge contender is locked** when a run uses it, like the contenders it judges, so verdicts stay tied to the exact judge configuration. Cas confirmed this on Nov 7, 2026.
 - **Call count with the mock judge.** `judge_calls` always shows how many outputs the AI judge will score. Calls to the mock judge are left out of `total_provider_calls` (and `runs.call_count`) because they cost nothing (§8).
 - **An extra warning** appears when the AI judge is itself one of the run's contenders ("it judges its own output").
 - **An empty answer is a failure.** A reply with no text and no files fails the output, and says so when it was cut off at max output tokens.

@@ -341,6 +341,7 @@ Rules: list and view `OWNER` · create, update and delete `—`.
 | output_files | file, multiple, 25 MB each | |
 | tokens_in, tokens_out | number | |
 | duration_ms | number | |
+| provider_calls | number, min 0 | How many provider calls this output took, retries included (Cas, Nov 7, 2026). Empty for handoff outputs. |
 | cost | number | Derived, empty when unknown |
 | metrics_source | select `measured`, `manual` | |
 | finish_reason | text | Provider stop reason, for example `end_turn`, `max_tokens` or `refusal` |
@@ -421,7 +422,7 @@ All routes need the owner (`requireAuth: true`, plus a check that the caller is 
 | `POST /runs/preview` | T1 | `{ role, tasks[], contenders[], judge }` → `{ outputs, api_calls, handoff_outputs, judge_calls, total_provider_calls, warnings[] }`. Warnings include "the AI judge shares a provider with Mock Steady". |
 | `POST /runs` | T1 | Same body as preview. Checks that the tasks belong to the role and the contenders are enabled, renders one prompt per task (§9), creates the run and one attempt per task × contender, locks every task and contender used, then enqueues each API attempt on `generate`. Returns `{ run }`. |
 | `POST /runs/:id/again` | T1 | A new run with the same role, tasks, contenders and judge, `rerun_of = :id`. Only for runs that are `done`. |
-| `GET /runs/:id` | T1 | `{ run, counts: { queued, in_progress, waiting, submitted, judged, failed }, attempts: [{ id, task, contender, mode, status, tokens_in, tokens_out, duration_ms, cost, error }] }`, for the live view to poll. Not blind. |
+| `GET /runs/:id` | T1 | `{ run, counts: { queued, in_progress, waiting, submitted, judged, failed }, attempts: [{ id, task, contender, mode, status, tokens_in, tokens_out, duration_ms, provider_calls, cost, finish_reason, error }] }`, for the live view to poll. Not blind. |
 | `GET /handoff/:runId/:taskId` | T2 | `{ prompt, attachments: [{ name, url }], waiting: [{ attempt, contender_name }] }`. The prompt is the stored `prompt_sent`. |
 | `GET /judging/:runId/:taskId` | T3 | The blind payload (§10) |
 | `GET /leaderboard/:roleId` | T3 | `{ terms_used: ["quality", "tokens"], dropped: [{ term: "time", reason: "Codex (manual) has no time data" }], rows: [{ contender, name, group, n, mean_score, ci_low, ci_high, mean_tokens, mean_time_ms, mean_cost, fitness, qualifies, enough_data }], suggested: contenderId \| null, casting: { contender, since } \| null }` |
