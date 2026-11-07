@@ -9,8 +9,8 @@ import { defineRoute } from "vaultbase";
 import { attachFile } from "../lib/files.ts";
 import { uploadTargetError, checkUpload, storedMime } from "../lib/handoff.ts";
 import { fileDeps } from "../lib/route-deps.ts";
+import { isOwner } from "../lib/runs.ts";
 
-const isOwner = (a: { type?: string; collection?: string } | null) => a?.type === "user" && a.collection === "users";
 const fail = (ctx: { set: { status: number } }, code: number, error: string) => {
   ctx.set.status = code;
   return { error, code };

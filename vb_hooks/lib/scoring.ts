@@ -4,7 +4,7 @@
 // (TECH-SPEC F7), so `bun test` can import this file directly.
 import { createHash } from "node:crypto";
 import { insertRecord, updateRecord, type Sql } from "./store.ts";
-import { parseJson, type Criterion } from "./validation.ts";
+import { listOf, parseJson, type Criterion } from "./validation.ts";
 import { htmlToText } from "./handoff.ts";
 import { refreshRunStatus } from "./runs.ts";
 
@@ -172,10 +172,7 @@ export interface BlindDeps {
 
 export interface BlindFile { name: string; url: string; mime: string; is_image: boolean }
 
-const asList = (v: unknown): string[] => {
-  const x = parseJson(v);
-  return Array.isArray(x) ? x.map(String) : typeof x === "string" && x ? [x] : [];
-};
+const asList = listOf;
 
 /** The judging screen's data for one run and task, or null when either is missing. */
 export async function blindPayload(deps: BlindDeps, runId: string, taskId: string) {

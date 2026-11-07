@@ -18,6 +18,13 @@ export function parseJson(v: unknown): unknown {
   try { return JSON.parse(v); } catch { return v; }
 }
 
+/** A JSON list field (file names, ids) as a list of non-empty strings; a lone string is a list of one. */
+export function listOf(v: unknown): string[] {
+  const p = parseJson(v);
+  if (Array.isArray(p)) return p.filter((x) => x !== null && x !== undefined && x !== "").map(String);
+  return typeof p === "string" && p ? [p] : [];
+}
+
 const isWhole = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n);
 
 /** 1 to 8 criteria, unique names, whole-number weights summing to 100. Returns an error or null. */

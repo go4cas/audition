@@ -7,7 +7,7 @@ import { attachFile } from "./files.ts";
 import { callProvider, ProviderError, type ApiProvider, type FileOut, type HttpLike } from "./providers/index.ts";
 import { mockSeed } from "./providers/mock.ts";
 import { insertRecord, updateRecord, type Sql } from "./store.ts";
-import { parseJson } from "./validation.ts";
+import { listOf, parseJson } from "./validation.ts";
 
 type Rec = Record<string, any>;
 
@@ -229,8 +229,7 @@ export async function rerunPlan(deps: Deps, runId: string): Promise<Plan> {
   const run = await deps.find("runs", runId);
   if (!run) throw new RunError(404, "That run does not exist.");
   if (run["status"] !== "done") throw new RunError(409, "Run again is possible once this run is done.");
-  const list = (v: unknown) => (parseJson(v) as unknown[] | null ?? []).map(String);
-  const body: RunBody = { role: String(run["role"]), tasks: list(run["tasks"]), contenders: list(run["contenders"]), judge: run["judge"] as "me" | "ai" };
+  const body: RunBody = { role: String(run["role"]), tasks: listOf(run["tasks"]), contenders: listOf(run["contenders"]), judge: run["judge"] as "me" | "ai" };
   return loadPlan(deps, body, (run["judge_contender"] as string | null) || null);
 }
 
@@ -271,10 +270,7 @@ export async function runView(deps: Deps, runId: string) {
 
 // ── Files ────────────────────────────────────────────────────────────────────
 
-const storedNames = (v: unknown): string[] => {
-  const p = parseJson(v);
-  return Array.isArray(p) ? p.map(String) : typeof p === "string" && p ? [p] : [];
-};
+const storedNames = listOf;
 
 /** A task's attachments with their original names and types, for API calls. */
 export async function taskAttachments(deps: WorkerDeps, task: Rec): Promise<FileOut[]> {
