@@ -213,6 +213,8 @@ The T3 build thread (judging and fitness) ran against Vaultbase **0.40.2** on fr
 - **Dropped terms** are listed only when their weight is above 0. With the default weights (quality only), `dropped` is always empty.
 - **Rows are sorted best first**: by fitness, then mean score, then number of outputs, then name. That is the same order as the champion tie-break.
 
+- **Neutral file names when judging (Cas, Nov 7, 2026).** On the blind judging screen, each output's files are named by the output's label, a number from 1 in upload order, and the original extension in lower case: `A-1.png`, `A-2.pdf`, `B-1.png`. The AI judge sees `file-1.png`, `file-2.pdf`, and so on, because it judges one output at a time. A file's own name (`chatgpt-image.png`) can therefore reveal neither the tool nor sway the judge. Nothing is renamed in storage: the file stays on its output record, and `vaultbase_files.original_name` keeps the uploaded name.
+
 ### Shared with T1 and T2 (after merging main)
 
 - The run status refresh is T1's `lib/runs.ts` `refreshRunStatus`; the judging screen's `prompt_text` uses T2's `lib/handoff.ts` `htmlToText`. T3's own copies were removed.

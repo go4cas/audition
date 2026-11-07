@@ -2,7 +2,7 @@
 // blind order (TECH-SPEC §10). The run status rule and HTML to text are T1's
 // and T2's (lib/runs.ts, lib/handoff.ts), tested there.
 import { expect, test } from "bun:test";
-import { blindKey, blindOrder, cleanScores, label, scoresError, weightedScore } from "../vb_hooks/lib/scoring.ts";
+import { blindKey, blindOrder, cleanScores, label, neutralName, scoresError, weightedScore } from "../vb_hooks/lib/scoring.ts";
 
 const RUBRIC = [
   { name: "Accuracy", weight: 40 }, { name: "Relevance", weight: 25 },
@@ -45,4 +45,11 @@ test("the blind order is by SHA-256 of run + task + attempt, the same on every c
   expect([...keys].sort()).toEqual(keys);
   // Another task shuffles differently.
   expect(blindOrder("run", "task-2", attempts).map((o) => o.attempt.id)).not.toEqual(one.map((o) => o.attempt.id));
+});
+
+test("neutral file names: prefix, number from 1, original extension in lower case", () => {
+  expect(neutralName("A", 0, "chatgpt-image.PNG")).toBe("A-1.png");
+  expect(neutralName("B", 2, "report.final.pdf")).toBe("B-3.pdf");
+  expect(neutralName("file", 0, "no extension")).toBe("file-1");
+  expect(neutralName("AA", 1, "logo.svg")).toBe("AA-2.svg");
 });
