@@ -3,7 +3,7 @@
 // its order is shuffled but stable, and failed outputs are left out.
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { boot, RUBRIC, type Harness } from "./harness.ts";
-import { aiRun, enqueueJudge, until } from "./t3-helpers.ts";
+import { aiRun, attach, enqueueJudge, testImage, until } from "./t3-helpers.ts";
 import { BLIND_FORBIDDEN_KEYS, blindKey } from "../vb_hooks/lib/scoring.ts";
 
 let h: Harness;
@@ -64,7 +64,7 @@ test("the payload has the run, the task as text, the rubric, and labelled output
   expect(r.rubric).toEqual(RUBRIC);
   expect(r.outputs.map((o: { label: string }) => o.label)).toEqual(["A", "B", "C"]);
   const img = r.outputs.find((o: { files: unknown[] }) => o.files.length > 0);
-  expect(img.files[0]).toMatchObject({ name: "mock-image-1.png", mime: "image/png", is_image: true });
+  expect(img.files[0]).toMatchObject({ name: `${img.label}-1.png`, mime: "image/png", is_image: true });
   expect(img.files[0].url).toMatch(/^\/api\/v1\/files\/[0-9a-f-]{36}\.png$/);
   // The file URL serves the image to the owner.
   const res = await fetch(`${h.url}${img.files[0].url}`, { headers: { authorization: `Bearer ${h.ownerToken}` } });
@@ -90,6 +90,18 @@ test("failed outputs are left out, and the order is by SHA-256 of run + task + a
     .sort((x, y) => (blindKey(s.run, s.task.id, x) < blindKey(s.run, s.task.id, y) ? -1 : 1));
   expect(ids).toEqual(expected);
   expect(ids).not.toContain(s.attempts.find((a) => a.status === "failed")!.id);
+});
+
+test("uploaded file names are replaced by neutral ones (A-1.png), so a name can't say which tool made it", async () => {
+  const run = await h.store("insert", "runs", { workspace: s.workspace.id, role: s.role.id, tasks: [s.task.id], contenders: [s.handoff.id], judge: "me", status: "judging", call_count: 0 });
+  const id = await h.store("insert", "attempts", { run, task: s.task.id, contender: s.handoff.id, mode: "handoff", status: "submitted", output: "See files" });
+  await attach(h, id, "chatgpt-image.PNG", "image/png", testImage(0));
+  await attach(h, id, "Midjourney notes", "text/plain", new TextEncoder().encode("hi"));
+  await attach(h, id, "perplexity-sources.pdf", "application/pdf", new TextEncoder().encode("%PDF-1.4"));
+  const r = (await judging(run, s.task.id)).body;
+  expect(r.outputs[0].files.map((f: { name: string }) => f.name)).toEqual(["A-1.png", "A-2", "A-3.pdf"]);
+  const text = JSON.stringify(r).toLowerCase();
+  for (const word of ["chatgpt", "midjourney", "perplexity"]) expect(text).not.toContain(word);
 });
 
 test("code tasks carry the claims note", async () => {

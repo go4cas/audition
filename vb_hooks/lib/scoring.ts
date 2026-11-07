@@ -170,6 +170,12 @@ export interface BlindDeps {
   find(collection: string, id: string): Promise<Rec | null>;
 }
 
+/** `<prefix>-<n>.<ext>`, n from 1 in upload order, keeping the original extension (lower case). */
+export function neutralName(prefix: string, index: number, original: string): string {
+  const m = /\.([A-Za-z0-9]{1,10})$/.exec(original);
+  return `${prefix}-${index + 1}${m ? `.${m[1]!.toLowerCase()}` : ""}`;
+}
+
 export interface BlindFile { name: string; url: string; mime: string; is_image: boolean }
 
 const asList = listOf;
@@ -205,10 +211,11 @@ export async function blindPayload(deps: BlindDeps, runId: string, taskId: strin
 
   const outputs = blindOrder(runId, taskId, attempts).map(({ attempt: a, label }) => {
     const meta = new Map(files.filter((f) => f.record_id === a.id).map((f) => [f.filename, f]));
-    const fileList: BlindFile[] = asList(a.output_files).map((stored) => {
+    const fileList: BlindFile[] = asList(a.output_files).map((stored, i) => {
       const m = meta.get(stored);
       const mime = m?.mime_type || "application/octet-stream";
-      return { name: m?.original_name || stored, url: `/api/v1/files/${stored}`, mime, is_image: mime.startsWith("image/") };
+      // A neutral name (A-1.png): an uploaded file's own name could say which tool made it.
+      return { name: neutralName(label, i, m?.original_name || stored), url: `/api/v1/files/${stored}`, mime, is_image: mime.startsWith("image/") };
     });
     const mine = verdicts.filter((v) => v.attempt === a.id);
     const active = mine.find((v) => v.status === "active");
