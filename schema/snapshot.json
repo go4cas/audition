@@ -1,0 +1,920 @@
+{
+  "generated_at": "2026-11-06T00:00:00.000Z",
+  "version": 1,
+  "collections": [
+    {
+      "name": "users",
+      "type": "auth",
+      "fields": [
+        {
+          "name": "email",
+          "type": "email",
+          "required": true,
+          "implicit": true,
+          "options": {
+            "unique": true
+          }
+        },
+        {
+          "name": "verified",
+          "type": "bool",
+          "required": false,
+          "implicit": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ],
+      "list_rule": "id = @request.auth.id",
+      "view_rule": "id = @request.auth.id",
+      "create_rule": "",
+      "update_rule": "id = @request.auth.id",
+      "delete_rule": "",
+      "history_enabled": false
+    },
+    {
+      "name": "connections",
+      "type": "base",
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "options": {
+            "unique": true
+          }
+        },
+        {
+          "name": "provider",
+          "type": "select",
+          "required": true,
+          "options": {
+            "values": [
+              "anthropic",
+              "openai-compatible",
+              "mock",
+              "manual"
+            ]
+          }
+        },
+        {
+          "name": "base_url",
+          "type": "url"
+        },
+        {
+          "name": "has_key",
+          "type": "bool"
+        },
+        {
+          "name": "notes",
+          "type": "text"
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "delete_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "history_enabled": false
+    },
+    {
+      "name": "connection_keys",
+      "type": "base",
+      "fields": [
+        {
+          "name": "connection",
+          "type": "relation",
+          "collection": "connections",
+          "required": true,
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "api_key",
+          "type": "text",
+          "required": true,
+          "options": {
+            "encrypted": true
+          }
+        }
+      ],
+      "list_rule": "",
+      "view_rule": "",
+      "create_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "delete_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "history_enabled": false,
+      "indexes": [
+        {
+          "fields": [
+            "connection"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "contenders",
+      "type": "base",
+      "fields": [
+        {
+          "name": "connection",
+          "type": "relation",
+          "collection": "connections",
+          "required": true,
+          "options": {
+            "cascade": "restrict"
+          }
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "options": {
+            "unique": true
+          }
+        },
+        {
+          "name": "mode",
+          "type": "select",
+          "required": true,
+          "options": {
+            "values": [
+              "api",
+              "handoff",
+              "runner"
+            ]
+          }
+        },
+        {
+          "name": "model",
+          "type": "text"
+        },
+        {
+          "name": "group",
+          "type": "text"
+        },
+        {
+          "name": "config",
+          "type": "json"
+        },
+        {
+          "name": "max_output_tokens",
+          "type": "number",
+          "options": {
+            "min": 1
+          }
+        },
+        {
+          "name": "price_in_per_mtok",
+          "type": "number",
+          "options": {
+            "min": 0
+          }
+        },
+        {
+          "name": "price_out_per_mtok",
+          "type": "number",
+          "options": {
+            "min": 0
+          }
+        },
+        {
+          "name": "locked",
+          "type": "bool"
+        },
+        {
+          "name": "previous_version",
+          "type": "relation",
+          "collection": "contenders",
+          "options": {
+            "cascade": "setNull"
+          }
+        },
+        {
+          "name": "enabled",
+          "type": "bool"
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\" && locked = false",
+      "delete_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\" && locked = false",
+      "history_enabled": true
+    },
+    {
+      "name": "workspaces",
+      "type": "base",
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "options": {
+            "unique": true
+          }
+        },
+        {
+          "name": "description",
+          "type": "text"
+        },
+        {
+          "name": "default_judge",
+          "type": "select",
+          "options": {
+            "values": [
+              "me",
+              "ai"
+            ]
+          }
+        },
+        {
+          "name": "judge_contender",
+          "type": "relation",
+          "collection": "contenders",
+          "options": {
+            "cascade": "setNull"
+          }
+        },
+        {
+          "name": "min_outputs",
+          "type": "number",
+          "options": {
+            "min": 1
+          }
+        },
+        {
+          "name": "fitness_weights",
+          "type": "json"
+        },
+        {
+          "name": "composer_contender",
+          "type": "relation",
+          "collection": "contenders",
+          "options": {
+            "cascade": "setNull"
+          }
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "delete_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "history_enabled": false
+    },
+    {
+      "name": "stages",
+      "type": "base",
+      "fields": [
+        {
+          "name": "workspace",
+          "type": "relation",
+          "collection": "workspaces",
+          "required": true,
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "order",
+          "type": "number"
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "delete_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "history_enabled": false
+    },
+    {
+      "name": "roles",
+      "type": "base",
+      "fields": [
+        {
+          "name": "workspace",
+          "type": "relation",
+          "collection": "workspaces",
+          "required": true,
+          "options": {
+            "cascade": "restrict"
+          }
+        },
+        {
+          "name": "stage",
+          "type": "relation",
+          "collection": "stages",
+          "options": {
+            "cascade": "setNull"
+          }
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "text"
+        },
+        {
+          "name": "rubric",
+          "type": "json",
+          "required": true
+        },
+        {
+          "name": "pass_mark",
+          "type": "number",
+          "options": {
+            "min": 1,
+            "max": 5
+          }
+        },
+        {
+          "name": "default_output_type",
+          "type": "select",
+          "options": {
+            "values": [
+              "text",
+              "image",
+              "file",
+              "code"
+            ]
+          }
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "delete_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "history_enabled": true
+    },
+    {
+      "name": "tasks",
+      "type": "base",
+      "fields": [
+        {
+          "name": "role",
+          "type": "relation",
+          "collection": "roles",
+          "required": true,
+          "options": {
+            "cascade": "restrict"
+          }
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "prompt",
+          "type": "editor",
+          "required": true
+        },
+        {
+          "name": "output_type",
+          "type": "select",
+          "options": {
+            "values": [
+              "text",
+              "image",
+              "file",
+              "code"
+            ]
+          }
+        },
+        {
+          "name": "attachments",
+          "type": "file",
+          "options": {
+            "multiple": true,
+            "maxSize": 26214400,
+            "mimeTypes": [
+              "text/plain",
+              "application/json",
+              "application/pdf",
+              "application/octet-stream",
+              "image/png",
+              "image/jpeg",
+              "image/gif",
+              "image/webp"
+            ]
+          }
+        },
+        {
+          "name": "base_ref",
+          "type": "json"
+        },
+        {
+          "name": "locked",
+          "type": "bool"
+        },
+        {
+          "name": "previous_version",
+          "type": "relation",
+          "collection": "tasks",
+          "options": {
+            "cascade": "setNull"
+          }
+        },
+        {
+          "name": "composed_prompt",
+          "type": "text"
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\" && locked = false",
+      "delete_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\" && locked = false",
+      "history_enabled": true
+    },
+    {
+      "name": "handoff_templates",
+      "type": "base",
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "kind",
+          "type": "select",
+          "options": {
+            "values": [
+              "generic",
+              "coding-harness",
+              "app"
+            ]
+          }
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "return_instructions",
+          "type": "text"
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "delete_rule": "",
+      "history_enabled": false
+    },
+    {
+      "name": "runs",
+      "type": "base",
+      "fields": [
+        {
+          "name": "workspace",
+          "type": "relation",
+          "collection": "workspaces",
+          "options": {
+            "cascade": "restrict"
+          }
+        },
+        {
+          "name": "role",
+          "type": "relation",
+          "collection": "roles",
+          "options": {
+            "cascade": "restrict"
+          }
+        },
+        {
+          "name": "tasks",
+          "type": "json"
+        },
+        {
+          "name": "contenders",
+          "type": "json"
+        },
+        {
+          "name": "judge",
+          "type": "select",
+          "options": {
+            "values": [
+              "me",
+              "ai"
+            ]
+          }
+        },
+        {
+          "name": "judge_contender",
+          "type": "relation",
+          "collection": "contenders",
+          "options": {
+            "cascade": "setNull"
+          }
+        },
+        {
+          "name": "rerun_of",
+          "type": "relation",
+          "collection": "runs",
+          "options": {
+            "cascade": "setNull"
+          }
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "options": {
+            "values": [
+              "running",
+              "judging",
+              "done"
+            ]
+          }
+        },
+        {
+          "name": "call_count",
+          "type": "number"
+        },
+        {
+          "name": "schedule",
+          "type": "text"
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "",
+      "update_rule": "",
+      "delete_rule": "",
+      "history_enabled": false
+    },
+    {
+      "name": "attempts",
+      "type": "base",
+      "fields": [
+        {
+          "name": "run",
+          "type": "relation",
+          "collection": "runs",
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "task",
+          "type": "relation",
+          "collection": "tasks",
+          "options": {
+            "cascade": "restrict"
+          }
+        },
+        {
+          "name": "contender",
+          "type": "relation",
+          "collection": "contenders",
+          "options": {
+            "cascade": "restrict"
+          }
+        },
+        {
+          "name": "mode",
+          "type": "select",
+          "options": {
+            "values": [
+              "api",
+              "handoff"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "options": {
+            "values": [
+              "queued",
+              "in_progress",
+              "waiting",
+              "submitted",
+              "judged",
+              "failed"
+            ]
+          }
+        },
+        {
+          "name": "prompt_sent",
+          "type": "text"
+        },
+        {
+          "name": "output",
+          "type": "text"
+        },
+        {
+          "name": "output_files",
+          "type": "file",
+          "options": {
+            "multiple": true,
+            "maxSize": 26214400,
+            "mimeTypes": [
+              "text/plain",
+              "application/json",
+              "application/pdf",
+              "application/octet-stream",
+              "image/png",
+              "image/jpeg",
+              "image/gif",
+              "image/webp"
+            ]
+          }
+        },
+        {
+          "name": "tokens_in",
+          "type": "number",
+          "options": {
+            "min": 0
+          }
+        },
+        {
+          "name": "tokens_out",
+          "type": "number",
+          "options": {
+            "min": 0
+          }
+        },
+        {
+          "name": "duration_ms",
+          "type": "number",
+          "options": {
+            "min": 0
+          }
+        },
+        {
+          "name": "cost",
+          "type": "number"
+        },
+        {
+          "name": "metrics_source",
+          "type": "select",
+          "options": {
+            "values": [
+              "measured",
+              "manual"
+            ]
+          }
+        },
+        {
+          "name": "finish_reason",
+          "type": "text"
+        },
+        {
+          "name": "error",
+          "type": "text"
+        },
+        {
+          "name": "submitted_at",
+          "type": "date"
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\" && mode = \"handoff\" && status = \"waiting\"",
+      "delete_rule": "",
+      "history_enabled": false
+    },
+    {
+      "name": "verdicts",
+      "type": "base",
+      "fields": [
+        {
+          "name": "attempt",
+          "type": "relation",
+          "collection": "attempts",
+          "required": true,
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "run",
+          "type": "relation",
+          "collection": "runs",
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "method",
+          "type": "select",
+          "options": {
+            "values": [
+              "rubric",
+              "pairwise",
+              "outcome"
+            ]
+          }
+        },
+        {
+          "name": "judge_kind",
+          "type": "select",
+          "options": {
+            "values": [
+              "human",
+              "ai"
+            ]
+          }
+        },
+        {
+          "name": "judge_contender",
+          "type": "relation",
+          "collection": "contenders",
+          "options": {
+            "cascade": "setNull"
+          }
+        },
+        {
+          "name": "scores",
+          "type": "json"
+        },
+        {
+          "name": "rubric_snapshot",
+          "type": "json"
+        },
+        {
+          "name": "score",
+          "type": "number",
+          "options": {
+            "min": 1,
+            "max": 5
+          }
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "options": {
+            "values": [
+              "active",
+              "overridden"
+            ]
+          }
+        },
+        {
+          "name": "opponent",
+          "type": "relation",
+          "collection": "attempts",
+          "options": {
+            "cascade": "setNull"
+          }
+        },
+        {
+          "name": "winner",
+          "type": "select",
+          "options": {
+            "values": [
+              "this",
+              "opponent",
+              "tie"
+            ]
+          }
+        },
+        {
+          "name": "due_at",
+          "type": "date"
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "update_rule": "",
+      "delete_rule": "",
+      "history_enabled": false
+    },
+    {
+      "name": "castings",
+      "type": "base",
+      "fields": [
+        {
+          "name": "role",
+          "type": "relation",
+          "collection": "roles",
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "contender",
+          "type": "relation",
+          "collection": "contenders",
+          "options": {
+            "cascade": "restrict"
+          }
+        },
+        {
+          "name": "since",
+          "type": "date"
+        },
+        {
+          "name": "rationale",
+          "type": "text"
+        },
+        {
+          "name": "suggested_by",
+          "type": "select",
+          "options": {
+            "values": [
+              "system",
+              "human"
+            ]
+          }
+        },
+        {
+          "name": "confirmed",
+          "type": "bool"
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "",
+      "update_rule": "",
+      "delete_rule": "",
+      "history_enabled": false
+    },
+    {
+      "name": "leaderboard",
+      "type": "view",
+      "fields": [
+        {
+          "name": "role",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "contender",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "n",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "mean_score",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "sum_sq",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "n_tokens",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "mean_tokens",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "n_time",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "mean_time_ms",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "n_cost",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "mean_cost",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "view_query": "SELECT\n  r.role || ':' || a.contender AS id,\n  r.role AS role,\n  a.contender AS contender,\n  COUNT(v.id) AS n,\n  AVG(v.score) AS mean_score,\n  SUM(v.score * v.score) AS sum_sq,\n  COUNT(CASE WHEN a.tokens_in IS NOT NULL AND a.tokens_out IS NOT NULL THEN 1 END) AS n_tokens,\n  AVG(a.tokens_in + a.tokens_out) AS mean_tokens,\n  COUNT(a.duration_ms) AS n_time,\n  AVG(a.duration_ms) AS mean_time_ms,\n  COUNT(a.cost) AS n_cost,\n  AVG(a.cost) AS mean_cost\nFROM vb_attempts a\nJOIN vb_runs r ON r.id = a.run\nJOIN vb_verdicts v ON v.attempt = a.id AND v.status = 'active'\nGROUP BY r.role, a.contender",
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "",
+      "update_rule": "",
+      "delete_rule": "",
+      "history_enabled": false
+    }
+  ]
+}

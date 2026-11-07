@@ -1,0 +1,5 @@
+[test]
+# Only Audition's own tests (fixtures/factory-demo has its own).
+root = "test"
+# Each test file boots its own Vaultbase; give hooks and boot room.
+timeout = 60000

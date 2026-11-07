@@ -97,3 +97,58 @@ The Architecture thread read the Vaultbase source at tag v0.37.0, because `docs.
 ## Design thread choices (Nov 6, 2026)
 
 The wireframes, tokens and design decisions are in `docs/design/`. The decisions for Cas to confirm are listed in `docs/design/README.md` under "Decisions made in this thread". The image-judging grid question in the spec is answered there.
+
+## T0 findings (Nov 6, 2026)
+
+The T0 build thread ran the pinned binary in a Claude Code cloud session (Cas approved running it on Nov 6, 2026). Each item below names the command or test that checked it against Vaultbase **0.40.2** (`vaultbase-linux-x64`, SHA-256 `b8181569…f757`). The tests are in `test/`, and `bun test` runs all of them on fresh instances.
+
+### Open questions for T0
+
+- **O3. Can a cloud session run the binary? Yes**, once Cas approved it. The safety check that stopped the Architecture thread stopped this thread too, until Cas said yes. Evidence:
+
+  ```
+  $ sha256sum -c <(grep ' vaultbase-linux-x64$' SHA256SUMS)
+  vaultbase-linux-x64: OK
+  $ ./vaultbase-linux-x64 --version
+  vaultbase 0.40.2
+  $ curl -s localhost:18091/api/health
+  {"data":{"status":"ok","version":"0.40.2","maintenance":null}}
+  ```
+
+- **O4. Table and column names for the leaderboard view.** Collections are tables named `vb_<name>`. A relation column holds the target id as text. The view query in TECH-SPEC §6 works as written. `test/schema.test.ts` seeds two scored outputs, plus an overridden verdict that must not count, and reads `n = 2`, `mean_score = 3.5`, `sum_sq = 25`, `mean_tokens = 450` and `mean_time_ms = 1500`. In the snapshot, the view's columns are typed `text`, so read the numbers with `Number()`.
+- **O5. Does `--apply-snapshot` create the view after its tables on a fresh data folder? Yes.** The snapshot lists the view last, and one pass creates everything: `applied snapshot: 14 created, 0 updated, 0 unchanged` (13 collections plus the view). Starting again on the same folder logs `0 created, 0 updated, 14 unchanged`.
+- **Changing a table the view reads** (the 0.39.0 note). Adding a field to `attempts` with the view in place applied without a 409. If a later change is refused with 409, delete the `leaderboard` collection (`DELETE /api/v1/collections/<id>` as the admin) and apply the snapshot again, which recreates it. That sequence was tried and worked.
+
+### Q1 to Q4 confirmed
+
+- **Q1. Schema as code.** `schema/snapshot.json` is applied at start with `--apply-snapshot schema/snapshot.json --snapshot-mode sync`. The file is Vaultbase's own export (`GET /api/v1/admin/migrations/snapshot`), so `POST /api/v1/admin/migrations/diff` on a fresh instance is empty (`test/schema.test.ts`). One detail: an auth collection's entry must list the implicit `email` and `verified` fields, or the diff reports them as removed.
+- **Q2. The UI is served by a custom route.** `GET /api/custom/app/*` (`vb_hooks/routes/app.ts`) serves `ui/dist` with a strict CSP. An unknown path serves `index.html`, and traversal is refused (`test/app.test.ts`). The route path `/app/*` also matches `/app/`.
+- **Q3. Plain `fetch`, no SDK.** The scripts and tests use `fetch` only. Records are at `/api/v1/<collection>`; `/api/<collection>` answers 404. Custom routes are at `/api/custom/...` and `/api/v1/custom/...`.
+- **Q4. A cloud session downloads and runs the pinned release.** `bun run setup` downloads it through the session proxy and checks the SHA-256 (`test/setup.test.ts`, with a local server standing in for GitHub). Running it needed Cas's approval (O3).
+
+### F1 to F8 confirmed
+
+- **F1. Hook helpers can't write records.** The helper keys are `abort, cron, db, email, enqueue, fetch, find, flags, fs, http, id, log, mails, notify, os, path, query, recordRule, security, slug, sql, template, util, uuid, webhooks`, with no create or update. A `store.ts` write adds no record-history entry, while a REST write does (`test/findings.test.ts`). `store.ts` reads each field's storage form from `vaultbase_collections.fields`, and its writes read back through REST exactly like REST writes (`test/store.test.ts`). The REST API returns the timestamps as `created` and `updated` (unix seconds); the columns are `created_at` and `updated_at`.
+- **F2. Encrypted fields come back decrypted** to anyone the rules let read them. The admin reads `api_key` in plain text, and the stored value is ciphertext. With `connection_keys` (list and view admin-only), the owner never gets the key back: not from create (`{"data":null}`), update, list, view, filter, expand or batch. `has_key` follows create and delete (`test/keys.test.ts`).
+- **F3. The egress guard refuses loopback and private ranges** from hook code: `helpers.http: egress to http://127.0.0.1:…/api/health blocked — resolved IP 127.0.0.1 is in denylist range 127.0.0.0/8` (also `10.0.0.1` and `169.254.169.254`).
+- **F4. Custom routes parse JSON and text bodies only.** A multipart POST reaches the route with `body = null`. The upload endpoint's own checks (MIME allowlist, `maxSize`) couldn't be checked against the binary, because of F9.
+- **F5. Settings.** `PATCH /api/v1/admin/settings` with `queues.timeout_ms = 900000` and `auth.mfa.enabled = true` is applied by `bun run dev` and the test harness, and read back (`test/findings.test.ts`).
+- **F6. `helpers.template` has no loops.** `{{#if a}}yes {{name}}{{/if}}` renders `yes Ada` and `{{nested.repo}}` renders `r`, but `{{#each list}}[{{this}}]{{/each}}` comes back as `{{#each list}}[]{{/each}}`.
+- **F7. Hook files.** The folder loads at start (`vaultbase: hooks folder …/vb_hooks`), and every hook and route in it runs (the hook tests). Vaultbase writes only `vaultbase.d.ts` into the folder, with types for hook files. It is committed. Inside a hook, `ctx.auth` is `{ type: "admin" }` for the admin and `{ type: "user", collection: "users" }` for the owner, and `ctx.record` on an update is the patch only, so hooks merge it with `ctx.existing`.
+- **F8. Anthropic temperature** is about the Anthropic API, not Vaultbase. The contender hook drops `temperature` for Anthropic connections (`test/validation.test.ts`).
+
+### New findings
+
+- **F9. Uploads through `POST /api/v1/files/:collection/:id/:field` always fail in the 0.40.2 binary.** Every multipart body gets `400 {"error":"Send the file as multipart/form-data, in a field named 'file'"}`. That happens with curl and with fetch, as the admin and as the owner, and with read workers on or off. The likely cause: the route reads `request.formData()` itself but doesn't set `parse: "none"`, as the backup restore route does. The framework then reads the multipart body first, so the handler finds it already used up. The binary also logs a framework warning (`[Sucrose] unexpected isContextPassToFunction error`). 0.40.2 is the newest release, so no version fixes it yet. Serving files (`GET /api/v1/files/<name>`) works. `test/files.test.ts` asserts the current behaviour, so it fails as soon as an upgrade fixes it. For T0, the seed attaches its fixtures through an admin-only route (`POST /api/custom/seed/attach`, base64 JSON) that calls `lib/files.ts`. How the owner uploads (T2 handoff files, T4 task attachments) is open question O6.
+- **F10. A relation field can't be `multiple` any more** (0.36 changelog: "A relation field can't be made `multiple` any more"). `runs.tasks` and `runs.contenders` are therefore JSON lists of ids. A run's tasks and contenders can also be read back from its attempts.
+- **F11. The count is 13 collections plus the view**, not 14. TECH-SPEC §6 lists 13 base or auth collections; SPEC and TECH-SPEC are corrected in this PR.
+- **F12. Rules and responses.** An anonymous list answers `200` with no rows rather than 401. A create whose result the caller may not view answers `{"data":null}`. A `restrict` relation refuses a delete with 409 before any `beforeDelete` hook runs. Admin requests bypass the rules but still run the hooks, so the hooks let the admin set `locked` (seeding, operations). The admin can register users through `POST /api/v1/auth/users/register` while sign-up is closed (`create_rule = ""`). A field option can't set a default, so the hooks fill the defaults (judge `me`, 5 outputs, quality-only weights, pass mark 3.5, 16,000 max output tokens, `enabled`).
+- **F13. Text files are served as `application/octet-stream`.** Images and PDFs keep their own type.
+- **Provider keys in the environment.** A Claude Code session sets `ANTHROPIC_BASE_URL` for itself. The fail-fast check therefore refuses only key-like names (`…KEY`, `…TOKEN`, `…SECRET`), and Vaultbase is started without any `ANTHROPIC_*` or `OPENAI_*` variable.
+
+### T0 choices to confirm
+
+- **Mock images** are drawn by `vb_hooks/lib/png.ts`, a 60-line PNG encoder, rather than read from `seed/fixtures/images/`. That avoids file paths inside bundled hook code. `scripts/make-fixtures.ts` writes the same images to `seed/fixtures/images/`.
+- **The mock judge** takes the criteria names as `criteria` on its input, and the flaky mock takes `tryNumber`. T1 and T3 pass these.
+- **The generic template's `return_instructions`** holds one line per output type (`text: …`, `image: …`, `file: …`, `code: …`), and T2's `lib/handoff.ts` picks the task's line.
+- **The demo repo** is `go4cas/audition-factory-demo`, which Cas created on Nov 6, 2026. Its contents are in `fixtures/factory-demo/` (a Bun app with a JSON settings store, `GET /api/settings`, three tests, `settings-spec.md` and `mockup.png`) for Cas to push. The seeded coding tasks name the placeholder commit `0000000` until then.

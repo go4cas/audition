@@ -1,0 +1,16 @@
+{
+  "name": "audition",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "bun scripts/fetch-vaultbase.ts",
+    "vb:bump": "bun scripts/vb-bump.ts",
+    "dev": "bun scripts/dev.ts",
+    "stop": "bun scripts/stop.ts",
+    "seed": "bun scripts/seed.ts",
+    "build:ui": "bun scripts/build-ui.ts"
+  },
+  "dependencies": {
+    "@arrow-js/core": "1.0.6"
+  }
+}
