@@ -61,7 +61,7 @@ export default function workspaceSettings({ params }) {
         <h1>${isNew ? "New workspace" : "Workspace settings"}</h1>
         <form class="stack" @submit="${save}">
           <div class="panel"><div class="panel__body">
-            <div class="field"><label for="ws-name">Name</label><input class="input" id="ws-name" required value="${f.name}" @input="${(e) => { f.name = e.target.value; }}" placeholder="Software Factory"></div>
+            <div class="field"><label for="ws-name">Name</label><input class="input" id="ws-name" required value="${f.name}" @input="${(e) => { f.name = e.target.value; }}" placeholder="For example: Content team"></div>
             <div class="field"><label for="ws-desc">Description</label><textarea class="textarea textarea--short" id="ws-desc" rows="2" value="${f.description}" @input="${(e) => { f.description = e.target.value; }}"></textarea></div>
           </div></div>
 

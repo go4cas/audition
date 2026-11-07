@@ -3,3 +3,5 @@
 root = "test"
 # Each test file boots its own Vaultbase; give hooks and boot room.
 timeout = 60000
+# Download and verify the pinned Vaultbase binary once, before any file runs.
+preload = ["./test/preload.ts"]

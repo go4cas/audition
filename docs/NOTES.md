@@ -222,7 +222,7 @@ The T3 build thread (judging and fitness) ran against Vaultbase **0.40.2** on fr
 - The same-provider warning is T1's `lib/runs.ts` `sameProviderWarnings` (preview, Done-when 7, tested in `test/runs.test.ts`). T3's copy was removed.
 - Done-when 9 is checked where the judge hands the request to the provider: both PNGs as attachments and a note naming the skipped SVG. T1's Anthropic adapter turns those attachments into `image` blocks (`test/providers.test.ts`, golden request).
 - `test/judging.test.ts` now also runs Done-when 1 end to end: `POST /runs` with an AI judge, the generate worker, the judge worker, and the run ending `done`.
-- **The demo repo** is `go4cas/audition-factory-demo`, which Cas created on Nov 6, 2026. Its contents are in `fixtures/factory-demo/` (a Bun app with a JSON settings store, `GET /api/settings`, three tests, `settings-spec.md` and `mockup.png`) for Cas to push. The seeded coding tasks name the placeholder commit `0000000` until then.
+- **The demo repo** is `go4cas/audition-factory-demo`, which Cas created on Nov 6, 2026. Its contents are in `fixtures/factory-demo/` (a Bun app with a JSON settings store, `GET /api/settings`, three tests, `settings-spec.md` and `mockup.png`) for Cas to push. The seeded coding tasks name the placeholder commit `0000000` until then. (Since done: Cas pushed it on Nov 7, 2026, and the seed names commit `9c4bb7a`; see T5 below.)
 
 ## T4 findings (Nov 7, 2026)
 
@@ -232,3 +232,24 @@ The T3 build thread (judging and fitness) ran against Vaultbase **0.40.2** on fr
 - **U4. Task attachments on a new version.** "Duplicate and edit" creates the new task, then fetches each attachment of the old version and uploads it again through the owner upload route, because a create can't carry attachment names (422 "upload files to the record after creating it").
 - **U5. The UI build is 194 KB of unminified JS**, over the 150 KB in T4 Done-when 3. Arrow.js adds about 52 KB of it. Minified it is 132 KB, about 49 KB gzipped. CSS is 73 KB. `test/ui.test.ts` prints the sizes and guards against growth past 210 KB. Open question for Cas: raise the budget, or minify the bundle.
 - **U6. The walkthrough drives the T1 to T3 routes** (run, handoff, upload, judging, leaderboard). With T1 to T3 on main it passes 8 of 8 on a fresh Vaultbase 0.40.2.
+
+## T5 findings (Nov 7, 2026)
+
+The T5 integration thread ran against Vaultbase **0.40.2** on fresh instances, with the mock provider only. Each fix is its own commit, named after its finding.
+
+- **T5-F1. `GET /api/custom/handoff/:runId/:taskId` answered its payload bare**, while every other custom route answers `{ data: … }` (T3's choices). The UI's `data()` helper accepted both, so nothing broke, but the contract was uneven. The route now uses `ownerRoute`, so it answers `{ data: { prompt, attachments, waiting } }` and errors as `{ error, code }`. `test/handoff.test.ts` reads `body.data`.
+- **T5-F2. A workspace name sat in the UI's code**: the workspace name field's placeholder was the name of a seeded workspace. It now reads "For example: Content team". `test/e2e.test.ts` checks that no reference workspace name appears in `vb_hooks/`, `ui/src/`, `ui/index.html`, `scripts/` or the end-to-end test itself. `seed/` holds that content, and the tests that check the seed may name it.
+- **T5-F3. On a fresh clone, `bun test` failed two files.** The first `boot()` downloaded the 127 MB binary inside a file's `beforeAll`, and bun stops a hook after 5 seconds whatever `bunfig.toml`'s test `timeout` says (`(fail) (unnamed) [5001.02ms] ^ a beforeEach/afterEach hook timed out`). `test/preload.ts` (a bunfig preload) now downloads and verifies the binary once before any file runs. With `.vaultbase/bin` removed, `bun test test/seed.test.ts` prints the checksum line and passes 9 of 9.
+- **T5-F4. Small duplicated helpers** (PR #9): the owner check was copied into `routes/handoff.ts` and `routes/files-upload.ts`, and four copies of "a JSON list field as a list of strings" sat in `lib/runs.ts` (twice), `lib/scoring.ts` and `lib/handoff.ts`. There is now one `isOwner` (`lib/runs.ts`) and one `listOf` (`lib/validation.ts`); `fileList` stays exported from `lib/handoff.ts` as a name for it.
+
+### Checks from PR #9
+
+- **Same-provider warning before a run.** The server side is `sameProviderWarnings` (`test/runs.test.ts`). `test/ui-warning.test.ts` now checks the browser: on "Start a run", an API contender on the AI judge's provider shows "The AI judge shares a provider with …", and a mock contender with the same judge shows none.
+- **Anthropic image request format.** `lib/providers/anthropic.ts` sends images as `{ type: "image", source: { type: "base64", media_type, data } }` and PDFs as `document` blocks with a base64 source, before the text, which is the Messages API's documented shape. Only PNG, JPEG, GIF and WebP go as images (`IMAGE_MIMES`); SVG is named instead. Effort goes in `output_config.effort` and the judge schema in `output_config.format` (`json_schema`). No `thinking` field is sent, which Opus 5.5 needs (it can't be turned off), and no `temperature` (F8). Nothing to change; the golden request in `test/providers.test.ts` stands.
+
+### Done-when
+
+1. `test/e2e.test.ts` drives each of the four seeded workspaces through the owner routes the UI uses. For every role it adds a task, previews the run, starts it, lets the mock generate, pastes the copy-and-paste outputs (a PNG for image tasks), judges with the workspace's own judge (the mock AI judge, or blind owner verdicts through the judging route), uses Run again until each contender has the workspace minimum of outputs, checks that the tasks are locked, then confirms the suggested champion through `POST /castings`. The test reads judges, roles, rubrics and output types from the API and picks contenders by output type, so it has no workspace-specific path, and it names no workspace (checked by the grep above).
+2. `README.md`: setup is `git clone`, `cd`, `bun install`, `bun run dev`.
+3. `docs/OPERATIONS.md` has the local Anthropic check (connection and key, an Opus 5.5 contender at high effort with prices, the Researcher run against Mock Steady judged by that contender, tokens and cost, and the image path on the Image maker task).
+4. O2: `test/seed.test.ts` "coding tasks name the demo repo and its first commit (O2)" fails if `DEMO_COMMIT` is the placeholder `0000000` or not a full SHA. It passes with `9c4bb7aef4c84adaf7b5aa523c1e56f9fada8a55`.

@@ -2,7 +2,7 @@
 // One prompt is rendered per task when a run starts; T1's POST /runs stores it
 // as `prompt_sent` on every attempt of that task, API and handoff alike, so
 // every contender sees the identical text. No "vaultbase" import (F7).
-import { parseJson, type Criterion } from "./validation.ts";
+import { listOf, parseJson, type Criterion } from "./validation.ts";
 import type { Sql } from "./store.ts";
 import { deriveCost } from "./cost.ts";
 import { refreshRunStatus } from "./runs.ts";
@@ -152,11 +152,7 @@ export class HandoffError extends Error {
 }
 
 /** A multiple file field's value as a list of stored names. */
-export function fileList(v: unknown): string[] {
-  const parsed = parseJson(v);
-  if (Array.isArray(parsed)) return parsed.filter((n): n is string => typeof n === "string" && n !== "");
-  return typeof parsed === "string" && parsed ? [parsed] : [];
-}
+export const fileList = listOf;
 
 /** Original names of stored files, in the given order (vaultbase_files). */
 export async function originalNames(sql: Sql, stored: string[]): Promise<Map<string, { original: string; mime: string; record: string; field: string }>> {
