@@ -253,3 +253,41 @@ The T5 integration thread ran against Vaultbase **0.40.2** on fresh instances, w
 2. `README.md`: setup is `git clone`, `cd`, `bun install`, `bun run dev`.
 3. `docs/OPERATIONS.md` has the local Anthropic check (connection and key, an Opus 5.5 contender at high effort with prices, the Researcher run against Mock Steady judged by that contender, tokens and cost, and the image path on the Image maker task).
 4. O2: `test/seed.test.ts` "coding tasks name the demo repo and its first commit (O2)" fails if `DEMO_COMMIT` is the placeholder `0000000` or not a full SHA. It passes with `9c4bb7aef4c84adaf7b5aa523c1e56f9fada8a55`.
+
+## Review findings (Nov 7, 2026)
+
+The Review thread checked `main` at `f4c69a3` (PRs #5 to #13 merged) against every Done-when item in TECH-SPEC §15 and the spec. It changed no code. Evidence:
+
+- **`bun test` on a fresh clone**, with no `.vaultbase/` folder, so the pinned binary was downloaded and checked first: `Verified vaultbase-linux-x64 0.40.2 (sha256 b8181569…f757, 126728368 bytes)`, then `254 pass, 0 fail, 4268 expect() calls, Ran 254 tests across 27 files [114.44s]`.
+- **`bun run dev` on the same clone** (port 18091): built the UI, started Vaultbase, `Seed: 41 created, 0 already there`, and printed the sign-ins and `http://127.0.0.1:18091/api/custom/app/`. That URL answered `200 text/html`, and `/api/health` reported `0.40.2`.
+- **Every build PR (#5 to #13) has `bun test` output** in its description, with 0 failures.
+
+### Result per thread
+
+| Thread | Done-when | Result |
+| --- | --- | --- |
+| T0 | 1 fresh clone boots, checksum, snapshot, sign-ins, seed, URL | Pass (above; a tampered binary is refused in `test/setup.test.ts`) |
+| T0 | 2 schema, later fields, rules, keys, locking, weights, store, files, mock, seed twice, vb:bump, upgrade | Pass (all 12, `schema`, `rules`, `keys`, `locking`, `validation`, `store`, `files`, `mock`, `seed`, `setup`, `upgrade` tests) |
+| T0 | 3 Q1 to Q4, F1 to F8, O3 to O5 in NOTES | Pass (see R4 for stale wording) |
+| T1 | 1 to 9 | Pass (`test/runs.test.ts`, `test/providers.test.ts`; Run again compares the first run's rows byte for byte) |
+| T2 | 1 to 5 | Pass (`test/handoff.test.ts`, `test/handoff-lib.test.ts`) |
+| T3 | 1 to 9 | Pass (`judging`, `blind`, `leaderboard`, `fitness`, `judge`, `runs` tests; the blind test walks every key and string value) |
+| T4 | 1 browser walkthrough of all four workspaces | Pass, 8 of 8 (see R2 for what it leaves out) |
+| T4 | 2 screenshots at 1280 and 375 px | Pass (18 pairs in PR #10 and `docs/screens/t4/`) |
+| T4 | 3 one runtime dependency, no Tailwind or Vite, build under 150 KB unminified | **Fail on size**: JS is 194.6 KB unminified (CSS 72.5 KB more). The dependency part passes. See R1. |
+| T4 | 4 judging screen reads only the blind route | Pass (`test/ui.test.ts`) |
+| T4 | 5 "outputs", never "attempts" | Pass (`test/ui.test.ts`) |
+| T5 | 1 four workspaces end to end, no workspace-specific path, no names outside `seed/` | Pass, with notes R2 and R3 |
+| T5 | 2 README setup in five commands or fewer | Pass (four: clone, cd, install, dev) |
+| T5 | 3 OPERATIONS has the local Anthropic check | Pass (every step in §15 T5.3 is there) |
+| T5 | 4 placeholder commit check (O2) | Pass (`test/seed.test.ts`, commit `9c4bb7a…`) |
+
+### Findings
+
+- **R1. The UI bundle is over budget (T4 Done-when 3, known as U5).** 194.6 KB of unminified JS against 150 KB; `test/ui.test.ts` only guards 210 KB. Minified it is about 132 KB. The Done-when says "under 150 KB unminified", so minifying passes the budget only if that wording changes to "minified" too. It is also silent on whether CSS (72.5 KB) counts. Cas decides.
+- **R2. Two reference workspaces are not driven with their own contenders.** The spec's table gives Stock Review one contender and Travel Research "ChatGPT and Perplexity by copy and paste". `test/e2e.test.ts` casts every role by output type (Mock Steady, Mock Erratic and the first manual contender), so it never runs a one-contender run or a run with only copy-and-paste contenders. The browser walkthrough runs Stock Review with two contenders and Travel Research with the two mock API contenders, after lowering its minimum to 2. The one-contender champion path is covered at the route level (`test/leaderboard.test.ts`, "Stock Review's single contender is suggested"), and handoff-only call counts in `test/runs.test.ts`, so nothing is known to be broken; the end-to-end proof for those two shapes is thinner than the spec's "Proves" column suggests.
+- **R3. "A grep finds no workspace names outside `seed/`" holds for the app's code only.** `test/e2e.test.ts` checks `vb_hooks/`, `ui/src/`, `ui/index.html`, `scripts/` and itself. A literal grep also finds names in five other test files and `docs/design/wireframes.html`. None of those ship, so this reads as a wording question, not a defect.
+- **R4. Stale wording in this file.** F14 still says "pending Cas's approval" and O6 says "(proposed)"; both were accepted when PR #7 merged, and the rule in `schema/snapshot.json` and TECH-SPEC §6 is the new one. TECH-SPEC §7 also still shows the handoff route's payload bare, while T5-F1 wrapped it in `{ data }` like the other routes.
+- **R5. The spec's platform table lists "Audit log" for every judgement and casting in Phase 1**, but nothing uses Vaultbase's audit log, and `store.ts` writes skip record history (F1). In practice the history is kept by the records themselves: verdicts are never deleted (an override marks the AI verdict `overridden`), and `POST /castings` always adds a new casting. Either the table row moves to "records" or a later thread wires in the audit log. Cas decides.
+- **R6. Auth rate limits work, but only by Vaultbase's default.** Forty wrong-password sign-ins on the dev instance gave ten `401`s, then `429 {"error":"Rate limit exceeded (rule: *:auth)"}`. Nothing in the repo sets or tests this, so a Vaultbase upgrade could change it silently. A test in the Release or upgrade work would pin it.
+- **Process note.** Orchestrator rule 2 says Review checks each build PR before it merges; this review ran after PRs #5 to #13 had merged.
