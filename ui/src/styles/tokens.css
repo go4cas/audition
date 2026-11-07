@@ -1,0 +1,151 @@
+/*
+ * Audition design tokens, v4.
+ *
+ * Concept: the audition stage. The brand is monochrome: near-black actions on
+ * pure greys (white actions in dark mode). Colour is kept for meaning only:
+ * gold (the spotlight) for merit, violet for "waiting for you", and one colour
+ * per state.
+ *
+ * Brand: monochrome, chosen by Cas on Nov 6, 2026 over Denim, with the ask
+ * that "waiting for you" gets a distinctive colour. To rebrand, change only
+ * the --accent* tokens.
+ *
+ * Fonts: Bricolage Grotesque for headings and big numbers, Instrument Sans for
+ * everything else. Both are SIL OFL. The app vendors the woff2 files (no
+ * third-party calls); the wireframes load them from Google Fonts for review.
+ */
+
+:root {
+  /* ---- Surfaces and ink ---- */
+  --bg: #f5f5f5;
+  --bg-sunk: #ededed;
+  --surface: #ffffff;
+  --surface-2: #fafafa;
+  --surface-hover: #f2f2f2;
+  --line: #e3e3e3;
+  --line-strong: #cbcbcb;
+  --text: #141414;
+  --text-2: #454545;
+  --text-muted: #707070;
+
+  /* ---- Brand accent: monochrome ---- */
+  --accent: #171717;
+  --accent-hover: #2e2e2e;
+  --accent-press: #000000;
+  --accent-ink: #ffffff;
+  --accent-soft: #efefef;
+  --accent-line: #d4d4d4;
+
+  /* ---- Merit: gold (stars, champion, celebration) ---- */
+  --gold: #d99a06;
+  --gold-ink: #6b4a00;
+  --gold-soft: #fdf3d8;
+  --star-empty: #d6d6d6;
+
+  /* ---- State system: fg / bg / line per state ----
+   * draft     not started, idle                circle-dashed
+   * queued    lined up, will start on its own  hourglass
+   * active    running now                      spinning circle-notch
+   * waiting   needs you (violet, the one colour  pulsing dot
+ *           that says "your turn")
+   * done      finished, success                check-circle
+   * warning   works, but look at this          warning triangle
+   * error     failed                           x-circle
+   * locked    used, read-only                  lock
+   * disabled  not possible yet (say why)       prohibit, 45% opacity
+   * champion  confirmed best for a role        crown (gold)          */
+  --draft: #707070;      --draft-bg: #f0f0f0;    --draft-line: #dadada;
+  --queued: #4f6178;     --queued-bg: #ebeff4;   --queued-line: #cfd8e3;
+  --active: #0b7ea3;     --active-bg: #e2f3f9;   --active-line: #b3dcea;
+  --waiting: #6a3ff0;    --waiting-bg: #f0ebff;  --waiting-line: #d6c9fc;
+  --done: #16804a;       --done-bg: #e3f5ea;     --done-line: #b6e2c6;
+  --warning: #b86200;    --warning-bg: #fff3df;  --warning-line: #f9d49b;
+  --error: #c8281e;      --error-bg: #fde7e5;    --error-line: #f5bfba;
+  --locked: #555555;     --locked-bg: #ededed;   --locked-line: #d4d4d4;
+  --disabled-opacity: 0.45;
+  /* Chip style is switched with one attribute on <html>, not a token, because it swaps
+   * several properties at once: data-chips="soft" (default) | "solid" | "outline".
+   * Cas plans to move to "outline" later; nothing else needs to change. */
+
+  /* ---- Type ---- */
+  --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --fs-xs: 0.75rem;    /* 12 captions, badges */
+  --fs-sm: 0.875rem;   /* 14 secondary, tables */
+  --fs-md: 1rem;       /* 16 body, inputs */
+  --fs-lg: 1.25rem;    /* 20 section titles */
+  --fs-xl: 1.75rem;    /* 28 page titles */
+  --fs-2xl: 2.5rem;    /* 40 hero numbers */
+  --fs-3xl: 3rem;      /* 48 home greeting */
+  --lh-tight: 1.15;
+  --lh-body: 1.5;
+
+  /* ---- Space (4px grid) ---- */
+  --s1: 0.25rem; --s2: 0.5rem; --s3: 0.75rem; --s4: 1rem; --s5: 1.5rem; --s6: 2rem; --s7: 3rem;
+
+  /* ---- Shape: crisp, not bubbly ---- */
+  --r-sm: 4px;     /* chips, badges, avatars, inputs inside groups */
+  --r-md: 6px;     /* buttons, inputs, menus items, tiles */
+  --r-lg: 8px;     /* panels, cards, popovers, dialogs */
+  --r-pill: 999px; /* only counts, dots and switches; state chips use 7px, between --r-md and a pill */
+  --shadow-1: 0 1px 2px rgb(16 20 30 / 0.06), 0 1px 1px rgb(16 20 30 / 0.03);
+  --shadow-2: 0 4px 14px -4px rgb(16 20 30 / 0.14), 0 2px 4px rgb(16 20 30 / 0.05);
+  --shadow-pop: 0 18px 40px -12px rgb(16 20 30 / 0.28), 0 4px 10px rgb(16 20 30 / 0.08);
+  --focus: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);      /* settles softly */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* small overshoot for pops */
+  --t-fast: 120ms;   /* hover, press */
+  --t-med: 220ms;    /* popovers, toggles */
+  --t-slow: 420ms;   /* screen enter, progress */
+
+  /* ---- Layout ---- */
+  --content-max: 76rem;
+  --reading-max: 40rem;
+  --tap: 44px;
+
+  color-scheme: light;
+}
+
+/* ---- Dark ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111111; --bg-sunk: #0b0b0b; --surface: #191919; --surface-2: #1f1f1f; --surface-hover: #262626;
+    --line: #2e2e2e; --line-strong: #444444; --text: #efefef; --text-2: #c9c9c9; --text-muted: #929292;
+    --accent: #f0f0f0; --accent-hover: #ffffff; --accent-press: #d9d9d9; --accent-ink: #121212; --accent-soft: #2a2a2a; --accent-line: #3d3d3d;
+    --gold: #f5c044; --gold-ink: #fbe3a6; --gold-soft: #3a2d0e; --star-empty: #3d3d3d;
+    --draft: #9a9a9a; --draft-bg: #232323; --draft-line: #363636;
+    --queued: #a3b3c7; --queued-bg: #1e242c; --queued-line: #333d4a;
+    --waiting: #a98bff; --waiting-bg: #261d45; --waiting-line: #3f3170;
+    --active: #5cc6e6; --active-bg: #10303b; --active-line: #1c4f60;
+    --done: #5fd394; --done-bg: #12301f; --done-line: #1f5236;
+    --warning: #ffaa33; --warning-bg: #3b2709; --warning-line: #634314;
+    --error: #ff8a80; --error-bg: #401715; --error-line: #6b2622;
+    --locked: #ababab; --locked-bg: #232323; --locked-line: #363636;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-2: 0 4px 14px -4px rgb(0 0 0 / 0.6);
+    --shadow-pop: 0 18px 40px -12px rgb(0 0 0 / 0.75), 0 0 0 1px var(--line);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #111111; --bg-sunk: #0b0b0b; --surface: #191919; --surface-2: #1f1f1f; --surface-hover: #262626;
+  --line: #2e2e2e; --line-strong: #444444; --text: #efefef; --text-2: #c9c9c9; --text-muted: #929292;
+  --accent: #f0f0f0; --accent-hover: #ffffff; --accent-press: #d9d9d9; --accent-ink: #121212; --accent-soft: #2a2a2a; --accent-line: #3d3d3d;
+  --gold: #f5c044; --gold-ink: #fbe3a6; --gold-soft: #3a2d0e; --star-empty: #3d3d3d;
+  --draft: #9a9a9a; --draft-bg: #232323; --draft-line: #363636;
+  --queued: #a3b3c7; --queued-bg: #1e242c; --queued-line: #333d4a;
+    --waiting: #a98bff; --waiting-bg: #261d45; --waiting-line: #3f3170;
+  --active: #5cc6e6; --active-bg: #10303b; --active-line: #1c4f60;
+  --done: #5fd394; --done-bg: #12301f; --done-line: #1f5236;
+  --warning: #ffaa33; --warning-bg: #3b2709; --warning-line: #634314;
+  --error: #ff8a80; --error-bg: #401715; --error-line: #6b2622;
+  --locked: #ababab; --locked-bg: #232323; --locked-line: #363636;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 4px 14px -4px rgb(0 0 0 / 0.6);
+  --shadow-pop: 0 18px 40px -12px rgb(0 0 0 / 0.75), 0 0 0 1px var(--line);
+  color-scheme: dark;
+}

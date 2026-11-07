@@ -1,0 +1,41 @@
+// Loaders shared by the pages. Phase 1 has one owner and small tables, so
+// pages simply load what they need on arrival; nothing is cached across pages.
+import { custom, list } from "../api.js";
+
+const COLLECTIONS = ["workspaces", "stages", "roles", "tasks", "contenders", "connections", "runs", "castings"];
+const SORT = { stages: "order", runs: "created", castings: "-created" };
+
+/** Load whole collections: `const d = await load("roles", "tasks")` → d.roles, d.byId.roles.get(id). */
+export async function load(...names) {
+  const want = names.length ? names : COLLECTIONS;
+  const rows = await Promise.all(want.map((n) => list(n, { sort: SORT[n] })));
+  const d = { byId: {} };
+  want.forEach((n, i) => { d[n] = rows[i]; d.byId[n] = new Map(rows[i].map((r) => [r.id, r])); });
+  if (d.runs) d.runNo = new Map(d.runs.map((r, i) => [r.id, i + 1]));
+  return d;
+}
+
+export const runLabel = (d, run) => `Run ${d.runNo?.get(run.id) ?? "?"}`;
+
+/** The confirmed casting for a role: its newest confirmed casting (TECH-SPEC §6). */
+export const championOf = (d, roleId) => d.castings.find((c) => c.role === roleId && c.confirmed);
+
+/** Leaderboards for several roles; a role whose route fails just has none. */
+export async function leaderboards(roleIds) {
+  const out = new Map();
+  await Promise.all(roleIds.map(async (id) => { try { out.set(id, await custom.leaderboard(id)); } catch { /* none yet */ } }));
+  return out;
+}
+
+export const sortRoles = (d, roles) => {
+  const order = (r) => (r.stage ? d.byId.stages.get(r.stage)?.order ?? 0 : 1e9);
+  return [...roles].sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
+};
+
+export const PROVIDER_LABEL = { anthropic: "Anthropic", "openai-compatible": "OpenAI-compatible", mock: "Mock", manual: "Manual" };
+export const contenderMeta = (d, c) => {
+  const conn = d.byId.connections?.get(c.connection);
+  if (c.mode === "handoff") return "Copy and paste";
+  const bits = [c.model, conn ? PROVIDER_LABEL[conn.provider] : null, c.config?.effort ? `${c.config.effort} effort` : null];
+  return bits.filter(Boolean).join(" · ");
+};
