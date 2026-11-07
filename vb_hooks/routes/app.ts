@@ -1,8 +1,15 @@
 // GET /api/custom/app/* serves the built UI from ui/dist (TECH-SPEC Q2).
 // An unknown path serves index.html, because the UI is a single-page app
-// with hash routes. T0 serves a placeholder page; T4 builds the real UI.
+// with hash routes (T4).
 import { defineRoute } from "vaultbase";
 import { resolveAsset, securityHeaders } from "../lib/static.ts";
+
+// The app's CSP: the strict policy from lib/static.ts, plus inline *style
+// attributes* only (style-src-attr). The Design markup sets per-element custom
+// properties such as an avatar's hue (--h) or a bar's width. Inline <style>
+// elements and all inline scripts stay blocked.
+const APP_CSP = securityHeaders()["content-security-policy"]!.replace("style-src 'self';", "style-src 'self'; style-src-attr 'unsafe-inline';");
+const headers = () => ({ ...securityHeaders(), "content-security-policy": APP_CSP });
 
 export default defineRoute({
   name: "app",
@@ -19,7 +26,7 @@ export default defineRoute({
     });
     if (!asset) {
       return new Response("The UI has not been built. Run `bun run build:ui`.", {
-        status: 404, headers: { "content-type": "text/plain; charset=utf-8", ...securityHeaders() },
+        status: 404, headers: { "content-type": "text/plain; charset=utf-8", ...headers() },
       });
     }
     const bytes = await helpers.fs.readBytes(asset.path);
@@ -28,7 +35,7 @@ export default defineRoute({
       headers: {
         "content-type": asset.mime,
         "cache-control": asset.isIndex ? "no-cache" : "public, max-age=300",
-        ...securityHeaders(),
+        ...headers(),
       },
     });
   },

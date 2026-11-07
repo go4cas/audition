@@ -1,4 +1,4 @@
-// GET /api/custom/app/* serves the built UI (TECH-SPEC Q2); T0's is a placeholder.
+// GET /api/custom/app/* serves the built UI (TECH-SPEC Q2).
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { boot, type Harness } from "./harness.ts";
@@ -35,23 +35,32 @@ describe("on a running instance", () => {
   });
   afterAll(async () => { await h?.cleanup(); });
 
-  test("/api/custom/app/ serves the placeholder with a strict CSP, signed out", async () => {
+  test("/api/custom/app/ serves the app shell with a strict CSP, signed out", async () => {
     const r = await fetch(`${h.url}/api/custom/app/`);
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(r.headers.get("content-security-policy")).toContain("default-src 'self'");
     expect(r.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(await r.text()).toContain("<title>Audition</title>");
+    expect(r.headers.get("content-security-policy")).toContain("script-src 'self';");
+    // Only style *attributes* may be inline (per-element hue and width values); <style> and scripts may not.
+    expect(r.headers.get("content-security-policy")).toContain("style-src 'self'; style-src-attr 'unsafe-inline';");
+    const html = await r.text();
+    expect(html).toContain("<title>Audition</title>");
+    expect(html).toContain('<script type="module" src="main.js"></script>');
   });
 
   test("assets get their MIME type; unknown paths fall back to index.html", async () => {
-    const css = await fetch(`${h.url}/api/custom/app/placeholder.css`);
+    const css = await fetch(`${h.url}/api/custom/app/styles/app.css`);
     expect(css.headers.get("content-type")).toBe("text/css; charset=utf-8");
     const deep = await fetch(`${h.url}/api/custom/app/workspaces/123`);
     expect(deep.status).toBe(200);
     expect(await deep.text()).toContain("<title>Audition</title>");
-    const icon = await fetch(`${h.url}/api/custom/app/favicon.svg`);
+    const icon = await fetch(`${h.url}/api/custom/app/icons/favicon.svg`);
     expect(icon.headers.get("content-type")).toBe("image/svg+xml");
+    const js = await fetch(`${h.url}/api/custom/app/main.js`);
+    expect(js.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
+    const font = await fetch(`${h.url}/api/custom/app/fonts/instrument-sans-latin.woff2`);
+    expect(font.headers.get("content-type")).toBe("font/woff2");
   });
 
   test("path traversal never reaches files outside ui/dist", async () => {
