@@ -201,6 +201,16 @@ Phase 1 proves the whole loop — tasks → runs → judging → casting — wit
 
 **Deferred from Phase 1, phase not yet set:** agent report tokens and self-report; MCP, including MCP reads of castings; the coding-harness and app templates; pairwise judging; platform-run checks and screenshot capture; the stale-attempt cron; API adapters for image models; cost estimates before a run.
 
+### Roadmap after Phase 1
+
+Approved by Cas on Nov 11, 2026. Each step is its own thread and PR, in this order. Anything not listed here, or moved up from "Later", needs Cas's OK first.
+
+| Step | Scope | Vaultbase feature shown | Done when |
+| --- | --- | --- | --- |
+| 1 — Wrap-up | Realtime run page (part B3 of `docs/PLATFORM-UPGRADES.md`), with polling kept as the fallback when the connection drops. One combined request to the Vaultbase author: text/markdown, zip and csv on the upload allowlist (NOTES W1), a server-side file helper (Q2) and an "only if" condition on `helpers.records.update` (Q3). Tag v0.2.0 and deploy it by `docs/RELEASE.md`; Cas runs the server steps and the real Anthropic check. | Realtime | The run page updates without polling, and v0.2.0 runs on Cas's server |
+| 2 — Phase 2a, living arena lite | Scheduled runs of a role, using the existing `runs.schedule` field. A stale-attempt sweep. Outcome verdicts that come due on a set date, starting with Stock Review ("was the call right four weeks later?"), using the existing `verdicts.due_at` field. An email to the owner when a run finishes or a role's champion changes. | Cron, email | The Phase 2 Done-when: a scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
+| Later, phase not set | MCP read-only access to castings; the Composer utility role; guest voters; vector match of new tasks to roles; pairwise judging; API adapters for image models; push alerts; contender rollout by feature flags; Levare reading castings; an off-server (R2) copy of backups; outline chips. Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, feature flags | Each is picked and scoped with Cas before its thread starts |
+
 ## Phase 1 thread plan
 
 Phase 1 is six threads: one foundation thread that must merge first, four that run in parallel, and one that closes the phase.
