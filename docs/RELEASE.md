@@ -119,6 +119,7 @@ Do this after every install, upgrade and restore.
 - [ ] `https://<your domain>/` opens the sign-in page; the owner signs in.
 - [ ] Home lists the workspaces; a leaderboard opens.
 - [ ] Start a run: any role, one task, `Mock Steady`, judged by Me. It finishes; judge it; it shows on the leaderboard.
+- [ ] While that run is live, the browser's dev tools (Network, WS) show an open `/realtime` socket. If it fails, the run page still works by polling: check that Cloudflare's WebSockets setting is on and Caddy passes `/realtime` through (NOTES "Realtime run page").
 - [ ] In the admin, Settings, Backup & restore shows the schedule on and a next run.
 - [ ] `https://<your domain>/_/` answers 404 (the admin isn't public).
 
