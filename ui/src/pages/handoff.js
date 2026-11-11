@@ -2,7 +2,7 @@
 // back (with files, and tokens and time if the tool showed them).
 import { html, reactive } from "@arrow-js/core";
 import { custom, fileLabel, fileUrl, update, upload } from "../api.js";
-import { go } from "../router.js";
+import { APP, go } from "../lib/nav.js";
 import { filePicker, fileIcon, rawFiles } from "../components/forms.js";
 import { crumbs, empty, page } from "../components/page.js";
 import { avatar, bump, chip, copyText, errorToast, icon, outputChip, toast } from "../lib/ui.js";
@@ -55,12 +55,12 @@ export default function handoff({ params, query }) {
       const stepCls = (n) => () => (f.step > n ? "is-done" : f.step === n ? "is-current" : "");
       const others = live.attempts.filter((a) => a.task === params.task);
       if (!h.waiting.length) {
-        return html`${crumbs([["Workspaces", "#/"], [ws?.name, "#/w/" + run.workspace], [runLabel(d, run), "#/runs/" + run.id]])}
+        return html`${crumbs([["Workspaces", APP + "/"], [ws?.name, APP + "/w/" + run.workspace], [runLabel(d, run), APP + "/runs/" + run.id]])}
           <h1>${task?.title}</h1>
-          <div class="panel">${empty("paste-duo", "Nothing left to paste for this task", "Every copy-and-paste contender has sent its reply.", html`<a class="btn btn--primary" href="${"#/runs/" + run.id}">Back to the run</a>`)}</div>`;
+          <div class="panel">${empty("paste-duo", "Nothing left to paste for this task", "Every copy-and-paste contender has sent its reply.", html`<a class="btn btn--primary" href="${APP + "/runs/" + run.id}">Back to the run</a>`)}</div>`;
       }
       return html`
-        ${crumbs([["Workspaces", "#/"], [ws?.name, "#/w/" + run.workspace], [runLabel(d, run), "#/runs/" + run.id]])}
+        ${crumbs([["Workspaces", APP + "/"], [ws?.name, APP + "/w/" + run.workspace], [runLabel(d, run), APP + "/runs/" + run.id]])}
         <div class="page-head">
           <div class="row row--center">${() => avatar(name(), "lg")}<div><h1>${() => name()}</h1><p class="muted">${task?.title} · ${role?.name}</p></div></div>
         </div>
@@ -96,7 +96,7 @@ export default function handoff({ params, query }) {
             ${() => (f.confirm ? html`<div class="notice" data-state="warning">${icon("warning")}<div class="grow stack-sm"><p><strong>Submit this output?</strong> You can't change it afterwards. Use Run again if you want a fresh one.</p>
               <div class="row"><button class="${() => "btn btn--primary" + (f.sending ? " is-loading" : "")}" type="button" @click="${submit}">${icon("send")}Yes, submit</button><button class="btn btn--quiet" type="button" @click="${() => { f.confirm = false; }}">Keep editing</button></div></div></div>` : "")}
             ${() => (f.done ? html`<div class="notice" data-state="done">${icon("done")}<div class="stack-sm"><p><strong>Submitted.</strong> ${run.judge === "ai" ? "The AI judge picks it up next." : "It's ready for you to judge."}</p>
-              <div class="row">${next() ? html`<button class="btn btn--primary btn--sm" type="button" @click="${() => go("/handoff/" + run.id + "/" + params.task, { output: next().attempt, t: Date.now() })}">${icon("paste")}Next: ${next().contender_name}</button>` : inbox.items[0] ? html`<a class="btn btn--primary btn--sm" href="${itemHref0()}">${icon("arrow-right")}Next thing waiting</a>` : ""}<a class="btn btn--sm btn--quiet" href="${"#/runs/" + run.id}">Back to the run</a></div></div></div>` : "")}
+              <div class="row">${next() ? html`<button class="btn btn--primary btn--sm" type="button" @click="${() => go("/handoff/" + run.id + "/" + params.task, { output: next().attempt, t: Date.now() })}">${icon("paste")}Next: ${next().contender_name}</button>` : inbox.items[0] ? html`<a class="btn btn--primary btn--sm" href="${itemHref0()}">${icon("arrow-right")}Next thing waiting</a>` : ""}<a class="btn btn--sm btn--quiet" href="${APP + "/runs/" + run.id}">Back to the run</a></div></div></div>` : "")}
             ${() => (!f.confirm && !f.done ? html`<div class="row"><span data-tip="${() => (words() || f.files.length ? "" : "Paste the reply first")}" tabindex="0"><button class="btn btn--primary btn--lg" type="submit" disabled="${() => !words() && !f.files.length}">${icon("send", "i--lift")}Submit output</button></span></div>` : "")}
           </form></li>
         </ol>
@@ -109,4 +109,4 @@ export default function handoff({ params, query }) {
   });
 }
 
-const itemHref0 = () => { const g = inbox.items[0]; return g.kind === "paste" ? `#/handoff/${g.run}/${g.task}` : `#/judge/${g.run}/${g.task}`; };
+const itemHref0 = () => { const g = inbox.items[0]; return g.kind === "paste" ? `${APP}/handoff/${g.run}/${g.task}` : `${APP}/judge/${g.run}/${g.task}`; };

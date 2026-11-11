@@ -2,11 +2,12 @@
 // icons from the vendored Phosphor sprite, state chips, avatars, toasts,
 // popover placement, the lightbox, sparkles and confetti.
 import { html } from "@arrow-js/core";
+import { BASE } from "./nav.js";
 
 export const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export const icon = (name, cls = "") =>
-  html`<svg class="${"i" + (cls ? " " + cls : "")}" aria-hidden="true"><use href="${"sprite.svg#i-" + name}"></use></svg>`;
+  html`<svg class="${"i" + (cls ? " " + cls : "")}" aria-hidden="true"><use href="${BASE + "sprite.svg#i-" + name}"></use></svg>`;
 
 // ---------- Avatars: a monogram tinted by a hue derived from the name ----------
 export function hue(name) {

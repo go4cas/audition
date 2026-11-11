@@ -5,6 +5,7 @@ import { dropdown } from "../components/forms.js";
 import { busy, empty, page } from "../components/page.js";
 import { avatar, chip, errorToast, icon, money, num, plural, popId, toast } from "../lib/ui.js";
 import { PROVIDER_LABEL, contenderMeta, load } from "../state/data.js";
+import { APP } from "../lib/nav.js";
 
 const PROVIDERS = [
   { value: "anthropic", label: "Anthropic", icon: "key", desc: "Claude models through the Anthropic API" },
@@ -47,7 +48,7 @@ export default function contenders() {
       return html`
         <div class="page-head">
           <div><h1>Contenders</h1><p class="lede">Every model, agent or app you want to compare. Each one is an exact setup, shared by all workspaces.</p></div>
-          <a class="btn btn--primary" href="#/contenders/new">${icon("plus")}Add contender</a>
+          <a class="btn btn--primary" href="${APP + "/contenders/new"}">${icon("plus")}Add contender</a>
         </div>
 
         <div class="panel">
@@ -101,9 +102,9 @@ export default function contenders() {
                         ${c.mode === "api" ? html`<dt>${icon("tokens")}Max output</dt><dd>${num(c.max_output_tokens)} tokens</dd><dt>${icon("cost")}Price in / out</dt><dd>${c.price_in_per_mtok != null ? `${money(c.price_in_per_mtok)} / ${money(c.price_out_per_mtok)} per 1M` : "Not set"}</dd>` : ""}
                         <dt>${icon("history")}Used in</dt><dd>${plural(runs, "run")}</dd>
                       </dl>
-                      <a class="btn btn--sm self-start" href="${"#/contenders/new?from=" + c.id}">${icon("copy")}Duplicate and edit</a>
+                      <a class="btn btn--sm self-start" href="${APP + "/contenders/new?from=" + c.id}">${icon("copy")}Duplicate and edit</a>
                     </div></div>`
-                  : html`<a class="icon-btn" href="${"#/contenders/" + c.id + "/edit"}" data-tip="Edit" aria-label="${"Edit " + c.name}">${icon("edit")}</a>`}</td>
+                  : html`<a class="icon-btn" href="${APP + "/contenders/" + c.id + "/edit"}" data-tip="Edit" aria-label="${"Edit " + c.name}">${icon("edit")}</a>`}</td>
               </tr>`;
             })}</tbody></table></div>`
           : empty("contenders-duo", "No contenders yet", "Add the models, agents and apps you want to compare.")}

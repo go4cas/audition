@@ -14,9 +14,9 @@ const js = files(UI).filter((f) => f.endsWith(".js"));
 
 describe("dependencies", () => {
   const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
-  test("the only runtime dependency is @arrow-js/core, at an exact version", () => {
-    expect(Object.keys(pkg.dependencies)).toEqual(["@arrow-js/core"]);
-    expect(pkg.dependencies["@arrow-js/core"]).toMatch(/^\d+\.\d+\.\d+$/);
+  test("the runtime dependencies are Arrow.js and quiver, at exact versions (Q5)", () => {
+    expect(Object.keys(pkg.dependencies).sort()).toEqual(["@arrow-js/core", "@go4cas/quiver"]);
+    for (const v of Object.values(pkg.dependencies)) expect(v).toMatch(/^\d+\.\d+\.\d+$/);
   });
   test("no Tailwind or Vite anywhere", () => {
     const lock = readFileSync(join(ROOT, "bun.lock"), "utf8");
@@ -25,10 +25,10 @@ describe("dependencies", () => {
       for (const f of files(UI)) if (/\.(js|css|html)$/.test(f)) expect(readFileSync(f, "utf8").toLowerCase()).not.toContain(`@${banned}`);
     }
   });
-  test("UI code imports nothing but Arrow and its own modules", () => {
+  test("UI code imports nothing but Arrow, quiver's core and its own modules", () => {
     for (const f of js) {
       for (const m of readFileSync(f, "utf8").matchAll(/^\s*import\s[^'"]*["']([^"']+)["']/gm)) {
-        expect(m[1] === "@arrow-js/core" || m[1].startsWith(".")).toBe(true);
+        expect(m[1] === "@arrow-js/core" || m[1] === "@go4cas/quiver" || m[1].startsWith(".")).toBe(true);
       }
     }
   });
@@ -45,9 +45,24 @@ describe("build", () => {
       const full = join(ROOT, "node_modules", "@arrow-js", "core", "dist", p);
       return n + (statSync(full).isDirectory() ? files(full).filter((f) => f.endsWith(".mjs")).reduce((m, f) => m + statSync(f).size, 0) : statSync(full).size);
     }, 0);
-    console.log(`UI build, minified: JS ${kb(size(".js"))} (Arrow.js package files: ${kb(arrow)}), CSS ${kb(size(".css"))}, HTML ${kb(size(".html"))}`);
-    // TECH-SPEC T4 Done-when 3: under 150 KB of minified JS (CSS not counted).
-    expect(size(".js")).toBeLessThan(150 * 1024);
+    // First-load JS: main.js and every chunk it imports statically. Pages are
+    // separate chunks, loaded when their route opens (ui/src/routes.js).
+    const firstLoad = new Set<string>();
+    const walk = (file: string) => {
+      if (firstLoad.has(file)) return;
+      firstLoad.add(file);
+      const src = readFileSync(file, "utf8");
+      for (const m of src.matchAll(/(?:^|[;}])\s*import\s*(?:[^"'()]*?from\s*)?["'](\.[^"']+)["']/g)) walk(join(file, "..", m[1]!));
+    };
+    walk(join(dist, "main.js"));
+    const first = [...firstLoad].reduce((n, f) => n + statSync(f).size, 0);
+    console.log(`UI build, minified: first-load JS ${kb(first)} in ${firstLoad.size} files, all JS ${kb(size(".js"))} (Arrow.js package files: ${kb(arrow)}), CSS ${kb(size(".css"))}, HTML ${kb(size(".html"))}`);
+    // TECH-SPEC T4 Done-when 3: under 150 KB of minified first-load JS (CSS not
+    // counted; Q6 in PLATFORM-UPGRADES). All chunks are reported above.
+    expect(first).toBeLessThan(150 * 1024);
+    // Every page is its own chunk, not in the first load.
+    expect(files(join(dist, "chunks")).filter((f) => /\/(run|judge|handoff)-\w+\.js$/.test(f)).length).toBe(3);
+    for (const f of firstLoad) expect(f).not.toMatch(/\/(run|judge|handoff)-\w+\.js$/);
     // The bundle is minified and ships a linked source map.
     const main = readFileSync(join(dist, "main.js"), "utf8");
     expect(main).toContain("//# sourceMappingURL=main.js.map");

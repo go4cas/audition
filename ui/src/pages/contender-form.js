@@ -4,7 +4,7 @@
 // a behaviour for the mock.
 import { html, reactive } from "@arrow-js/core";
 import { create, update } from "../api.js";
-import { go } from "../router.js";
+import { APP, go } from "../lib/nav.js";
 import { dropdown, seg } from "../components/forms.js";
 import { busy, crumbs, page } from "../components/page.js";
 import { errorToast, icon, placeThumbs, popId, toast } from "../lib/ui.js";
@@ -72,7 +72,7 @@ export default function contenderForm({ params, query }) {
       });
       const title = { new: "Add a contender", edit: "Edit contender", duplicate: "Duplicate and edit" }[s.mode];
       return html`
-        ${crumbs([["Contenders", "#/contenders"]])}
+        ${crumbs([["Contenders", APP + "/contenders"]])}
         <h1>${title}</h1>
         ${s.mode === "duplicate" ? html`<div class="notice" data-state="done">${icon("copy")}<div><strong>This is a new contender, copied from ${src.name}.</strong> ${src.name} and its results stay as they were.</div></div>` : ""}
         <form class="stack" @submit="${save}">
@@ -108,7 +108,7 @@ export default function contenderForm({ params, query }) {
             <div class="field"><label for="cn-notes">Which tool and settings?</label><textarea class="textarea textarea--short" id="cn-notes" rows="3" value="${() => f.notes}" @input="${(e) => { f.notes = e.target.value; }}" placeholder="Claude Code, Opus, plan mode"></textarea><span class="hint">For your memory only. Audition never stores your passwords for these tools.</span></div>
             <div class="field"><label for="cn-group2">Leaderboard group <span class="muted">(optional)</span></label><input class="input" id="cn-group2" value="${() => f.group}" @input="${(e) => { f.group = e.target.value; }}" placeholder="Claude Code"></div>
           </div>`)}
-          <div class="row"><button class="btn btn--primary btn--lg" type="submit">${icon(s.mode === "edit" ? "check" : "plus")}${s.mode === "edit" ? "Save contender" : "Add contender"}</button><a class="btn btn--quiet" href="#/contenders">Cancel</a></div>
+          <div class="row"><button class="btn btn--primary btn--lg" type="submit">${icon(s.mode === "edit" ? "check" : "plus")}${s.mode === "edit" ? "Save contender" : "Add contender"}</button><a class="btn btn--quiet" href="${APP + "/contenders"}">Cancel</a></div>
         </form>`;
     },
   });

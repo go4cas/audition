@@ -3,6 +3,7 @@
 import { reactive } from "@arrow-js/core";
 import { list } from "../api.js";
 import { load, runLabel } from "./data.js";
+import { APP } from "../lib/nav.js";
 
 export const inbox = reactive({ count: 0, items: [], loaded: false });
 
@@ -48,4 +49,4 @@ export const itemTitle = (g) =>
   g.kind === "paste"
     ? g.names.length === 1 ? `Paste ${g.names[0]}'s reply: ${g.taskTitle}` : `Paste ${g.names.length} replies: ${g.taskTitle}`
     : `Judge ${g.n === 1 ? "an output" : g.n + " outputs"}: ${g.taskTitle}`;
-export const itemHref = (g) => (g.kind === "paste" ? `#/handoff/${g.run}/${g.task}` : `#/judge/${g.run}/${g.task}`);
+export const itemHref = (g) => (g.kind === "paste" ? `${APP}/handoff/${g.run}/${g.task}` : `${APP}/judge/${g.run}/${g.task}`);

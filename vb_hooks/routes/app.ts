@@ -1,6 +1,6 @@
 // GET /api/custom/app/* serves the built UI from ui/dist (TECH-SPEC Q2).
 // An unknown path serves index.html, because the UI is a single-page app
-// with hash routes (T4).
+// with real path routes (quiver, docs/PLATFORM-UPGRADES.md part C).
 import { defineRoute } from "vaultbase";
 import { resolveAsset, securityHeaders } from "../lib/static.ts";
 

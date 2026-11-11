@@ -1,7 +1,9 @@
 // Page scaffolding: load data, show a skeleton while waiting, an error notice
 // on failure, then the page body. Every screen renders through this.
-import { html } from "@arrow-js/core";
+import { html, onCleanup } from "@arrow-js/core";
 import { icon, placeThumbs } from "../lib/ui.js";
+
+let seq = 0;
 
 /**
  * page({ load, body, narrow, screen }):
@@ -11,20 +13,41 @@ import { icon, placeThumbs } from "../lib/ui.js";
  * reactive state while building it must not re-render the whole page (and
  * steal focus from inputs). Pieces that should update use `${() => …}`.
  * state.reload() loads again and re-mounts the body.
+ * state.onLeave(fn) runs fn when the page is left (quiver's page cleanup
+ * scope), or at once if the page was already left while it was loading.
  */
 export function page({ load, body, narrow = false, screen = "page", init = {} }) {
   const s = { ...init }; // plain: loaded data holds Maps; pages make their own reactive form state
-  const section = document.createElement("section");
-  section.className = "page" + (narrow ? " page--narrow" : "");
-  section.dataset.screen = screen;
-  const show = (tpl) => { section.replaceChildren(); tpl(section); placeThumbs(); };
+  let left = false;
+  const leaveFns = [];
+  onCleanup(() => { left = true; leaveFns.splice(0).forEach((f) => { try { f(); } catch { /* ignore */ } }); });
+  s.onLeave = (fn) => { if (left) fn(); else leaveFns.push(fn); };
+  // The body is mounted straight into the page's <section>, never through a
+  // reactive slot: Arrow 1.0.6 recycles a template by its shape, and a recycled
+  // body whose slot was "" and is now a template prints the template's source
+  // (AGENTS.md rule 5, NOTES U3). Quiver mounts the <section> just after this
+  // function returns, so show() waits for it by id.
+  const id = "page-" + ++seq;
+  let host = null, pending = null, waiting = false;
+  const flush = () => {
+    waiting = false;
+    if (left || !pending) return;
+    host ||= document.getElementById(id);
+    if (!host) { waiting = true; requestAnimationFrame(flush); return; }
+    const tpl = pending;
+    pending = null;
+    host.replaceChildren();
+    tpl(host);
+    placeThumbs();
+  };
+  const show = (tpl) => { pending = tpl; if (!waiting) flush(); };
   s.reload = async ({ quiet = false } = {}) => {
     if (!quiet) show(skeleton());
     try { await load(s); } catch (e) { show(errorBox(e.message || String(e), () => s.reload())); return; }
     show(body(s));
   };
   s.reload();
-  return (parent) => { parent.appendChild(section); return parent; };
+  return html`<section class="${"page" + (narrow ? " page--narrow" : "")}" data-screen="${screen}" id="${id}"></section>`;
 }
 
 export const skeleton = () => html`<div class="stack" aria-busy="true" aria-label="Loading">

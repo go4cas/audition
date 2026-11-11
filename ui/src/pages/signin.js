@@ -2,7 +2,7 @@
 // sign-in is on (Vaultbase answers mfa_required).
 import { html, reactive } from "@arrow-js/core";
 import { signIn, signInCode } from "../api.js";
-import { go } from "../router.js";
+import { go } from "../lib/nav.js";
 import { icon, toast } from "../lib/ui.js";
 import { logo } from "../layouts/shell.js";
 

@@ -29,11 +29,11 @@ beforeAll(async () => {
   browser = await chromium.launch();
   p = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
   p.setDefaultTimeout(30_000);
-  await p.goto(`${h.url}/api/custom/app/#/signin`);
+  await p.goto(`${h.url}/api/custom/app/signin`);
   await p.fill("input[type=email]", OWNER.email);
   await p.fill("input[type=password]", OWNER.password);
   await p.locator("button[type=submit]").click();
-  await p.waitForURL((u) => !u.hash.startsWith("#/signin"));
+  await p.waitForURL((u) => !u.pathname.endsWith("/signin"));
 }, 180_000);
 
 afterAll(async () => {
@@ -43,7 +43,7 @@ afterAll(async () => {
 
 async function openStartRun(contender: string) {
   // A full load, so nothing chosen on an earlier visit carries over.
-  await p.goto(`${h.url}/api/custom/app/#/runs/new?role=${role.id}`);
+  await p.goto(`${h.url}/api/custom/app/runs/new?role=${role.id}`);
   await p.reload();
   await p.waitForSelector("#main section:not(.is-loading)", { state: "attached" });
   await p.locator("label.check", { hasText: contender }).click();
@@ -64,4 +64,24 @@ test("a mock contender with the same judge shows no warning", async () => {
   // Give the debounced preview time to answer, then check nothing warns.
   await p.waitForTimeout(800);
   expect(await p.locator(".notice[data-state=warning]").allInnerTexts()).toEqual([]);
+});
+
+test("an old #/ link opens the same page at its path URL", async () => {
+  // Bookmarks from before quiver (PLATFORM-UPGRADES part C) keep working.
+  await p.goto(`${h.url}/api/custom/app/#/runs/new?role=${role.id}`);
+  await p.waitForURL((u) => u.pathname === "/api/custom/app/runs/new" && u.search === `?role=${role.id}` && !u.hash);
+  await p.locator("label.check", { hasText: "Mock Steady" }).waitFor();
+});
+
+test("signed out, a deep link goes to sign-in and back after it", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const q = await ctx.newPage();
+  await q.goto(`${h.url}/api/custom/app/r/${role.id}`);
+  await q.waitForURL((u) => u.pathname === "/api/custom/app/signin" && u.searchParams.get("next") === `/r/${role.id}`);
+  await q.fill("#si-email", OWNER.email);
+  await q.fill("#si-pass", OWNER.password);
+  await q.getByRole("button", { name: /Sign in/ }).click();
+  await q.waitForURL((u) => u.pathname === `/api/custom/app/r/${role.id}`);
+  await q.waitForFunction(() => document.title === "Role · Audition"); // quiver sets it from the route's meta.title
+  await ctx.close();
 });

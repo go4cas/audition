@@ -32,7 +32,7 @@ beforeAll(async () => {
   await ctx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: h.url });
   p = await ctx.newPage();
   p.setDefaultTimeout(T);
-  p.on("pageerror", (e) => errors.push(`${p.url().split("#")[1]}: ${e}`));
+  p.on("pageerror", (e) => errors.push(`${new URL(p.url()).pathname}: ${e}`));
 }, 180_000);
 
 afterEach(async () => {
@@ -45,8 +45,10 @@ afterAll(async () => {
   await h?.cleanup();
 });
 
-const app = (hash = "") => `${h.url}/api/custom/app/#${hash}`;
-const go = async (hash: string) => { await p.goto(app(hash)); await settle(); };
+// Real path URLs under the app's base (quiver, PLATFORM-UPGRADES part C).
+const APP = "/api/custom/app";
+const app = (path = "/") => `${h.url}${APP}${path}`;
+const go = async (path: string) => { await p.goto(app(path)); await settle(); };
 /** Wait for the page's loader to finish and check the wording on screen. */
 async function settle() {
   await p.waitForSelector("#main section:not(.is-loading)", { state: "attached" });
@@ -87,7 +89,7 @@ async function startRun(role: string, contenders: string[], judge: "Me" | RegExp
   await p.waitForFunction((n) => document.querySelector("[data-testid=call-count]")?.textContent?.trim() === n, String(calls));
   await shot(`start-run-${role.toLowerCase().replace(/\W+/g, "-")}`);
   await p.click("#start-run");
-  await p.waitForURL(/#\/runs\/[\w-]+$/);
+  await p.waitForURL(/\/app\/runs\/[\w-]+$/);
   await settle();
   return p.url().split("/runs/")[1]!;
 }
@@ -120,7 +122,7 @@ async function paste(runId: string, taskId: string, reply: string, attach?: stri
 
 test("sign in", async () => {
   await p.goto(app("/"));
-  await p.waitForURL(/#\/signin/);
+  await p.waitForURL(/\/app\/signin/);
   await p.fill("#si-email", OWNER.email);
   await p.fill("#si-pass", "wrong password");
   await p.getByRole("button", { name: /Sign in/ }).click();
@@ -128,7 +130,7 @@ test("sign in", async () => {
   await p.fill("#si-pass", OWNER.password);
   await shot("signin");
   await p.getByRole("button", { name: /Sign in/ }).click();
-  await p.waitForURL((u) => !u.hash.includes("signin"));
+  await p.waitForURL((u) => !u.pathname.includes("signin"));
   await settle();
   for (const w of ["Software Factory", "Marketing Pipeline", "Stock Review", "Travel Research"]) await p.getByText(w).first().waitFor();
   await shot("home");
@@ -143,7 +145,7 @@ test("Software Factory: edit the workspace, a stage, a role's rubric and a task"
   await p.getByLabel("Stage 2", { exact: true }).fill("Specification");
   await p.click("button[type=submit]");
   await toastSays("Settings saved");
-  await p.waitForURL(new RegExp(`#/w/${ws.id}$`));
+  await p.waitForURL(new RegExp(`/app/w/${ws.id}$`));
   expect((await one("workspaces", `id = "${ws.id}"`)).description).toBe("Agents that research, spec and build small web features.");
   expect((await one("stages", `workspace = "${ws.id}" && name = "Specification"`))).toBeTruthy();
 
@@ -176,7 +178,7 @@ test("Software Factory: run with the AI judge, paste one output, override a verd
   await shot("run-live");
   const tasks = await ids("tasks", `role = "${role.id}"`);
   for (const t of tasks) {
-    await p.locator(`a[href="#/handoff/${sfRun}/${t.id}"]`).first().waitFor();
+    await p.locator(`a[href="${APP}/handoff/${sfRun}/${t.id}"]`).first().waitFor();
     const prompt = await paste(sfRun, t.id, `Recommendation for: ${t.title}\n\nUse SQLite. Sources: sqlite.org, postgresql.org.`);
     expect(prompt).toContain("You are acting as: Researcher");
   }
@@ -207,7 +209,7 @@ test("Software Factory: run with the AI judge, paste one output, override a verd
   await go(`/runs/${sfRun}`);
   await p.getByRole("button", { name: "Run again" }).click();
   await toastSays("New run started");
-  await p.waitForURL((u) => !u.hash.endsWith(sfRun));
+  await p.waitForURL((u) => !u.pathname.endsWith(sfRun));
   const again = p.url().split("/runs/")[1]!;
   expect((await one("runs", `id = "${again}"`)).rerun_of).toBe(sfRun);
 }, 180_000);
@@ -253,7 +255,7 @@ test("Stock Review: add a connection with a key and a contender; paste an output
   await shot("contender-new");
   await p.getByRole("button", { name: "Add contender" }).click();
   await toastSays(/added/i);
-  await p.waitForURL(/#\/contenders$/);
+  await p.waitForURL(/\/app\/contenders$/);
   await settle();
   const c = await one("contenders", `name = "Claude on a test key"`);
   expect(c.mode).toBe("api");
@@ -263,7 +265,7 @@ test("Stock Review: add a connection with a key and a contender; paste an output
   const role = await one("roles", `name = "Stock analyst"`);
   const run = await startRun("Stock analyst", ["Mock Erratic", "ChatGPT (manual)"], null, 1);
   const task = await one("tasks", `role = "${role.id}"`);
-  await p.locator(`a[href="#/handoff/${run}/${task.id}"]`).first().waitFor();
+  await p.locator(`a[href="${APP}/handoff/${run}/${task.id}"]`).first().waitFor();
   await go(`/handoff/${run}/${task.id}`);
   await p.getByText("northwind-foods-q3.txt").first().waitFor();
   const prompt = await paste(run, task.id, "Hold. Revenue is flat, margins improved, and debt is falling.", "notes.md");
@@ -280,7 +282,7 @@ test("Marketing Pipeline: an image run judged blind in the image grid", async ()
   const role = await one("roles", `name = "Image maker"`);
   const run = await startRun("Image maker", ["Mock Image", "Midjourney (manual)"], null, 1);
   const task = await one("tasks", `role = "${role.id}"`);
-  await p.locator(`a[href="#/handoff/${run}/${task.id}"]`).first().waitFor();
+  await p.locator(`a[href="${APP}/handoff/${run}/${task.id}"]`).first().waitFor();
   await paste(run, task.id, "Warm tones, a coffee bag on a wooden table.", "sale-image.png");
   await waitFor(async () => { const c = await counts(run); return (c?.submitted || 0) === 2; }, "both image outputs");
   await go(`/judge/${run}/${task.id}`);
