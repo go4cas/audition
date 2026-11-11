@@ -1,6 +1,6 @@
 # Platform upgrades plan: Vaultbase 0.44 and Quiver 3.1
 
-Status: **approved by Cas on Nov 11, 2026**, with the recommended answers to Q1 to Q8. Part A is done (PR #19, Vaultbase 0.44.0). Part B is done for the server writes and record history; Q1 (owner uploads through Vaultbase's endpoint) was checked and is blocked, so the custom route stays (NOTES W1). B3 (realtime run page) is its own small PR (Q8), then part C. Written Nov 11, 2026, before the feature roadmap continues.
+Status: **approved by Cas on Nov 11, 2026**, with the recommended answers to Q1 to Q8. Part A is done (PR #19, Vaultbase 0.44.0). Part B is done for the server writes and record history; Q1 (owner uploads through Vaultbase's endpoint) was checked and is blocked, so the custom route stays (NOTES W1). B3 (realtime run page) shipped in its own small PR after part C (Q8, NOTES "Realtime run page"). Written Nov 11, 2026, before the feature roadmap continues.
 
 Both changes need Cas's OK under the orchestrator rules (a Vaultbase version change, a schema change after T0, and a scope change for the UI). This document gives the facts, a recommendation, the order of work and the open questions.
 

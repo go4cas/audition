@@ -152,7 +152,7 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 | Fan-out of attempts | After-create hook on runs → queue workers | 1 |
 | Provider calls | `helpers.http` with retries, behind the SSRF egress guard (default private-range denylist) plus Audition's own check that the host matches the connection | 1 |
 | Handoff rendering | `helpers.template` | 1 |
-| Live run progress | The run page polls a run summary route every 2 seconds (server-side writes don't emit realtime events; see `docs/TECH-SPEC.md` F1) | 1 |
+| Live run progress | Realtime subscriptions on the run and its outputs; the run page polls a run summary route every 2 seconds only while the realtime connection is down (`docs/PLATFORM-UPGRADES.md` B3) | 1 |
 | Uploads and outputs | Files with MIME and size validation and thumbnails | 1 |
 | Leaderboard | View collection plus aggregations | 1 |
 | Task and contender versions | Record history | 1 |
@@ -197,7 +197,7 @@ Phase 1 proves the whole loop — tasks → runs → judging → casting — wit
 | 2 — Living arena | Composer utility role; scheduled runs; outcome verdicts; push and email alerts; guest voters; vector match of new tasks to roles; Levare reads castings | A scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
 | 3 — Runners | Automated runners for harness contenders, with sandboxes outside Vaultbase reporting through signed webhooks | A coding task runs on two harnesses with no manual step |
 
-**First after Phase 1:** move server writes onto the Vaultbase records API (an API token plus a `hooks.http.allow` loopback exception, or a write helper if Vaultbase adds one: https://github.com/vaultbase-sh/vaultbase/discussions/10), then turn on record history for verdicts and castings and realtime for the run page (NOTES R5). Done for the writes and history on Nov 11, 2026 with `helpers.records` (Vaultbase 0.43, `docs/PLATFORM-UPGRADES.md` part B); realtime for the run page is the next small PR.
+**First after Phase 1:** move server writes onto the Vaultbase records API (an API token plus a `hooks.http.allow` loopback exception, or a write helper if Vaultbase adds one: https://github.com/vaultbase-sh/vaultbase/discussions/10), then turn on record history for verdicts and castings and realtime for the run page (NOTES R5). Done for the writes and history on Nov 11, 2026 with `helpers.records` (Vaultbase 0.43, `docs/PLATFORM-UPGRADES.md` part B); realtime for the run page followed in its own PR (B3).
 
 **Deferred from Phase 1, phase not yet set:** agent report tokens and self-report; MCP, including MCP reads of castings; the coding-harness and app templates; pairwise judging; platform-run checks and screenshot capture; the stale-attempt cron; API adapters for image models; cost estimates before a run.
 

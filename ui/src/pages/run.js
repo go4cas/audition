@@ -1,6 +1,8 @@
-// 10. Run progress: a live bar and one table per task, polling GET /runs/:id
-// every 2 seconds while the run is active (TECH-SPEC F1). Outputs and scores
-// stay hidden here so judging stays blind.
+// 10. Run progress: a live bar and one table per task. While the run is active
+// the page listens for realtime events on the run and its outputs and reloads
+// GET /runs/:id when one arrives; while the realtime connection is down it
+// polls that route every 2 seconds instead (PLATFORM-UPGRADES B3). Outputs and
+// scores stay hidden here so judging stays blind.
 import { html, reactive } from "@arrow-js/core";
 import { custom } from "../api.js";
 import { APP, go } from "../lib/nav.js";
@@ -8,6 +10,7 @@ import { busy, crumbs, page } from "../components/page.js";
 import { TYPE_ICON, avatar, chip, duration, errorToast, icon, money, num, outputChip, plural, popId, time, toast } from "../lib/ui.js";
 import { load, runLabel } from "../state/data.js";
 import { refreshInbox } from "../state/inbox.js";
+import { subscribe } from "../lib/realtime.js";
 
 export default function run({ params }) {
   return page({
@@ -15,17 +18,39 @@ export default function run({ params }) {
     load: async (s) => {
       const [d, live] = await Promise.all([load("workspaces", "roles", "tasks", "contenders", "runs"), custom.run(params.id)]);
       s.d = d;
-      s.live = reactive({ v: live });
-      let timer = setInterval(async () => {
-        if (s.live.v.run.status === "done") return;
+      // mode: "realtime" while the realtime subscription is up, else "polling".
+      s.live = reactive({ v: live, mode: "polling" });
+      const done = () => s.live.v.run.status === "done";
+      // One fetch at a time; a change that lands while one is in flight
+      // fetches once more after it, so the last event is never missed.
+      let inFlight = false, again = false, soon = null;
+      const refresh = async () => {
+        if (inFlight) { again = true; return; }
+        inFlight = true;
         try {
           const before = s.live.v.counts;
           const v = await custom.run(params.id);
           if (JSON.stringify(v.counts) !== JSON.stringify(before)) refreshInbox();
           s.live.v = v;
         } catch { /* keep the last view */ }
-      }, 2000);
-      s.onLeave(() => clearInterval(timer));
+        inFlight = false;
+        if (again) { again = false; refresh(); }
+        if (done()) stopLive();
+      };
+      // Events only say "something changed": the page still reads the run
+      // through GET /runs/:id, which keeps outputs out of this view (blind).
+      const nudge = () => { clearTimeout(soon); soon = setTimeout(refresh, 150); };
+      const stopLive = subscribe([`runs/${params.id}`, "attempts"], {
+        onEvent: (m) => { if (m.collection === "runs" || m.record?.run === params.id) nudge(); },
+        onStatus: (st) => {
+          s.live.mode = st === "live" ? "realtime" : "polling";
+          if (st === "live") nudge(); // catch up on anything missed while polling
+        },
+      });
+      // Polling is the fallback while the realtime connection is down.
+      const timer = setInterval(() => { if (s.live.mode === "polling" && !done()) refresh(); }, 2000);
+      if (done()) stopLive();
+      s.onLeave(() => { clearInterval(timer); clearTimeout(soon); stopLive(); });
     },
     body: (s) => {
       const d = s.d;
@@ -57,7 +82,7 @@ export default function run({ params }) {
           </div>
         </div>
 
-        <div class="panel"><div class="panel__body gap-10">
+        <div class="panel" data-live="${() => s.live.mode}"><div class="panel__body gap-10">
           <div class="row-between"><strong>${headline}</strong>${() => (v().run.status === "done" ? chip("done", "Finished") : chip("active", "Live"))}</div>
           <div class="progress" role="img" aria-label="Run progress">
             <span class="p-done" style="${() => "width:" + pct(c().judged)}"></span>
