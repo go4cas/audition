@@ -1,6 +1,7 @@
 // POST /api/custom/files/:collection/:id/:field: the owner's upload path.
-// It stands in for Vaultbase's own upload endpoint, which refuses every
-// multipart body in 0.40.2 (docs/NOTES.md, F9). A custom route can read the
+// It stood in for Vaultbase's own upload endpoint, which refused every
+// multipart body until 0.41.1 (docs/NOTES.md, F9; the move to it is part B
+// of docs/PLATFORM-UPGRADES.md). A custom route can read the
 // multipart body itself through ctx.req, so this takes a normal form upload
 // (one or more parts named `file`) and applies the checks the files API and
 // the update rules would: owner only, the record must be writable, 25 MB per

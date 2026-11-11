@@ -169,7 +169,7 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 
 **Conventions**
 
-- **Pin the version.** Pinned at v0.40.2, with its version and checksums recorded in the repo. Upgrade only on purpose, after reading the changelog's Security and Upgrade notes: monthly, or sooner for a security fix that touches what Audition uses (see `docs/TECH-SPEC.md` §1, "Upgrade policy"). Vaultbase is pre-1.0 and releases almost daily.
+- **Pin the version.** Pinned at v0.44.0 (from 0.40.2 on Nov 11, 2026), with its version and checksums recorded in the repo. Upgrade only on purpose, after reading the changelog's Security and Upgrade notes: monthly, or sooner for a security fix that touches what Audition uses (see `docs/TECH-SPEC.md` §1, "Upgrade policy"). Vaultbase is pre-1.0 and releases almost daily.
 - **Logic lives in the repo.** Hooks, routes, cron and queue workers are TypeScript files in `vb_hooks/`, not code typed into the admin UI.
 - **The schema lives in the repo** as code or a snapshot that a fresh instance can apply. T0 picks the mechanism after reading the docs.
 - **UI:** JavaScript with Arrow.js core for reactive state and templates (the one runtime dependency, chosen by Cas on Nov 6, 2026), no framework, built with Bun. Restrained, modern look; works at phone width. Plain words on screen ("outputs", not "attempts").

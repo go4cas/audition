@@ -6,7 +6,7 @@ Nothing here has been deployed yet. Every step on the server is yours to run, wh
 
 ## What runs where
 
-Audition in production is one Vaultbase 0.40.2 process behind Caddy, with Cloudflare in front. Vaultbase does the backend work: the database, sign-ins, files, the hooks and routes Audition adds, encrypted API keys, and its own scheduled backups. Bun is only needed on the server to fetch the binary, build the UI and run the setup script; the running service is the Vaultbase binary alone.
+Audition in production is one Vaultbase 0.44.0 process behind Caddy, with Cloudflare in front. Vaultbase does the backend work: the database, sign-ins, files, the hooks and routes Audition adds, encrypted API keys, and its own scheduled backups. Bun is only needed on the server to fetch the binary, build the UI and run the setup script; the running service is the Vaultbase binary alone.
 
 | Path | What | Who can write |
 | --- | --- | --- |
@@ -40,11 +40,11 @@ sudo git clone https://github.com/go4cas/audition.git /opt/audition
 cd /opt/audition
 sudo git checkout v0.1.0
 sudo bun install --frozen-lockfile
-sudo bun run setup        # downloads Vaultbase 0.40.2 and refuses it unless the SHA-256 matches
+sudo bun run setup        # downloads Vaultbase 0.44.0 and refuses it unless the SHA-256 matches
 sudo bun run build:ui     # builds ui/dist
-sudo install -m 0755 .vaultbase/bin/0.40.2/vaultbase /usr/local/lib/audition/vaultbase-0.40.2
-sudo ln -sfn /usr/local/lib/audition/vaultbase-0.40.2 /usr/local/bin/vaultbase
-vaultbase --version       # vaultbase 0.40.2
+sudo install -m 0755 .vaultbase/bin/0.44.0/vaultbase /usr/local/lib/audition/vaultbase-0.44.0
+sudo ln -sfn /usr/local/lib/audition/vaultbase-0.44.0 /usr/local/bin/vaultbase
+vaultbase --version       # vaultbase 0.44.0
 ```
 
 Don't run `bun run dev` on the server: it starts its own instance with a data folder inside the checkout.
@@ -61,6 +61,8 @@ Vaultbase's own commands (`setup-admin`, `doctor`, `backup`) read this file when
 alias vb='sudo -u audition env VAULTBASE_ENV_FILE=/etc/audition/audition.env vaultbase'
 vb setup-admin --email you@example.com --password '<a long password>'
 ```
+
+The admin password needs at least 12 characters: since 0.42.0, `setup-admin` follows Vaultbase's password policy.
 
 The admin is the Vaultbase administrator (settings, backups, restores). The owner, made in step 5, is the person who uses Audition. They can be the same person, with different passwords.
 
@@ -175,11 +177,13 @@ There are two kinds, and they follow the same steps on the server: a new Auditio
 
 Vaultbase upgrades follow TECH-SPEC §1, "Upgrade policy":
 
-1. Once a month, a short "Vaultbase upgrade" thread reads the changelog from 0.40.2 to the newest release, quoting every **Security** and **Upgrade notes** item that touches what Audition uses (auth, rules, files, hooks, the egress guard, backups, the records API). A security fix there means upgrading that week. `vaultbase update` prints whether a newer release exists.
-2. You approve the version. The thread runs `bun run vb:bump <version>`, then `bun test`, including the upgrade test from the old binary to the new one (`AUDITION_UPGRADE_FROM` set to the old lock file) and `test/files.test.ts`, which flips when the upload bug F9 is fixed.
+1. Once a month, a short "Vaultbase upgrade" thread reads the changelog from the pinned version (0.44.0) to the newest release, quoting every **Security** and **Upgrade notes** item that touches what Audition uses (auth, rules, files, hooks, the egress guard, backups, the records API). A security fix there means upgrading that week. `vaultbase update` prints whether a newer release exists.
+2. You approve the version. The thread runs `bun run vb:bump <version>`, then `bun test`, including the upgrade test from the old binary to the new one (`AUDITION_UPGRADE_FROM` set to the old lock file) and the PR quotes the changelog sections it read.
 3. You merge the PR and tag a release.
 
-**While F9 is open,** owner uploads go through Audition's own route (`POST /api/custom/files/:collection/:id/:field`, from T2). When `test/files.test.ts` shows that a new Vaultbase accepts uploads on `/api/v1/files`, moving the UI to Vaultbase's own upload route is a separate change, after the upgrade, not part of it. The same goes for moving server writes to the records API, which is planned for after Phase 1.
+Owner uploads still go through Audition's own route (`POST /api/custom/files/:collection/:id/:field`, from T2). Vaultbase fixed its own upload endpoint (F9) in 0.41.1, and `test/files.test.ts` now checks that it works; moving the UI to it, and moving server writes to the records API, is part B of `docs/PLATFORM-UPGRADES.md`, a separate change after the upgrade.
+
+**0.40.2 to 0.44.0** (the first Vaultbase upgrade, after v0.1.0) needs nothing beyond the steps below: no setting, schema or env change. `deploy/audition.service` uses only options 0.44.0 still accepts (0.42.0 refuses unknown ones). The upgrade test opened 0.40.2 data with 0.44.0 and found every record, file, key and sign-in.
 
 ### On the server
 
@@ -235,7 +239,7 @@ Anything done in Audition between the upgrade and the rollback is lost; `auditio
 
 ## How this was checked
 
-`test/release.test.ts` runs the release on a fresh Vaultbase 0.40.2, laid out like production (the real `vb_hooks/` only, read-only, its own data folder), on every `bun test`:
+`test/release.test.ts` runs the release on a fresh Vaultbase 0.44.0, laid out like production (the real `vb_hooks/` only, read-only, its own data folder), on every `bun test`:
 
 - `provision` applies the settings and the backup schedule, creates the owner, seeds, and changes nothing on a second run; the app answers at `/api/custom/app/`.
 - A Vaultbase backup keeps the uploaded files, and restoring it undoes a change made after it.
