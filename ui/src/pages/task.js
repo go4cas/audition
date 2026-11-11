@@ -2,7 +2,7 @@
 // edit" turns it into an editable next version (previous_version links them).
 import { html, reactive } from "@arrow-js/core";
 import { create, fileLabel, fileUrl, remove, update, upload } from "../api.js";
-import { go } from "../router.js";
+import { APP, go } from "../lib/nav.js";
 import { filePicker, fileIcon, rawFiles, seg } from "../components/forms.js";
 import { busy, crumbs, page } from "../components/page.js";
 import { TYPE_ICON, TYPE_LABEL, chip, errorToast, htmlToText, icon, textToHtml, toast } from "../lib/ui.js";
@@ -66,12 +66,12 @@ export default function task({ params }) {
       });
       const open = async (name) => { try { const url = await fileUrl(name); const a = document.createElement("a"); a.href = url; a.download = fileLabel(name); a.click(); } catch (err) { errorToast(err); } };
       return html`
-        ${crumbs([[ws.name, "#/w/" + ws.id], [role.name, "#/r/" + role.id], t ? "Task" : "New task"])}
+        ${crumbs([[ws.name, APP + "/w/" + ws.id], [role.name, APP + "/r/" + role.id], t ? "Task" : "New task"])}
         <div class="page-head">
           <div><h1>${t ? t.title : "New task"}</h1>
             <p class="lede row-tight">${() => (f.draft ? html`<span class="badge">Version ${version + 1}</span>${chip("draft", `Draft, copied from version ${version}`)}` : t ? html`<span class="badge">Version ${version}</span>${t.locked ? chip("locked", "Read-only") : ""}` : "Every contender gets exactly this text, with the role and rubric around it.")}</p></div>
         </div>
-        ${() => (t?.locked && !f.draft ? html`<div class="notice" data-state="locked">${icon("locked")}<div class="grow stack-sm"><p><strong>This task was used in a run, so it can't change.</strong> That keeps every score comparable.</p>${newer ? html`<p class="small">A newer version exists: <a href="${"#/t/" + newer.id}">${newer.title}</a></p>` : html`<div><button class="btn btn--primary" type="button" @click="${duplicate}">${icon("copy")}Duplicate and edit</button></div>`}</div></div>` : "")}
+        ${() => (t?.locked && !f.draft ? html`<div class="notice" data-state="locked">${icon("locked")}<div class="grow stack-sm"><p><strong>This task was used in a run, so it can't change.</strong> That keeps every score comparable.</p>${newer ? html`<p class="small">A newer version exists: <a href="${APP + "/t/" + newer.id}">${newer.title}</a></p>` : html`<div><button class="btn btn--primary" type="button" @click="${duplicate}">${icon("copy")}Duplicate and edit</button></div>`}</div></div>` : "")}
         ${() => (f.draft ? html`<div class="notice" data-state="done">${icon("edit")}<div class="grow"><strong>You're editing version ${version + 1}.</strong> Version ${version} and its results stay exactly as they were. Runs from now on can use version ${version + 1}.</div></div>` : "")}
         <form class="stack" @submit="${save}">
           <div class="field"><label for="tk-title">Title</label><input class="input" id="tk-title" required value="${f.title}" readonly="${ro}" @input="${(e) => { f.title = e.target.value; }}" placeholder="Build the settings screen"></div>
@@ -92,7 +92,7 @@ export default function task({ params }) {
             ${() => (f.editing ? filePicker({ id: "tk-files", state: f }) : "")}
           </div>
           ${() => (f.editing ? html`<div class="row"><button class="btn btn--primary btn--lg" type="submit">${icon("check")}${f.draft ? `Save version ${version + 1}` : t ? "Save task" : "Add task"}</button>
-            <a class="btn btn--quiet" href="${"#/r/" + role.id}">Cancel</a>
+            <a class="btn btn--quiet" href="${APP + "/r/" + role.id}">Cancel</a>
             ${t && !t.locked ? html`<button class="btn btn--quiet" type="button" @click="${del}">${icon("trash")}Delete</button>` : ""}</div>` : "")}
         </form>`;
     },

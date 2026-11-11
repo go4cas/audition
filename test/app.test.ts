@@ -47,7 +47,9 @@ describe("on a running instance", () => {
     expect(r.headers.get("content-security-policy")).toContain("style-src 'self'; style-src-attr 'unsafe-inline';");
     const html = await r.text();
     expect(html).toContain("<title>Audition</title>");
-    expect(html).toContain('<script type="module" src="main.js"></script>');
+    // Absolute asset URLs: the app uses real paths (…/app/runs/123), so relative ones would break.
+    expect(html).toContain('<script type="module" src="/api/custom/app/main.js"></script>');
+    expect(html).not.toMatch(/(href|src)="(?!\/api\/custom\/app\/)[^"]*"/);
   });
 
   test("assets get their MIME type; unknown paths fall back to index.html", async () => {

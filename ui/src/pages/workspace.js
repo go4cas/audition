@@ -3,6 +3,7 @@ import { html } from "@arrow-js/core";
 import { crumbs, empty, page } from "../components/page.js";
 import { avatar, chip, date, icon, plural } from "../lib/ui.js";
 import { championOf, leaderboards, load, runLabel, sortRoles } from "../state/data.js";
+import { APP } from "../lib/nav.js";
 
 export default function workspace({ params }) {
   return page({
@@ -20,20 +21,20 @@ export default function workspace({ params }) {
       const runs = d.runs.filter((r) => r.workspace === ws.id).reverse();
       const groups = [...stages.map((st) => ({ st, roles: roles.filter((r) => r.stage === st.id) })), { st: null, roles: roles.filter((r) => !r.stage) }].filter((g) => g.st || g.roles.length);
       return html`
-        ${crumbs([["Workspaces", "#/"]])}
+        ${crumbs([["Workspaces", APP + "/"]])}
         <div class="page-head">
           <div class="row row--top">${avatar(ws.name, "lg")}<div><h1>${ws.name}</h1><p class="lede">${ws.description || "The champion of each role is the one to use. Open a role to see its rubric, tasks and leaderboard."}</p></div></div>
           <div class="row">
-            <a class="btn btn--quiet" href="${"#/w/" + ws.id + "/settings"}">${icon("settings", "i--spin-on-hover")}Settings</a>
-            <a class="btn" href="${"#/w/" + ws.id + "/roles/new"}">${icon("plus")}Add role</a>
-            <a class="btn btn--primary" href="${"#/runs/new?ws=" + ws.id}">${icon("play")}Start a run</a>
+            <a class="btn btn--quiet" href="${APP + "/w/" + ws.id + "/settings"}">${icon("settings", "i--spin-on-hover")}Settings</a>
+            <a class="btn" href="${APP + "/w/" + ws.id + "/roles/new"}">${icon("plus")}Add role</a>
+            <a class="btn btn--primary" href="${APP + "/runs/new?ws=" + ws.id}">${icon("play")}Start a run</a>
           </div>
         </div>
         ${roles.length ? html`<div class="stages stagger">${groups.map((g) => html`<div class="stage">
             <div class="stage__name"><span class="eyebrow">${g.st ? g.st.name : "No stage"}</span></div>
-            ${g.roles.length ? g.roles.map((r) => roleCard(d, ws, r, s.lb.get(r.id))) : html`<a class="card-link role-card role-card--empty" href="${"#/w/" + ws.id + "/roles/new?stage=" + g.st.id}"><span class="muted small">No role in this stage yet</span><span class="btn btn--sm self-start">${icon("plus")}Add a role</span></a>`}
+            ${g.roles.length ? g.roles.map((r) => roleCard(d, ws, r, s.lb.get(r.id))) : html`<a class="card-link role-card role-card--empty" href="${APP + "/w/" + ws.id + "/roles/new?stage=" + g.st.id}"><span class="muted small">No role in this stage yet</span><span class="btn btn--sm self-start">${icon("plus")}Add a role</span></a>`}
           </div>`)}</div>`
-          : html`<div class="panel">${empty("rubric", "No roles yet", "A role is a job in this workflow, with a rubric that says what good looks like.", html`<a class="btn btn--primary" href="${"#/w/" + ws.id + "/roles/new"}">${icon("plus")}Add role</a>`)}</div>`}
+          : html`<div class="panel">${empty("rubric", "No roles yet", "A role is a job in this workflow, with a rubric that says what good looks like.", html`<a class="btn btn--primary" href="${APP + "/w/" + ws.id + "/roles/new"}">${icon("plus")}Add role</a>`)}</div>`}
         <div class="panel">
           <div class="panel__head"><h2>${icon("history")}Recent runs</h2></div>
           ${runs.length ? html`<div class="table-wrap"><table>
@@ -57,7 +58,7 @@ function roleCard(d, ws, r, lb) {
   else if (lb?.suggested) { cast = html`<div class="cast">${avatar(name(lb.suggested), "sm")}<strong>${name(lb.suggested)}</strong></div>`; state = chip("warning", "Suggested, confirm it", "self-start"); }
   else { cast = html`<div class="cast muted">${icon("draft")}${runs.length ? "No champion yet" : "No runs yet"}</div>`; state = runs.length ? "" : html`<span class="btn btn--sm self-start">${icon("play")}Start the first run</span>`; }
   if (live) state = chip("active", `${runLabel(d, live)} in progress`, "self-start");
-  return html`<a class="card-link role-card" href="${"#/r/" + r.id}">
+  return html`<a class="card-link role-card" href="${APP + "/r/" + r.id}">
     <div class="row-tight"><h3>${r.name}</h3>${icon("arrow-right", "go")}</div>
     ${cast}${state}
     <div class="muted xs num">${plural(tasks, "task")} · ${plural(scored, "output")} scored</div>
@@ -67,5 +68,5 @@ function roleCard(d, ws, r, lb) {
 export function runRow(d, r) {
   const st = r.status === "running" ? chip("active", "Running") : r.status === "judging" ? (r.judge === "me" ? chip("waiting", "Waiting for you") : chip("active", "Being judged")) : chip("done", "Finished");
   const again = r.rerun_of ? html` <span class="badge" data-tip="${"Started with Run again from " + runLabel(d, { id: r.rerun_of })}">${icon("again")}${runLabel(d, { id: r.rerun_of })}</span>` : "";
-  return html`<tr><td><strong>${runLabel(d, r)}</strong>${again}</td><td>${d.byId.roles.get(r.role)?.name}</td><td class="num">${(r.tasks?.length || 0) * (r.contenders?.length || 0)}</td><td><span class="badge">${icon(r.judge === "ai" ? "ai" : "me")}${r.judge === "ai" ? "AI" : "Me"}</span></td><td class="col-state">${st}</td><td class="num"><a class="btn btn--sm btn--quiet" href="${"#/runs/" + r.id}">Open${icon("arrow-right", "i--nudge")}</a></td></tr>`;
+  return html`<tr><td><strong>${runLabel(d, r)}</strong>${again}</td><td>${d.byId.roles.get(r.role)?.name}</td><td class="num">${(r.tasks?.length || 0) * (r.contenders?.length || 0)}</td><td><span class="badge">${icon(r.judge === "ai" ? "ai" : "me")}${r.judge === "ai" ? "AI" : "Me"}</span></td><td class="col-state">${st}</td><td class="num"><a class="btn btn--sm btn--quiet" href="${APP + "/runs/" + r.id}">Open${icon("arrow-right", "i--nudge")}</a></td></tr>`;
 }

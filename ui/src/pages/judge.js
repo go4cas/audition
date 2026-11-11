@@ -9,6 +9,7 @@ import { starInput } from "../components/forms.js";
 import { busy, crumbs, empty, page } from "../components/page.js";
 import { bump, chip, errorToast, icon, openLightbox, popId, toast } from "../lib/ui.js";
 import { refreshInbox } from "../state/inbox.js";
+import { APP } from "../lib/nav.js";
 
 const weighted = (rubric, stars) => {
   let sum = 0, w = 0;
@@ -90,11 +91,11 @@ export default function judge({ params }) {
       const scoreEl = (o) => html`<span class="score" data-score="${o.label}">${icon("star")}<span>${() => { const v = score(o); return v == null ? "–" : v.toFixed(1); }}</span></span>`;
 
       const head = html`
-        ${crumbs([["Workspaces", "#/"], ["Back to the run", "#/runs/" + params.run], "Judging"])}
+        ${crumbs([["Workspaces", APP + "/"], ["Back to the run", APP + "/runs/" + params.run], "Judging"])}
         <div class="page-head"><div><h1>${p.task.title}</h1>
           <p class="lede">${p.run.judge === "ai" ? "The AI judges these. Change any stars you disagree with; your stars then count." : image ? "You are the judge. Tap an image to see it large." : "You are the judge. Give each line 1 to 5 stars."}</p></div></div>
         <div class="blind-banner">${icon("blind")}<span>Names are hidden and the order is shuffled.</span></div>`;
-      if (!p.outputs.length) return html`${head}<div class="panel">${empty("judge-duo", "Nothing to judge yet", "Outputs appear here as they come in.", html`<a class="btn btn--primary" href="${"#/runs/" + params.run}">Back to the run</a>`)}</div>`;
+      if (!p.outputs.length) return html`${head}<div class="panel">${empty("judge-duo", "Nothing to judge yet", "Outputs appear here as they come in.", html`<a class="btn btn--primary" href="${APP + "/runs/" + params.run}">Back to the run</a>`)}</div>`;
 
       const rubric = html`<details class="panel" open>
         <summary class="panel__head summary-plain"><h2 class="h-md">${icon("rubric")}Rubric</h2>${p.pass_mark ? html`<span class="muted small row-tight">${icon("pass-mark")}Pass mark ${p.pass_mark}</span>` : ""}</summary>
@@ -104,8 +105,8 @@ export default function judge({ params }) {
         <p class="small text-2 row-tight">${icon("trophy", "gold")}${() => { const b = best(); return b ? html`Best on this task: <strong>Output ${b.o.label} · ${b.sc.toFixed(1)}</strong>` : "Rate the outputs to see the best one."; }}</p>
         <div class="row">
           ${() => (pending() ? html`<button class="btn btn--primary btn--lg" type="button" @click="${saveAll}">${icon("check")}Save stars</button>` : "")}
-          <a class="btn btn--quiet" href="${"#/runs/" + params.run}">Back to run</a>
-          ${p.role ? html`<a class="btn" href="${"#/leaderboard/" + p.role}">${icon("leaderboard")}See leaderboard</a>` : ""}
+          <a class="btn btn--quiet" href="${APP + "/runs/" + params.run}">Back to run</a>
+          ${p.role ? html`<a class="btn" href="${APP + "/leaderboard/" + p.role}">${icon("leaderboard")}See leaderboard</a>` : ""}
         </div>
       </div>`;
 

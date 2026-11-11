@@ -2,7 +2,7 @@
 // what makes a champion (fitness weights, which must add up to 100).
 import { html, reactive } from "@arrow-js/core";
 import { create, remove, update } from "../api.js";
-import { go } from "../router.js";
+import { APP, go } from "../lib/nav.js";
 import { dropdown, seg, weightBar, weightTotal } from "../components/forms.js";
 import { busy, crumbs, page } from "../components/page.js";
 import { errorToast, icon, popId, toast } from "../lib/ui.js";
@@ -57,7 +57,7 @@ export default function workspaceSettings({ params }) {
         } catch (err) { errorToast(err); }
       });
       return html`
-        ${crumbs(isNew ? [["Workspaces", "#/"]] : [["Workspaces", "#/"], [s.ws.name, "#/w/" + s.ws.id]])}
+        ${crumbs(isNew ? [["Workspaces", APP + "/"]] : [["Workspaces", APP + "/"], [s.ws.name, APP + "/w/" + s.ws.id]])}
         <h1>${isNew ? "New workspace" : "Workspace settings"}</h1>
         <form class="stack" @submit="${save}">
           <div class="panel"><div class="panel__body">
@@ -104,7 +104,7 @@ export default function workspaceSettings({ params }) {
             <span class="self-start">${weightTotal(weights, "Adds up to 100")}</span>
           </div></div>
 
-          <div class="row"><button class="btn btn--primary btn--lg" type="submit">${icon("check")}${isNew ? "Create workspace" : "Save settings"}</button><a class="btn btn--quiet" href="${isNew ? "#/" : "#/w/" + params.id}">Cancel</a></div>
+          <div class="row"><button class="btn btn--primary btn--lg" type="submit">${icon("check")}${isNew ? "Create workspace" : "Save settings"}</button><a class="btn btn--quiet" href="${isNew ? APP + "/" : APP + "/w/" + params.id}">Cancel</a></div>
         </form>`;
     },
   });

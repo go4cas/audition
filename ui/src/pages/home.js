@@ -5,6 +5,7 @@ import { page, empty } from "../components/page.js";
 import { ago, avatar, chip, date, hue as hueOf, icon, initials as initialsOf, plural } from "../lib/ui.js";
 import { championOf, leaderboards, load, runLabel, sortRoles } from "../state/data.js";
 import { inbox, itemHref, itemTitle } from "../state/inbox.js";
+import { APP } from "../lib/nav.js";
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; };
 const today = () => new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
@@ -34,7 +35,7 @@ export default function home() {
             <p class="lede">${() => `${inbox.count ? plural(inbox.count, "thing") + (inbox.count === 1 ? " is" : " are") + " waiting for you" : "You're all caught up"}, and ${plural(active.length, "run")} ${active.length === 1 ? "is" : "are"} working in the background.`}</p>
             <div class="row">
               ${() => (inbox.items.length ? html`<a class="btn btn--primary btn--lg" href="${itemHref(inbox.items[0])}">${icon("play")}Pick up where you left off</a>` : "")}
-              <a class="btn btn--lg" href="#/runs/new">${icon("plus")}Start a run</a>
+              <a class="btn btn--lg" href="${APP + "/runs/new"}">${icon("plus")}Start a run</a>
             </div>
           </div>
           <div class="hero-cast">
@@ -47,7 +48,7 @@ export default function home() {
               <div class="stack-sm hero-cast__count"><strong class="num hero-num">${champions.length} of ${roles.length}</strong><span class="small muted">roles have a champion</span></div>
               <span class="ring ring--gold ring--end" style="${"--p:" + pct}">${pct}%</span>
             </div>
-            ${suggested.length ? html`<div class="notice notice--tight" data-state="warning">${icon("sparkle")}<div class="small"><strong>${suggested[0].r.name}</strong> has a suggested champion. <a href="${"#/leaderboard/" + suggested[0].r.id}">Confirm it</a></div></div>` : ""}
+            ${suggested.length ? html`<div class="notice notice--tight" data-state="warning">${icon("sparkle")}<div class="small"><strong>${suggested[0].r.name}</strong> has a suggested champion. <a href="${APP + "/leaderboard/" + suggested[0].r.id}">Confirm it</a></div></div>` : ""}
           </div>
         </div>
 
@@ -55,8 +56,8 @@ export default function home() {
           <div class="home-main">
             ${() => upNext()}
             <div class="stack-sm">
-              <div class="section-head"><h2>Workspaces</h2><a class="btn btn--sm btn--quiet" href="#/w/new">${icon("plus")}New workspace</a></div>
-              ${d.workspaces.length ? html`<div class="grid-cards stagger">${d.workspaces.map((w) => wsCard(d, w, cast))}</div>` : empty("workspaces", "No workspaces yet", "A workspace holds the stages and roles of one workflow.", html`<a class="btn btn--primary" href="#/w/new">${icon("plus")}New workspace</a>`)}
+              <div class="section-head"><h2>Workspaces</h2><a class="btn btn--sm btn--quiet" href="${APP + "/w/new"}">${icon("plus")}New workspace</a></div>
+              ${d.workspaces.length ? html`<div class="grid-cards stagger">${d.workspaces.map((w) => wsCard(d, w, cast))}</div>` : empty("workspaces", "No workspaces yet", "A workspace holds the stages and roles of one workflow.", html`<a class="btn btn--primary" href="${APP + "/w/new"}">${icon("plus")}New workspace</a>`)}
             </div>
           </div>
           <aside class="home-rail">
@@ -100,7 +101,7 @@ function wsCard(d, w, cast) {
   const state = live ? chip("active", `${runLabel(d, live)} live`)
     : roles.length && done === roles.length ? chip("champion", "Fully cast")
     : runs.length ? chip("draft", `${roles.length - done} to cast`) : chip("draft", "No runs yet");
-  return html`<a class="ws-card" href="${"#/w/" + w.id}">
+  return html`<a class="ws-card" href="${APP + "/w/" + w.id}">
     <div class="ws-card__top">${avatar(w.name, "lg")}<div class="grow"><h3>${w.name}</h3><span class="small muted">${stages.length ? plural(stages.length, "stage") + " · " : ""}${plural(roles.length, "role")}</span></div><span class="${"ring ring--sm" + (p === 100 ? " ring--gold" : "")}" style="${"--p:" + p}">${done}/${roles.length}</span></div>
     <div class="ws-card__foot"><span class="faces">${ids.map((id) => avatar(d.byId.contenders.get(id)?.name || "?"))}</span>${state}</div>
   </a>`;
@@ -110,12 +111,12 @@ function castRow(d, { r, c, lb }) {
   const ws = d.byId.workspaces.get(r.workspace)?.name;
   let right;
   if (c) right = html`<span class="who">${avatar(d.byId.contenders.get(c.contender)?.name, "sm")}${d.byId.contenders.get(c.contender)?.name}${icon("champion", "crown")}</span>`;
-  else if (lb?.suggested) right = html`<a class="state link-plain" data-state="warning" href="${"#/leaderboard/" + r.id}">${icon("sparkle")}Confirm ${d.byId.contenders.get(lb.suggested)?.name || "the suggestion"}</a>`;
+  else if (lb?.suggested) right = html`<a class="state link-plain" data-state="warning" href="${APP + "/leaderboard/" + r.id}">${icon("sparkle")}Confirm ${d.byId.contenders.get(lb.suggested)?.name || "the suggestion"}</a>`;
   else {
     const ws_ = d.byId.workspaces.get(r.workspace);
     const n = Math.max(0, ...(lb?.rows || []).map((x) => x.n));
     const min = ws_?.min_outputs || 5;
-    right = n ? html`<span class="row-tight small muted"><span class="ring ring--sm" style="${"--p:" + Math.min(100, Math.round((n / min) * 100))}">${Math.min(n, min)}/${min}</span>outputs</span>` : html`<a class="small" href="${"#/runs/new?role=" + r.id}">Start a run</a>`;
+    right = n ? html`<span class="row-tight small muted"><span class="ring ring--sm" style="${"--p:" + Math.min(100, Math.round((n / min) * 100))}">${Math.min(n, min)}/${min}</span>outputs</span>` : html`<a class="small" href="${APP + "/runs/new?role=" + r.id}">Start a run</a>`;
   }
   return html`<li><div><div class="role">${r.name}</div><div class="ws">${ws}</div></div>${right}</li>`;
 }

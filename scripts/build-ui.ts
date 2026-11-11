@@ -1,7 +1,9 @@
 // bun run build:ui: build ui/src into ui/dist.
 // Static files (html, css, svg, png, ico, webmanifest) are copied; ui/src/main.js,
-// when it exists, is bundled and minified with Bun.build, with a linked source
-// map (main.js.map) so browser devtools still show the original modules.
+// when it exists, is bundled and minified with Bun.build, with linked source
+// maps (main.js.map) so browser devtools still show the original modules.
+// Pages are loaded lazily (ui/src/routes.js), so `splitting` gives a small
+// first-load bundle (main.js and the chunks it imports) plus one chunk per page.
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 import { ROOT } from "./lib/vaultbase.ts";
@@ -23,7 +25,7 @@ copy(src, dist);
 
 const entry = join(src, "main.js");
 if (existsSync(entry)) {
-  const r = await Bun.build({ entrypoints: [entry], outdir: dist, target: "browser", format: "esm", minify: true, sourcemap: "linked" });
+  const r = await Bun.build({ entrypoints: [entry], outdir: dist, target: "browser", format: "esm", minify: true, sourcemap: "linked", splitting: true, naming: { entry: "[name].[ext]", chunk: "chunks/[name]-[hash].[ext]" } });
   if (!r.success) { for (const l of r.logs) console.error(l); process.exit(1); }
 }
 console.log(`UI built into ${dist}`);

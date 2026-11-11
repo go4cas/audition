@@ -235,7 +235,7 @@ These rules bind the Claude Code Project orchestrator and every thread it starts
 4. Evidence before fixes. Read the pinned Vaultbase version's docs before using a feature. When behaviour differs from the docs, record the finding in `docs/NOTES.md` instead of guessing a workaround.
 5. Every PR passes `bun test` against a fresh Vaultbase instance, and its description includes the test output.
 6. Mock provider only. No real API keys anywhere.
-7. No frameworks, no runtime dependencies, except Arrow.js core in the UI (`@arrow-js/core`, exact version). Any dev dependency needs a one-line reason in the PR.
+7. No frameworks, no runtime dependencies, except Arrow.js core and quiver core in the UI (`@arrow-js/core`, `@go4cas/quiver`, exact versions; quiver added Nov 11, 2026, Q5 of PLATFORM-UPGRADES). Any dev dependency needs a one-line reason in the PR.
 8. Stay inside the thread's boundary. A need that crosses threads goes to the orchestrator as a question.
 9. Stop and ask me before a schema change after T0, any scope addition, or a Vaultbase version change.
 10. Each thread reports: what was done, the evidence, and open questions.

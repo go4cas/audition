@@ -2,7 +2,7 @@
 // with a live weight bar, pass mark, usual output type, and the role's tasks.
 import { html, reactive } from "@arrow-js/core";
 import { create, remove, update } from "../api.js";
-import { go } from "../router.js";
+import { APP, go } from "../lib/nav.js";
 import { dropdown, weightBar, weightTotal } from "../components/forms.js";
 import { busy, crumbs, empty, page } from "../components/page.js";
 import { TYPE_ICON, TYPE_LABEL, chip, errorToast, icon, plural, popId, toast } from "../lib/ui.js";
@@ -53,10 +53,10 @@ export default function role({ params, query }) {
         try { for (const t of d.tasks.filter((t) => t.role === r.id)) await remove("tasks", t.id); await remove("roles", r.id); toast("Role deleted"); go("/w/" + ws.id); } catch (err) { errorToast(err); }
       });
       return html`
-        ${crumbs([["Workspaces", "#/"], [ws.name, "#/w/" + ws.id], r ? (d.byId.stages.get(r.stage)?.name || "No stage") : "New role"])}
+        ${crumbs([["Workspaces", APP + "/"], [ws.name, APP + "/w/" + ws.id], r ? (d.byId.stages.get(r.stage)?.name || "No stage") : "New role"])}
         <div class="page-head">
           <div><h1>${r ? r.name : "Add a role"}</h1><p class="lede">${r ? r.description || "What this role does goes at the top of every prompt." : "A role is one job in this workflow. Contenders audition for it."}</p></div>
-          ${r ? html`<div class="row"><a class="btn" href="${"#/leaderboard/" + r.id}">${icon("leaderboard")}Leaderboard</a><a class="btn btn--primary" href="${"#/runs/new?role=" + r.id}">${icon("play")}Start a run</a></div>` : ""}
+          ${r ? html`<div class="row"><a class="btn" href="${APP + "/leaderboard/" + r.id}">${icon("leaderboard")}Leaderboard</a><a class="btn btn--primary" href="${APP + "/runs/new?role=" + r.id}">${icon("play")}Start a run</a></div>` : ""}
         </div>
         <form class="stack" @submit="${save}">
           <div class="panel"><div class="panel__body">
@@ -90,16 +90,16 @@ export default function role({ params, query }) {
           </div>
           <div class="row"><button class="btn btn--primary" type="submit">${icon("check")}${isNew ? "Add role" : "Save role"}</button>
             ${r && !runs ? html`<button class="btn btn--quiet" type="button" @click="${del}">${icon("trash")}Delete role</button>` : ""}
-            ${isNew ? html`<a class="btn btn--quiet" href="${"#/w/" + ws.id}">Cancel</a>` : ""}</div>
+            ${isNew ? html`<a class="btn btn--quiet" href="${APP + "/w/" + ws.id}">Cancel</a>` : ""}</div>
         </form>
 
         ${r ? html`<div class="panel">
-          <div class="panel__head"><h2>${icon("file")}Tasks</h2><a class="btn btn--sm" href="${"#/r/" + r.id + "/tasks/new"}">${icon("plus")}New task</a></div>
+          <div class="panel__head"><h2>${icon("file")}Tasks</h2><a class="btn btn--sm" href="${APP + "/r/" + r.id + "/tasks/new"}">${icon("plus")}New task</a></div>
           ${tasks.length ? html`<ul class="list list--hover">${tasks.map((t) => html`<li>
             ${icon(TYPE_ICON[t.output_type] || "text", "i--lg muted")}
-            <div class="grow"><a class="title" href="${"#/t/" + t.id}">${t.title}</a><div class="muted small row-tight">${t.base_ref ? html`<span>${icon("branch")} ${String(t.base_ref.repo || "").split("/").pop()}</span><span>${icon("commit")} ${String(t.base_ref.commit || "").slice(0, 7)}</span>` : html`<span>${TYPE_LABEL[t.output_type]}</span>`}${t.attachments?.length ? html`<span>${plural(t.attachments.length, "attachment")}</span>` : ""}${t.previous_version ? html`<span class="badge">Version ${versionOf(d, t)}</span>` : ""}</div></div>
+            <div class="grow"><a class="title" href="${APP + "/t/" + t.id}">${t.title}</a><div class="muted small row-tight">${t.base_ref ? html`<span>${icon("branch")} ${String(t.base_ref.repo || "").split("/").pop()}</span><span>${icon("commit")} ${String(t.base_ref.commit || "").slice(0, 7)}</span>` : html`<span>${TYPE_LABEL[t.output_type]}</span>`}${t.attachments?.length ? html`<span>${plural(t.attachments.length, "attachment")}</span>` : ""}${t.previous_version ? html`<span class="badge">Version ${versionOf(d, t)}</span>` : ""}</div></div>
             ${t.locked ? html`<span data-tip="Used in a run, so it can't change">${chip("locked", "Read-only")}</span>` : chip("draft", "Not used yet")}
-          </li>`)}</ul>` : empty("file", "No tasks yet", "Tasks are what contenders work on. Every contender gets the same task text.", html`<a class="btn btn--primary" href="${"#/r/" + r.id + "/tasks/new"}">${icon("plus")}New task</a>`)}
+          </li>`)}</ul>` : empty("file", "No tasks yet", "Tasks are what contenders work on. Every contender gets the same task text.", html`<a class="btn btn--primary" href="${APP + "/r/" + r.id + "/tasks/new"}">${icon("plus")}New task</a>`)}
         </div>` : ""}`;
     },
   });

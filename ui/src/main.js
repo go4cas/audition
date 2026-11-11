@@ -1,55 +1,54 @@
-// Audition UI entry: the page shell, routes and sign-in guard.
-// Folder layout follows quiver's conventions (pages/, layouts/, components/,
-// state/) so a later move to quiver stays cheap (TECH-SPEC tech stack).
+// Audition UI entry: quiver's router with real path URLs under
+// /api/custom/app/, the sign-in guard, and the app shell
+// (docs/PLATFORM-UPGRADES.md part C).
+import { html } from "@arrow-js/core";
+import { afterEach, beforeEach, createApp, initRouter, useRoute } from "@go4cas/quiver";
 import { auth } from "./api.js";
-import { route, start, refresh } from "./router.js";
-import { mountShell, renderPage } from "./layouts/shell.js";
+import { mountShell } from "./layouts/shell.js";
+import { errorBox, skeleton } from "./components/page.js";
 import { installPopovers, placeThumbs } from "./lib/ui.js";
+import { BASE, fromHashLink, go } from "./lib/nav.js";
 import { refreshInbox } from "./state/inbox.js";
+import { notFound, routes } from "./routes.js";
 
-import signin from "./pages/signin.js";
-import home from "./pages/home.js";
-import workspace from "./pages/workspace.js";
-import workspaceSettings from "./pages/workspace-settings.js";
-import role from "./pages/role.js";
-import task from "./pages/task.js";
-import contenders from "./pages/contenders.js";
-import contenderForm from "./pages/contender-form.js";
-import newRun from "./pages/new-run.js";
-import run from "./pages/run.js";
-import handoff from "./pages/handoff.js";
-import judge from "./pages/judge.js";
-import leaderboard from "./pages/leaderboard.js";
-import notFound from "./pages/not-found.js";
+const root = document.getElementById("root");
 
-route("/signin", signin, { bare: true, open: true });
-route("/", home);
-route("/w/new", workspaceSettings, { section: "workspaces" });
-route("/w/:id", workspace);
-route("/w/:id/settings", workspaceSettings);
-route("/w/:ws/roles/new", role);
-route("/r/:id", role);
-route("/r/:role/tasks/new", task);
-route("/t/:id", task);
-route("/contenders", contenders, { section: "contenders" });
-route("/contenders/new", contenderForm, { section: "contenders" });
-route("/contenders/:id/edit", contenderForm, { section: "contenders" });
-route("/runs/new", newRun);
-route("/runs/:id", run);
-route("/handoff/:run/:task", handoff);
-route("/judge/:run/:task", judge);
-route("/leaderboard/:role", leaderboard);
-route("*", notFound);
+async function start() {
+  // Quiver needs the Navigation API (Chrome/Edge 102+, Safari 26.2+, Firefox 147+), Q7.
+  if (!window.navigation) {
+    html`<section class="page page--narrow" data-screen="unsupported"><div class="notice" data-state="error"><div><p><strong>This browser is too old for Audition.</strong></p><p>Use a current Chrome, Edge, Safari (26.2 or later) or Firefox (147 or later).</p></div></div></section>`(root);
+    return;
+  }
 
-installPopovers();
-addEventListener("resize", placeThumbs);
-mountShell(document.getElementById("root"));
+  // Links from before path URLs (`…/app/#/runs/123`) keep working.
+  const old = fromHashLink();
+  if (old) history.replaceState(null, "", old);
 
-auth.onChange((t) => { if (!t) refresh(); });
-start({
-  before: (next) => (!auth.token && !next.route?.open ? "/signin" : null),
-  render: (next) => {
-    renderPage(next);
-    if (auth.token && !next.route?.bare) refreshInbox();
-  },
-});
+  installPopovers();
+  addEventListener("resize", placeThumbs);
+
+  // Sign-in guard: everything but /signin needs a token. The page asked for
+  // comes back after sign-in through ?next=.
+  beforeEach(({ to }) => {
+    if (auth.token || to === "/signin") return undefined;
+    return to === "/" ? "/signin" : "/signin?next=" + encodeURIComponent(to);
+  });
+  afterEach(({ status }) => {
+    scrollTo(0, 0);
+    placeThumbs();
+    if (auth.token && status === "ready" && !useRoute().meta()?.bare) refreshInbox();
+  });
+
+  await initRouter({ routes, notFound, base: BASE });
+  mountShell(root);
+  createApp({
+    target: "#main",
+    loading: () => html`<section class="page">${skeleton()}</section>`,
+    error: ({ message, retry }) => html`<section class="page page--narrow" data-screen="error">${errorBox(message, retry)}</section>`,
+  });
+
+  // Signed out (the button, or a 401): run the guard again for this page.
+  auth.onChange((t) => { if (!t) go(useRoute().path()); });
+}
+
+start();

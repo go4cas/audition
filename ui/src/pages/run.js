@@ -3,7 +3,7 @@
 // stay hidden here so judging stays blind.
 import { html, reactive } from "@arrow-js/core";
 import { custom } from "../api.js";
-import { go, onLeave } from "../router.js";
+import { APP, go } from "../lib/nav.js";
 import { busy, crumbs, page } from "../components/page.js";
 import { TYPE_ICON, avatar, chip, duration, errorToast, icon, money, num, outputChip, plural, popId, time, toast } from "../lib/ui.js";
 import { load, runLabel } from "../state/data.js";
@@ -25,7 +25,7 @@ export default function run({ params }) {
           s.live.v = v;
         } catch { /* keep the last view */ }
       }, 2000);
-      onLeave(() => clearInterval(timer));
+      s.onLeave(() => clearInterval(timer));
     },
     body: (s) => {
       const d = s.d;
@@ -47,12 +47,12 @@ export default function run({ params }) {
         return `${done} of ${plural(total(), "output")} judged`;
       };
       return html`
-        ${crumbs([["Workspaces", "#/"], [ws?.name || "Workspace", "#/w/" + r.workspace], [role?.name || "Role", "#/r/" + r.role]])}
+        ${crumbs([["Workspaces", APP + "/"], [ws?.name || "Workspace", APP + "/w/" + r.workspace], [role?.name || "Role", APP + "/r/" + r.role]])}
         <div class="page-head">
           <div><h1>${runLabel(d, r)} · ${role?.name}</h1>
-            <p class="lede row-tight"><span class="badge">${icon(r.judge === "ai" ? "ai" : "me")}Judge: ${judgeName}</span><span class="badge">${icon("time")}Started ${time(r.created)}</span><span class="badge">${plural(taskIds.length, "task")} × ${plural(r.contenders?.length || 0, "contender")}</span>${r.rerun_of ? html`<a class="badge link-plain" href="${"#/runs/" + r.rerun_of}">${icon("again")}Again from ${runLabel(d, { id: r.rerun_of })}</a>` : ""}</p></div>
+            <p class="lede row-tight"><span class="badge">${icon(r.judge === "ai" ? "ai" : "me")}Judge: ${judgeName}</span><span class="badge">${icon("time")}Started ${time(r.created)}</span><span class="badge">${plural(taskIds.length, "task")} × ${plural(r.contenders?.length || 0, "contender")}</span>${r.rerun_of ? html`<a class="badge link-plain" href="${APP + "/runs/" + r.rerun_of}">${icon("again")}Again from ${runLabel(d, { id: r.rerun_of })}</a>` : ""}</p></div>
           <div class="row">
-            <a class="btn" href="${"#/leaderboard/" + r.role}">${icon("leaderboard")}Leaderboard</a>
+            <a class="btn" href="${APP + "/leaderboard/" + r.role}">${icon("leaderboard")}Leaderboard</a>
             ${() => (v().run.status === "done" ? html`<button class="btn btn--primary" type="button" @click="${again}">${icon("again", "i--spin-on-hover")}Run again</button>` : html`<span data-tip="Available when every output is in and judged" tabindex="0"><button class="btn" type="button" disabled>${icon("again")}Run again</button></span>`)}
           </div>
         </div>
@@ -83,8 +83,8 @@ export default function run({ params }) {
           return html`<div class="panel">
             <div class="panel__head"><h2 class="h-md">${icon(TYPE_ICON[t?.output_type] || "text")}${t?.title || "Task"}</h2>
               <div class="row-tight">
-                ${() => (waiting() ? html`<a class="btn btn--sm btn--primary" href="${"#/handoff/" + r.id + "/" + tid}">${icon("paste")}Paste replies</a>` : "")}
-                ${() => (judgeable() ? html`<a class="btn btn--sm" href="${"#/judge/" + r.id + "/" + tid}">${icon("judge")}Open judging</a>` : html`<span class="muted small">Judging starts as outputs arrive</span>`)}
+                ${() => (waiting() ? html`<a class="btn btn--sm btn--primary" href="${APP + "/handoff/" + r.id + "/" + tid}">${icon("paste")}Paste replies</a>` : "")}
+                ${() => (judgeable() ? html`<a class="btn btn--sm" href="${APP + "/judge/" + r.id + "/" + tid}">${icon("judge")}Open judging</a>` : html`<span class="muted small">Judging starts as outputs arrive</span>`)}
               </div></div>
             <div class="table-wrap"><table>
               <thead><tr><th>Contender</th><th class="col-state">State</th><th class="num">Tokens</th><th class="num">Time</th><th></th></tr></thead>
@@ -102,7 +102,7 @@ function attemptRow(d, r, a) {
   const tokens = a.tokens_in != null && a.tokens_out != null ? a.tokens_in + a.tokens_out : null;
   const pop = popId();
   let action = "";
-  if (a.status === "waiting") action = html`<a class="btn btn--sm btn--primary" href="${"#/handoff/" + r.id + "/" + a.task + "?output=" + a.id}">${icon("paste")}Paste</a>`;
+  if (a.status === "waiting") action = html`<a class="btn btn--sm btn--primary" href="${APP + "/handoff/" + r.id + "/" + a.task + "?output=" + a.id}">${icon("paste")}Paste</a>`;
   else if (["submitted", "judged"].includes(a.status)) action = html`<button class="icon-btn" type="button" popovertarget="${pop}" aria-label="Output details">${icon("more")}</button>
     <div class="pop" id="${pop}" popover><div class="pop__head">${icon("file")}Output details</div><div class="pop__body"><dl>
       <dt>${icon("tokens")}Tokens in</dt><dd>${num(a.tokens_in)}</dd><dt>${icon("tokens")}Tokens out</dt><dd>${num(a.tokens_out)}</dd>

@@ -5,6 +5,7 @@ import { custom } from "../api.js";
 import { busy, crumbs, empty, page } from "../components/page.js";
 import { avatar, chip, confetti, date, duration, errorToast, icon, money, plural, popId, short, stars1, toast } from "../lib/ui.js";
 import { load } from "../state/data.js";
+import { APP } from "../lib/nav.js";
 
 const pos = (v) => Math.max(0, Math.min(100, ((Number(v) - 1) / 4) * 100));
 const TERM = { quality: "Quality", tokens: "Tokens", time: "Time" };
@@ -95,10 +96,10 @@ export default function leaderboard({ params }) {
       };
 
       return html`
-        ${crumbs([["Workspaces", "#/"], [ws?.name || "Workspace", "#/w/" + role.workspace], [role.name, "#/r/" + role.id]])}
+        ${crumbs([["Workspaces", APP + "/"], [ws?.name || "Workspace", APP + "/w/" + role.workspace], [role.name, APP + "/r/" + role.id]])}
         <div class="page-head">
           <div><h1>${role.name}</h1><p class="lede">Every scored output across all runs. A champion needs ${plural(min, "output")} and an average above ${role.pass_mark} stars.</p></div>
-          <a class="btn" href="${latestRun ? "#/runs/" + latestRun.id : "#/runs/new?role=" + role.id}">${icon("again", "i--spin-on-hover")}${latestRun ? "Run again for more data" : "Start a run"}</a>
+          <a class="btn" href="${latestRun ? APP + "/runs/" + latestRun.id : APP + "/runs/new?role=" + role.id}">${icon("again", "i--spin-on-hover")}${latestRun ? "Run again for more data" : "Start a run"}</a>
         </div>
         ${champBox()}
         <div class="panel">

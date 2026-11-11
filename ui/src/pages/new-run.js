@@ -2,7 +2,7 @@
 // the call count (the spending guard) from POST /runs/preview before starting.
 import { html, reactive } from "@arrow-js/core";
 import { custom } from "../api.js";
-import { go } from "../router.js";
+import { APP, go } from "../lib/nav.js";
 import { dropdown, seg } from "../components/forms.js";
 import { busy, crumbs, empty, page } from "../components/page.js";
 import { TYPE_ICON, TYPE_LABEL, avatar, bump, errorToast, icon, num, plural, popId, toast } from "../lib/ui.js";
@@ -70,15 +70,15 @@ export default function newRun({ query }) {
       refreshPreview();
       const w = ws();
       return html`
-        ${crumbs(w ? [["Workspaces", "#/"], [w.name, "#/w/" + w.id]] : [["Workspaces", "#/"]])}
+        ${crumbs(w ? [["Workspaces", APP + "/"], [w.name, APP + "/w/" + w.id]] : [["Workspaces", APP + "/"]])}
         <h1>Start a run</h1>
-        ${!d.roles.length ? empty("rubric", "No roles yet", "Add a role with a rubric and some tasks first.", html`<a class="btn btn--primary" href="#/">Go to workspaces</a>`) : html`
+        ${!d.roles.length ? empty("rubric", "No roles yet", "Add a role with a rubric and some tasks first.", html`<a class="btn btn--primary" href="${APP + "/"}">Go to workspaces</a>`) : html`
         <div class="run-layout">
           <form class="stack minw0" @submit="${(e) => e.preventDefault()}" @change="${refreshPreview}">
             <div class="field"><label for="nr-role">Role</label>${dropdown({ id: "nr-role", label: "Role", options: () => roleOpts, value: () => f.role, onChange: (v) => { s.pickRole(v); refreshPreview(); } })}</div>
             <fieldset class="stack-sm plain">
               <legend class="eyebrow">${icon("file")}Tasks</legend>
-              ${() => { const tasks = f.role ? latestTasks(d, f.role) : []; return tasks.length ? html`<div class="check-list">${tasks.map((t) => html`<label class="check"><input type="checkbox" checked="${() => f.tasks.includes(t.id)}" @change="${(e) => toggle(f.tasks, t.id, e.target.checked)}"><span class="check__box">${icon("check")}</span><span><strong>${t.title}</strong><br><span class="muted small row-tight">${icon(TYPE_ICON[t.output_type])}${TYPE_LABEL[t.output_type]}</span></span></label>`)}</div>` : html`<p class="small muted">This role has no tasks yet. <a href="${"#/r/" + f.role + "/tasks/new"}">Add one</a></p>`; }}
+              ${() => { const tasks = f.role ? latestTasks(d, f.role) : []; return tasks.length ? html`<div class="check-list">${tasks.map((t) => html`<label class="check"><input type="checkbox" checked="${() => f.tasks.includes(t.id)}" @change="${(e) => toggle(f.tasks, t.id, e.target.checked)}"><span class="check__box">${icon("check")}</span><span><strong>${t.title}</strong><br><span class="muted small row-tight">${icon(TYPE_ICON[t.output_type])}${TYPE_LABEL[t.output_type]}</span></span></label>`)}</div>` : html`<p class="small muted">This role has no tasks yet. <a href="${APP + "/r/" + f.role + "/tasks/new"}">Add one</a></p>`; }}
             </fieldset>
             <fieldset class="stack-sm plain">
               <legend class="eyebrow">${icon("contenders")}Contenders</legend>
@@ -87,7 +87,7 @@ export default function newRun({ query }) {
             <div class="field">
               <span class="label" id="nr-judge-label">Who judges</span>
               ${() => seg({ name: "nr-judge", labelId: "nr-judge-label", value: () => f.judge, onChange: (v) => { f.judge = v; refreshPreview(); }, options: [{ value: "me", label: "Me", icon: "me" }, { value: "ai", label: judge() ? "AI · " + judge().name : "AI", icon: "ai" }], disabled: () => false })}
-              ${() => (!judge() ? html`<span class="hint">To let an AI judge, pick one in the <a href="${"#/w/" + (ws()?.id || "") + "/settings"}">workspace settings</a>.</span>` : "")}
+              ${() => (!judge() ? html`<span class="hint">To let an AI judge, pick one in the <a href="${APP + "/w/" + (ws()?.id || "") + "/settings"}">workspace settings</a>.</span>` : "")}
             </div>
             ${() => (sum().warnings || []).map((w) => html`<div class="notice" data-state="warning">${icon("warning")}<div><strong>${w}</strong> A judge may favour its own family. You can go ahead, or judge this run yourself.</div></div>`)}
             ${() => (f.previewError ? html`<div class="notice" data-state="error">${icon("error")}<div>${f.previewError}</div></div>` : "")}
