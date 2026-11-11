@@ -109,4 +109,14 @@ describe("hooks on a running instance", () => {
   test("a coding task's repo reference needs a repo and a commit", async () => {
     expect((await h.api("owner", "POST", "/api/v1/tasks", { role: f.role.id, title: "Code", prompt: "<p>x</p>", base_ref: { repo: "github.com/x/y" } })).status).toBe(422);
   });
+  // Vaultbase 0.44 answers 400 to unknown body keys on create and update
+  // (they used to be ignored). A record the UI fetched and saves back as it
+  // came, system fields included, must still be accepted.
+  test("a fetched record saved back as it came is accepted (0.44 unknown-key check)", async () => {
+    const got = (await h.api("owner", "GET", `/api/v1/contenders/${f.contender.id}`)).body.data;
+    const r = await h.api("owner", "PATCH", `/api/v1/contenders/${f.contender.id}`, { ...got, name: "Saved back" });
+    expect(r.status).toBe(200);
+    expect(r.body.data.name).toBe("Saved back");
+    expect((await h.api("owner", "PATCH", `/api/v1/contenders/${f.contender.id}`, { not_a_field: 1 })).status).toBe(400);
+  });
 });

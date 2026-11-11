@@ -1,6 +1,6 @@
 // lib/files.ts attaches a file from server code that GET /api/v1/files/…
-// serves (TECH-SPEC §12, "Mock files"). Also records finding F9: the 0.40.2
-// upload endpoint refuses every multipart body.
+// serves (TECH-SPEC §12, "Mock files"). Also records finding F9: the
+// 0.38-0.41.0 upload endpoint refused every multipart body; 0.41.1 fixed it.
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { boot, fixtures, type Harness } from "./harness.ts";
 import { testImage } from "../vb_hooks/lib/png.ts";
@@ -60,13 +60,23 @@ test("the seed route is admin only", async () => {
   expect(r.status).toBe(403);
 });
 
-test("F9: Vaultbase 0.40.2's upload endpoint refuses multipart bodies (flips when fixed)", async () => {
-  for (const token of [h.adminToken, h.ownerToken]) {
-    const form = new FormData();
-    form.append("file", new File(["hello"], "a.txt", { type: "text/plain" }));
-    const r = await fetch(`${h.url}/api/v1/files/tasks/${f.task.id}/attachments`, { method: "POST", headers: { authorization: `Bearer ${token}` }, body: form });
-    const body = await r.json();
-    expect(r.status).toBe(400);
-    expect(body.error).toContain("multipart/form-data");
-  }
+// Vaultbase's own upload stores the file only; as its admin does, the client
+// then saves the returned name into the record's field with a PATCH.
+test("F9 (fixed in 0.41.1): the owner uploads through Vaultbase's own endpoint, then saves the name on the record", async () => {
+  const form = new FormData();
+  form.append("file", new File(["hello from the owner"], "owner.txt", { type: "text/plain" }));
+  const r = await fetch(`${h.url}/api/v1/files/tasks/${f.task.id}/attachments`, { method: "POST", headers: { authorization: `Bearer ${h.ownerToken}` }, body: form });
+  const body = await r.json();
+  expect(r.status).toBe(200);
+  const up = (Array.isArray(body.data) ? body.data : [body.data])[0];
+  expect(up.filename).toMatch(/^[0-9a-f-]{36}\.txt$/);
+
+  const before = (await h.api("owner", "GET", `/api/v1/tasks/${f.task.id}`)).body.data;
+  expect(before.attachments).not.toContain(up.filename);
+  const saved = await h.api("owner", "PATCH", `/api/v1/tasks/${f.task.id}`, { attachments: [...before.attachments, up.filename] });
+  expect(saved.status).toBe(200);
+  expect(saved.body.data.attachments).toContain(up.filename);
+  const res = await fetch(`${h.url}/api/v1/files/${up.filename}`, { headers: { authorization: `Bearer ${h.ownerToken}` } });
+  expect(res.status).toBe(200);
+  expect(await res.text()).toBe("hello from the owner");
 });

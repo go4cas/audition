@@ -1,7 +1,7 @@
 // POST /api/custom/seed/attach: admin only. Attaches a seed fixture to a
-// record through lib/files.ts, because Vaultbase 0.40.2's upload endpoint
-// refuses every multipart body (docs/NOTES.md, finding F9). Only the seed
-// script calls it; the owner's upload path is an open question for T2/T4.
+// record through lib/files.ts. It was built because Vaultbase's upload
+// endpoint refused every multipart body until 0.41.1 (docs/NOTES.md, F9).
+// Only the seed script calls it; the owner uploads through files-upload.ts.
 import { defineRoute } from "vaultbase";
 import { attachFile } from "../lib/files.ts";
 import { fileDeps } from "../lib/route-deps.ts";

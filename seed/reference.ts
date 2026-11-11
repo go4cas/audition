@@ -198,8 +198,9 @@ export async function seedReference(base: string, adminToken: string): Promise<S
     report.created.push(`${collection}: ${label}`);
     return r.body.data as Rec;
   }
-  // Vaultbase 0.40.2's upload endpoint refuses multipart bodies (NOTES.md F9),
-  // so fixtures go through the admin-only seed route, which uses lib/files.ts.
+  // Fixtures go through the admin-only seed route, which uses lib/files.ts.
+  // (Written while Vaultbase's upload endpoint refused multipart bodies, F9,
+  // fixed in 0.41.1; moving off it is part B of docs/PLATFORM-UPGRADES.md.)
   async function attach(collection: string, rec: Rec, field: string, names: string[]): Promise<void> {
     for (const name of names) {
       const ext = name.slice(name.lastIndexOf("."));

@@ -11,32 +11,42 @@ Where this document and `SPEC.md` disagree, this PR also edits `SPEC.md`, and th
 | | |
 | --- | --- |
 | Product | Vaultbase, [vaultbase-sh/vaultbase](https://github.com/vaultbase-sh/vaultbase) |
-| Pinned version | **v0.40.2** (released Nov 6, 2026; tag commit `99bc1072697d70b3193c243c600f1aace14c4350`). Cas approved the move from 0.37.x on Nov 6, 2026, for the security fixes in 0.38 and 0.39. |
-| Binary | `https://github.com/vaultbase-sh/vaultbase/releases/download/v0.40.2/<asset>` |
+| Pinned version | **v0.44.0** (released Nov 10, 2026; tag commit `97efba2fab4d1e4f9f1344aaa087d5838f2bd68a`). Cas approved the move from 0.40.2 on Nov 11, 2026 (`docs/PLATFORM-UPGRADES.md`, part A), for the upload fix (F9) and `helpers.records`. Earlier pins: 0.37.x, then 0.40.2 (Nov 6, 2026, for the security fixes in 0.38 and 0.39). |
+| Binary | `https://github.com/vaultbase-sh/vaultbase/releases/download/v0.44.0/<asset>` |
 | Checksums | From the release's `SHA256SUMS` file, and checked against a downloaded binary |
 
-SHA-256 for v0.40.2 (from `SHA256SUMS`):
+SHA-256 for v0.44.0 (from `SHA256SUMS`):
 
 | Asset | SHA-256 |
 | --- | --- |
-| `vaultbase-linux-x64` | `b8181569514a113870bba88a26418f0c2d60ff296a1db5a97e4f413c217af757` |
-| `vaultbase-linux-x64-musl` | `ecbd47e0bead283b8286c664321e927cbd1b0012f8f6b8d634ddcf33dffbd5bc` |
-| `vaultbase-linux-arm64` | `7430d4725bfe38a20edd44292290b87ef03e860156b9b1b514933fab54f54be2` |
-| `vaultbase-macos-arm64` | `6a30411df608244e8a2bab95117ce71baa72467084c91e7201c121de7fee6577` |
-| `vaultbase-macos-x64` | `cd7d76832c93a326adde4d3f9ee31ad93baeb0279d43f8a1201c30b93503c1e6` |
-| `vaultbase-windows-x64.exe` | `4d1027d7f50d95df678f8e52b1ef8a9dd977f3dad9c58c83a675731cb6369475` |
+| `vaultbase-linux-x64` | `a69c8f49097fedcfe11d7c3ce2044e2e0bfb0b6b9e21f6a74df339d8f38e00a3` |
+| `vaultbase-linux-x64-musl` | `e1d334b287cdae2dba3ca5817a87abea4f1fc0f7696a107e4a18e8ee0dd6306b` |
+| `vaultbase-linux-arm64` | `a18fb917daa1d46d6b7c82b370c74c596e92f79df216ef857a99349e218cc74f` |
+| `vaultbase-macos-arm64` | `85f314e005ea72ef5ea04034a89360a047071434c2b4e0beaed268556f4297bc` |
+| `vaultbase-macos-x64` | `be7f125766308d256e0e838b4245a0550e09b4d40e3e157f53716a4a95e7ffe5` |
+| `vaultbase-windows-x64.exe` | `ae61701d4a58e85fef08c08aeb2bcf00920ec01021829635252ff833ab7edf20` |
 
-The `vaultbase-linux-x64` binary was downloaded in this session (126,728,368 bytes) and its SHA-256 matched the line above.
+The `vaultbase-linux-x64` binary was downloaded by `bun run setup` (126,748,848 bytes) and its SHA-256 matched the line above.
 
 **T0 records the pin in the repo** as `vaultbase.lock.json`: version, the release URL, and the SHA-256 for each asset. The download script refuses a binary whose checksum doesn't match. Since 0.39.1, releases also carry a Sigstore bundle (`<asset>.sigstore.json`). Verifying it needs `cosign`, so it is optional, not part of `bun run setup`.
 
-**How this was checked.** `docs.vaultbase.dev` always shows the latest release, not the pinned one, so every claim about behaviour below was read from the source at the release's git tag (file paths are given). The analysis was done at v0.37.0 and re-checked at v0.40.2. The files this design depends on (`code-files.ts`, `hooks.ts`, `hook-helpers-extra.ts`, `routes.ts`, `api-paths.ts`, `migrations.ts`, `hook-egress.ts`, `script-limits.ts`) are identical between the two tags. `src/index.ts` changed by 11 lines: setup-admin email checking, and priming rule case folding at startup. Neither affects Audition. The other behaviours relied on were re-read at v0.40.2 and still hold: encrypted fields decrypted on read (`records.ts`), the upload handler and its MIME allowlist (`api/files.ts`, `core/sec.ts`), and routes that parse only JSON and text bodies.
+**How this was checked.** `docs.vaultbase.dev` always shows the latest release, not the pinned one, so every claim about behaviour below was read from the source at the release's git tag (file paths are given). The analysis was done at v0.37.0 and re-checked at v0.40.2. The files this design depends on (`code-files.ts`, `hooks.ts`, `hook-helpers-extra.ts`, `routes.ts`, `api-paths.ts`, `migrations.ts`, `hook-egress.ts`, `script-limits.ts`) are identical between the two tags. `src/index.ts` changed by 11 lines: setup-admin email checking, and priming rule case folding at startup. Neither affects Audition. The other behaviours relied on were re-read at v0.40.2 and still hold: encrypted fields decrypted on read (`records.ts`), the upload handler and its MIME allowlist (`api/files.ts`, `core/sec.ts`), and routes that parse only JSON and text bodies. For v0.44.0 the changelog and release notes of 0.41.0 to 0.44.0 and the source diff `v0.40.2..v0.44.0` of these files were read (`docs/PLATFORM-UPGRADES.md`, part A), and `bun test` passes on the binary.
 
 The upgrade notes between 0.37.0 and 0.40.2 that touch Audition:
 
 - **0.40.0: new collections keep record history by default.** The snapshot sets `history_enabled` explicitly on every collection (`false`, except `tasks`, `contenders` and `roles`, which are cheap to keep).
 - **0.39.0: changing a table that a view reads can be refused (409)** while the view depends on it. A later schema change to `attempts`, `runs` or `verdicts` may therefore have to drop and recreate the `leaderboard` view. T0 notes how in `NOTES.md`.
 - **0.39.0: admin-only views answer 404 to non-admins.** The `leaderboard` view's rules are `OWNER`, so this doesn't apply.
+
+The upgrade notes between 0.40.2 and 0.44.0 that touch Audition (none of the five changelogs has a **Security** section):
+
+- **0.41.1: uploads to `POST /api/v1/files/...` work again (F9 fixed).** The endpoint stores the file and answers its name; the client then saves the name into the record's field with a normal update, as Vaultbase's admin does. Audition's own upload route stays for now; moving to the built-in endpoint is part B (Q1).
+- **0.42.0: registering a known email answers 409** (was 200). Audition registers the owner once, and provision checks for an existing owner first.
+- **0.42.0: the `vaultbase` CLI rejects unknown commands and options** (exit 2). `deploy/audition.service` and `bun run dev` use only `--apply-snapshot` and `--snapshot-mode sync`, which 0.44.0 accepts.
+- **0.42.0: `vaultbase setup-admin` follows the password policy, 12 characters by default** (was 8). `RELEASE.md` says so.
+- **0.43.0: `helpers.records.create/update/delete`** for hooks, routes and workers, writing through the records API path (history, realtime, webhooks). Not used yet; that is part B.
+- **0.44.0: a Bearer token the server doesn't accept answers 401** on the records, files and batch APIs (was: treated as anonymous). The UI already signs the owner out on any 401.
+- **0.44.0: unknown `sort`, `expand` or `fields` names, and unknown body keys on create and update, answer 400** (were ignored). System fields (`id`, `created`, `updated`, …) are still accepted, so a record saved back as it was fetched works; `test/validation.test.ts` checks both.
 
 ### Upgrade policy
 
@@ -53,13 +63,13 @@ Vaultbase ships about one release a day and is pre-1.0, where a minor version ma
    - The PR quotes the changelog sections it read.
 6. **Production upgrades** (documented in `docs/RELEASE.md`) follow these steps: stop, a cold copy of the whole data folder, swap the binary, start, smoke test. (`vaultbase backup` was planned here, but it copies the database only, without files or keys: NOTES.md RL2.) Vaultbase upgrades a data folder on start and has no downgrade, so **rollback means restoring the backup** with the old binary, never starting the old binary on upgraded data.
 
-T0 builds `vb:bump` and `test/upgrade.test.ts`. The upgrade test can only be meaningful from the first upgrade on, so in T0 it runs the old and new version as the same pinned binary.
+T0 builds `vb:bump` and `test/upgrade.test.ts`. The upgrade test can only be meaningful from the first upgrade on, so in T0 it runs the old and new version as the same pinned binary. The first real run was 0.40.2 → 0.44.0 (Nov 11, 2026; NOTES.md, "Vaultbase 0.44 upgrade"). `vb:bump` doesn't fetch the tag commit; add `tag_commit` to the lock by hand (`git ls-remote https://github.com/vaultbase-sh/vaultbase 'refs/tags/v<version>^{}'`).
 
 ## Tech stack
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Backend platform | Vaultbase v0.40.2: one binary with SQLite, auth, REST, files, hooks, queues and encrypted fields | Spec decision. It does the backend work, so Audition writes only its own logic. |
+| Backend platform | Vaultbase v0.44.0: one binary with SQLite, auth, REST, files, hooks, queues and encrypted fields | Spec decision. It does the backend work, so Audition writes only its own logic. |
 | Database | SQLite, inside Vaultbase (the default; one file in the data folder) | Single owner, single server. Postgres is not needed. |
 | Server logic | TypeScript files in `vb_hooks/` (hooks, custom routes, queue workers), run by Vaultbase's built-in Bun | Spec rule: logic lives in the repo |
 | Schema | `schema/snapshot.json`, applied by `vaultbase --apply-snapshot` | Q1 |
@@ -429,7 +439,7 @@ All routes need the owner (`requireAuth: true`, plus a check that the caller is 
 | `GET /leaderboard/:roleId` | T3 | `{ terms_used: ["quality", "tokens"], dropped: [{ term: "time", reason: "Codex (manual) has no time data" }], rows: [{ contender, name, group, n, mean_score, ci_low, ci_high, mean_tokens, mean_time_ms, mean_cost, fitness, qualifies, enough_data }], suggested: contenderId \| null, casting: { contender, since } \| null }` |
 | `POST /castings` | T3 | `{ role, contender, rationale? }`. Refuses unless the contender qualifies (§11). Creates a confirmed casting with `suggested_by` set to `system` if it was the suggestion, otherwise `human`. |
 | `DELETE /connections/:id/key` | T1 | Removes the stored key (F2) |
-| `POST /files/:collection/:id/:field` | T2 | The owner's upload path while Vaultbase's own is broken (NOTES.md F9, F15, O6). Multipart, parts named `file`. Only `attempts/output_files` (handoff, waiting) and `tasks/attachments` (unlocked). 25 MB per file, Phase 1 types, all or nothing. Returns `{ data: record }`. |
+| `POST /files/:collection/:id/:field` | T2 | The owner's upload path, built while Vaultbase's own was broken (NOTES.md F9, fixed in 0.41.1; F15, O6). Kept until part B of `docs/PLATFORM-UPGRADES.md`. Multipart, parts named `file`. Only `attempts/output_files` (handoff, waiting) and `tasks/attachments` (unlocked). 25 MB per file, Phase 1 types, all or nothing. Returns `{ data: record }`. |
 
 ## 8. Workers and the run lifecycle
 
