@@ -33,7 +33,7 @@ export default defineRoute({
     const since = Math.floor(Date.now() / 1000);
     const suggested_by = board.suggested === b.contender ? "system" : "human";
     const rationale = typeof b.rationale === "string" ? b.rationale.trim() : "";
-    const id = await insertRecord(ctx.helpers.sql, "castings", {
+    const id = await insertRecord(ctx.helpers, "castings", {
       role: b.role, contender: b.contender, since, rationale, suggested_by, confirmed: true,
     });
     return { casting: { id, role: b.role, contender: b.contender, since, rationale, suggested_by, confirmed: true } };

@@ -4,7 +4,7 @@
 import { mockSeed, ProviderError, type FileOut, type GenerateInput, type GenerateResult } from "./providers/mock.ts";
 import { refreshRunStatus } from "./runs.ts";
 import { neutralName, storeAiVerdict, type Scores } from "./scoring.ts";
-import { updateRecord, type Sql } from "./store.ts";
+import { updateRecord, type Records, type Sql, type Store } from "./store.ts";
 import { parseJson, type Criterion } from "./validation.ts";
 
 export const JUDGE_SYSTEM =
@@ -119,8 +119,10 @@ export function parseJudgeReply(text: string, rubric: Criterion[]): { scores: Sc
 type Rec = Record<string, unknown>;
 export type Generate = (input: GenerateInput) => Promise<GenerateResult>;
 
-export interface JudgeDeps {
+export interface JudgeDeps extends Store {
   sql: Sql;
+  /** helpers.records: verdicts and attempts are written through the records API. */
+  records: Records;
   /** helpers.find: decoded records. */
   find(collection: string, id: string): Promise<Rec | null>;
   /** helpers.query: used for the judge's key on connection_keys (F16). */
@@ -175,8 +177,8 @@ export async function judgeAttempt(deps: JudgeDeps, attemptId: string): Promise<
 
   const fail = async (error: string, tries: number): Promise<JudgeOutcome> => {
     const message = `AI judging failed: ${error}`;
-    await updateRecord(sql, "attempts", attemptId, { error: message });
-    await refreshRunStatus(sql, String(run["id"]));
+    await updateRecord(deps, "attempts", attemptId, { error: message });
+    await refreshRunStatus(deps, String(run["id"]));
     return { outcome: "failed", error: message, tries };
   };
 
@@ -231,8 +233,8 @@ export async function judgeAttempt(deps: JudgeDeps, attemptId: string): Promise<
       continue;
     }
     const snapshot = rubric.map((c) => ({ name: c.name, weight: c.weight, guidance: c.guidance ?? "" }));
-    const v = await storeAiVerdict(sql, { attempt: attemptId, run: String(run["id"]), judgeContender: String(judge["id"]), scores: parsed.scores, rubric: snapshot });
-    if (v.status === "overridden") await refreshRunStatus(sql, String(run["id"]));
+    const v = await storeAiVerdict(deps, { attempt: attemptId, run: String(run["id"]), judgeContender: String(judge["id"]), scores: parsed.scores, rubric: snapshot });
+    if (v.status === "overridden") await refreshRunStatus(deps, String(run["id"]));
     return { outcome: "judged", verdict: v.id, status: v.status, tries: tryNumber };
   }
   return fail(`${lastError} (after one retry)`, 2);

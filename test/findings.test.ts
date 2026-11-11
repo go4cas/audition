@@ -10,24 +10,27 @@ afterAll(async () => { await h?.cleanup(); });
 
 const probe = (q: string, body?: unknown) => h.api("admin", "POST", `/api/custom/test/probe?q=${q}`, body ?? {});
 
-test("F1: hook helpers can read (find, query) and run SQL, but have no create or update", async () => {
+test("F1 (fixed in 0.43): hook helpers can read (find, query), run SQL, and write through helpers.records", async () => {
   const keys: string[] = (await probe("helpers")).body.data;
   expect(keys).toContain("find");
   expect(keys).toContain("query");
   expect(keys).toContain("sql");
-  for (const k of ["create", "update", "save", "insert", "createRecord", "updateRecord"]) expect(keys).not.toContain(k);
+  expect(keys).toContain("records");
 });
 
-test("F1: a store.ts write leaves no record history; a REST write does", async () => {
+test("F1 (fixed in 0.43): a store.ts write goes through the records API and shows in record history as system", async () => {
   const f = await fixtures(h);
   await h.api("owner", "PATCH", `/api/v1/tasks/${f.task.id}`, { title: "Via REST" });
-  const viaRest = await h.api("admin", "GET", `/api/v1/tasks/${f.task.id}/history`);
-  const restCount = viaRest.body.data.data.length;
+  const viaRest = (await h.api("admin", "GET", `/api/v1/tasks/${f.task.id}/history`)).body.data.data;
   await h.store("update", "tasks", { title: "Via store" }, f.task.id);
-  const viaStore = await h.api("admin", "GET", `/api/v1/tasks/${f.task.id}/history`);
-  expect(viaRest.status).toBe(200);
-  expect(restCount).toBeGreaterThan(0);
-  expect(viaStore.body.data.data.length).toBe(restCount);
+  const viaStore = (await h.api("admin", "GET", `/api/v1/tasks/${f.task.id}/history`)).body.data.data;
+  expect(viaStore.length).toBe(viaRest.length + 1);
+  const newest = viaStore.find((e: { snapshot?: { title?: string } }) => e.snapshot?.title === "Via store");
+  expect(newest).toBeDefined();
+  expect(newest.actor_type).toBeNull();
+  expect(newest.actor_id).toBeNull();
+  const owner = viaRest.find((e: { snapshot?: { title?: string } }) => e.snapshot?.title === "Via REST");
+  expect(owner.actor_type).toBe("user");
 });
 
 test("F2: an encrypted field comes back decrypted to whoever may read it", async () => {

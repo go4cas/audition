@@ -106,10 +106,10 @@ export const custom = {
 
 // ---------- Files ----------
 // Uploads go through Audition's owner upload route (multipart, parts named
-// `file`). It was built while Vaultbase's own endpoint was broken (NOTES.md F9,
-// fixed in 0.41.1); the move to it is part B of docs/PLATFORM-UPGRADES.md.
+// `file`). Vaultbase's own endpoint works since 0.41.1 (F9) but can't take
+// Markdown, CSV or zip files (NOTES.md W1), so the route stays.
 // F4: the server checks types by extension; we also set a MIME type the
-// Vaultbase allowlist accepts, in case uploads move back to /api/v1/files.
+// Vaultbase allowlist accepts.
 const TEXTLIKE = /\.(md|markdown|txt|csv|log)$/i;
 export function uploadMime(file) {
   if (TEXTLIKE.test(file.name)) return "text/plain";

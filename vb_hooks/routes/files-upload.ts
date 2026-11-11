@@ -1,11 +1,17 @@
 // POST /api/custom/files/:collection/:id/:field: the owner's upload path.
-// It stood in for Vaultbase's own upload endpoint, which refused every
-// multipart body until 0.41.1 (docs/NOTES.md, F9; the move to it is part B
-// of docs/PLATFORM-UPGRADES.md). A custom route can read the
-// multipart body itself through ctx.req, so this takes a normal form upload
-// (one or more parts named `file`) and applies the checks the files API and
-// the update rules would: owner only, the record must be writable, 25 MB per
-// file, and the Phase 1 types (F4). Nothing is attached unless every file passes.
+// It takes a normal form upload (one or more parts named `file`) and applies
+// the checks the files API and the update rules would: owner only, the record
+// must be writable, 25 MB per file, and the Phase 1 types by extension with a
+// magic-byte check (F4). Nothing is attached unless every file passes. The
+// record's field is then set through the records API (lib/files.ts).
+//
+// Why not Vaultbase's own upload endpoint, now that F9 is fixed (0.41.1)?
+// Checked for PLATFORM-UPGRADES Q1 (docs/NOTES.md, W1): Bun's multipart
+// parser replaces each part's declared type with the type of its file name
+// (notes.md arrives as text/markdown, bundle.zip as application/zip), and
+// Vaultbase's global upload allowlist has neither, nor text/csv. So the
+// built-in endpoint refuses four of the Phase 1 types, whatever the client
+// declares. This route stays until Vaultbase can take them.
 import { defineRoute } from "vaultbase";
 import { attachFile } from "../lib/files.ts";
 import { uploadTargetError, checkUpload, storedMime } from "../lib/handoff.ts";

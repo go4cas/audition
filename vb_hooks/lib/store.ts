@@ -1,11 +1,17 @@
-// Every server-side write goes through here (TECH-SPEC F1). Hook, route and
-// worker helpers can read records but not create or update them, so writes
-// use helpers.sql. A SQL write skips record hooks, record history and
-// realtime events: callers must not rely on any of those.
+// Every server-side record write goes through here, and through Vaultbase's
+// records API: helpers.records (Vaultbase 0.43+, TECH-SPEC F1). A write takes
+// the same path as /api/v1/...: field validation, the collection's own
+// before- and after-hooks, record history, realtime events and webhooks. No
+// API rules apply (trusted server code), and Vaultbase passes no user, so the
+// hooks see `auth === null` and record history shows the write as system.
 //
-// The storage form of each field is read from the collection's own schema,
-// so a value written here reads back through REST exactly like one written
-// through REST (checked by test/store.test.ts).
+// Two writes still use helpers.sql, on purpose (docs/NOTES.md, F1):
+//   - the generate worker's claim of a queued attempt (lib/runs.ts): it needs
+//     "only if still queued", which helpers.records.update has no form of;
+//   - storing a file made by server code (lib/files.ts): Vaultbase has no
+//     server-side file helper, so the file and its vaultbase_files row are
+//     written directly. The record's file field is set through here.
+// test/store.test.ts holds the grep test that keeps it at those two.
 
 export interface Sql {
   query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
@@ -13,91 +19,66 @@ export interface Sql {
   exec(sql: string, params?: unknown[]): Promise<{ changes: number }>;
 }
 
-interface FieldDef { name: string; type: string; options?: { multiple?: boolean; encrypted?: boolean } }
+type Rec = Record<string, unknown>;
 
-const IDENT = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/;
-const q = (name: string) => {
-  if (!IDENT.test(name)) throw new Error(`store: invalid name '${name}'`);
-  return `"${name}"`;
-};
+/** helpers.records: Vaultbase's server-side records API. */
+export interface Records {
+  create(collection: string, data: Rec): Promise<Rec>;
+  update(collection: string, id: string, data: Rec): Promise<Rec>;
+  delete(collection: string, id: string): Promise<void>;
+}
+
+/** What a write needs: helpers.records, and helpers.sql to read the schema. */
+export interface Store {
+  sql: Sql;
+  records: Records;
+}
 
 export class StoreError extends Error {}
 
-async function fieldsOf(sql: Sql, collection: string): Promise<Map<string, FieldDef>> {
+/**
+ * Who a hook is running for: the admin, or Audition's own server code (a
+ * helpers.records write carries no user, so `auth` is null). Every API rule
+ * of the collections Audition's hooks guard needs a signed-in caller, so an
+ * anonymous REST request is refused before it reaches a hook
+ * (test/rules.test.ts).
+ */
+export const isTrusted = (auth: { type?: string } | null | undefined): boolean => !auth || auth.type === "admin";
+
+const SYSTEM = new Set(["id", "created", "updated", "created_at", "updated_at", "collectionId", "collectionName", "expand"]);
+
+/**
+ * helpers.records ignores keys that aren't fields (the REST API answers 400
+ * for them since 0.44). Server code should never send one, so a typo fails
+ * loudly here instead of being dropped.
+ */
+async function checkFields(sql: Sql, collection: string, data: Rec): Promise<void> {
   const row = await sql.queryOne<{ fields: string; type: string }>(
     `SELECT fields, type FROM vaultbase_collections WHERE name = ?`, [collection],
   );
   if (!row) throw new StoreError(`store: no collection '${collection}'`);
   if (row.type !== "base") throw new StoreError(`store: '${collection}' is a ${row.type} collection; store writes base collections only`);
-  const list = JSON.parse(row.fields) as FieldDef[];
-  return new Map(list.map((f) => [f.name, f]));
-}
-
-/** A value in the form the records API stores it (src/core/records.ts, encodeValue). */
-export function encodeForStore(value: unknown, field: FieldDef): unknown {
-  if (value === undefined || value === null) return null;
-  if (field.options?.encrypted) throw new StoreError(`store: '${field.name}' is encrypted; write it through the records API`);
-  switch (field.type) {
-    case "bool": return value ? 1 : 0;
-    case "number": {
-      const n = typeof value === "number" ? value : Number(value);
-      if (!Number.isFinite(n)) throw new StoreError(`store: '${field.name}' needs a number`);
-      return n;
-    }
-    case "date":
-    case "autodate": {
-      if (typeof value === "number") return Math.floor(value > 1e11 ? value / 1000 : value);
-      const ms = value instanceof Date ? value.getTime() : Date.parse(String(value));
-      if (!Number.isFinite(ms)) throw new StoreError(`store: '${field.name}' needs a date`);
-      return Math.floor(ms / 1000);
-    }
-    case "json": return typeof value === "string" ? value : JSON.stringify(value);
-    case "select":
-    case "file":
-      if (field.options?.multiple) return typeof value === "string" ? value : JSON.stringify(value);
-      return String(value);
-    case "relation":
-      return String(value);
-    default:
-      return typeof value === "string" ? value : String(value);
+  const names = new Set((JSON.parse(row.fields) as Array<{ name: string }>).map((f) => f.name));
+  for (const k of Object.keys(data)) {
+    if (SYSTEM.has(k)) throw new StoreError(`store: '${k}' is set by Vaultbase`);
+    if (!names.has(k)) throw new StoreError(`store: unknown field '${k}'`);
   }
 }
 
-function columns(fields: Map<string, FieldDef>, data: Record<string, unknown>): Array<[string, unknown]> {
-  const out: Array<[string, unknown]> = [];
-  for (const [k, v] of Object.entries(data)) {
-    if (k === "id" || k === "created_at" || k === "updated_at") continue;
-    const f = fields.get(k);
-    if (!f) throw new StoreError(`store: unknown field '${k}'`);
-    out.push([k, encodeForStore(v, f)]);
-  }
-  return out;
+/** Create a record through helpers.records. Returns its id. */
+export async function insertRecord(store: Store, collection: string, data: Rec): Promise<string> {
+  await checkFields(store.sql, collection, data);
+  const rec = await store.records.create(collection, { ...data });
+  return String(rec["id"]);
 }
 
-const now = () => Math.floor(Date.now() / 1000);
-
-export async function insertRecord(sql: Sql, collection: string, data: Record<string, unknown>): Promise<string> {
-  const fields = await fieldsOf(sql, collection);
-  const id = typeof data["id"] === "string" && data["id"] ? data["id"] : crypto.randomUUID();
-  const cols = columns(fields, data);
-  const t = now();
-  const names = ["id", ...cols.map(([k]) => k), "created_at", "updated_at"];
-  const values = [id, ...cols.map(([, v]) => v), t, t];
-  await sql.exec(
-    `INSERT INTO ${q(`vb_${collection}`)} (${names.map(q).join(", ")}) VALUES (${names.map(() => "?").join(", ")})`,
-    values,
-  );
-  return id;
+/** Update some fields of one record through helpers.records. Returns the record as saved. */
+export async function updateRecord(store: Store, collection: string, id: string, data: Rec): Promise<Rec> {
+  await checkFields(store.sql, collection, data);
+  return store.records.update(collection, id, { ...data });
 }
 
-/** Update some fields of one record. Always sets updated_at. Returns false when there is no such record. */
-export async function updateRecord(sql: Sql, collection: string, id: string, data: Record<string, unknown>): Promise<boolean> {
-  const fields = await fieldsOf(sql, collection);
-  const cols = columns(fields, data);
-  const sets = [...cols.map(([k]) => `${q(k)} = ?`), `"updated_at" = ?`];
-  const r = await sql.exec(
-    `UPDATE ${q(`vb_${collection}`)} SET ${sets.join(", ")} WHERE "id" = ?`,
-    [...cols.map(([, v]) => v), now(), id],
-  );
-  return r.changes > 0;
+/** Delete one record through helpers.records (with the collection's cascades and hooks). */
+export async function deleteRecord(store: Store, collection: string, id: string): Promise<void> {
+  await store.records.delete(collection, id);
 }
