@@ -3,7 +3,7 @@
 // the hook functions, which take the hook context. No "vaultbase" import here
 // (TECH-SPEC F7), so `bun test` can import this file directly.
 import { createHash } from "node:crypto";
-import { insertRecord, updateRecord, type Sql } from "./store.ts";
+import { insertRecord, isTrusted, updateRecord, type Records, type Sql, type Store } from "./store.ts";
 import { listOf, parseJson, type Criterion } from "./validation.ts";
 import { htmlToText } from "./handoff.ts";
 import { refreshRunStatus } from "./runs.ts";
@@ -84,28 +84,31 @@ export function blindOrder<T extends { id: string }>(runId: string, taskId: stri
 // ── verdicts ─────────────────────────────────────────────────────────────────
 
 /** Mark every other active verdict on the attempt overridden, and the attempt judged. */
-export async function activateVerdict(sql: Sql, attemptId: string, verdictId: string): Promise<void> {
+export async function activateVerdict(store: Store, attemptId: string, verdictId: string): Promise<void> {
+  const { sql } = store;
   const others = await sql.query<{ id: string }>(
     `SELECT id FROM vb_verdicts WHERE attempt = ? AND status = 'active' AND id != ?`, [attemptId, verdictId],
   );
-  for (const o of others) await updateRecord(sql, "verdicts", o.id, { status: "overridden" });
+  for (const o of others) await updateRecord(store, "verdicts", o.id, { status: "overridden" });
   const a = await sql.queryOne<{ status: string; run: string | null }>(`SELECT status, run FROM vb_attempts WHERE id = ?`, [attemptId]);
-  if (a && a.status !== "judged" && a.status !== "failed") await updateRecord(sql, "attempts", attemptId, { status: "judged" });
-  if (a?.run) await refreshRunStatus(sql, a.run);
+  if (a && a.status !== "judged" && a.status !== "failed") await updateRecord(store, "attempts", attemptId, { status: "judged" });
+  if (a?.run) await refreshRunStatus(store, a.run);
 }
 
 /** Store an AI verdict from the judge worker, and make it the active one. */
-export async function storeAiVerdict(sql: Sql, v: {
+export async function storeAiVerdict(store: Store, v: {
   attempt: string; run: string; judgeContender: string; scores: Scores; rubric: Criterion[];
 }): Promise<{ id: string; status: "active" | "overridden" }> {
   // A human verdict that is already there wins: the AI one is kept as history.
-  const human = await sql.queryOne(`SELECT id FROM vb_verdicts WHERE attempt = ? AND status = 'active' AND judge_kind = 'human'`, [v.attempt]);
+  const human = await store.sql.queryOne(`SELECT id FROM vb_verdicts WHERE attempt = ? AND status = 'active' AND judge_kind = 'human'`, [v.attempt]);
   const status = human ? "overridden" : "active";
-  const id = await insertRecord(sql, "verdicts", {
+  const id = await insertRecord(store, "verdicts", {
     attempt: v.attempt, run: v.run, method: "rubric", judge_kind: "ai", judge_contender: v.judgeContender,
     scores: v.scores, rubric_snapshot: v.rubric, score: weightedScore(v.scores, v.rubric), status,
   });
-  if (status === "active") await activateVerdict(sql, v.attempt, id);
+  // Done here, not left to verdicts-after-create (which skips server writes):
+  // after-hooks run in the background, and the worker's result must be final.
+  if (status === "active") await activateVerdict(store, v.attempt, id);
   return { id, status };
 }
 
@@ -114,16 +117,17 @@ export interface VerdictCtx {
   record: Rec;
   existing: Rec | null;
   auth: { id: string; type: "user" | "admin"; collection?: string } | null;
-  helpers: { abort(message: string): never; find(collection: string, id: string): Promise<Rec | null>; sql: Sql };
+  helpers: { abort(message: string): never; find(collection: string, id: string): Promise<Rec | null>; sql: Sql; records: Records };
 }
 
 /**
  * verdicts beforeCreate (TECH-SPEC §6). The owner creates human rubric
  * verdicts only: the hook fills run, rubric_snapshot, score and status, and
- * checks the stars. The admin is let through as written (seeding, F12).
+ * checks the stars. The admin (seeding, F12) and the judge worker
+ * (storeAiVerdict) are let through as written.
  */
 export async function verdictBeforeCreate(ctx: VerdictCtx): Promise<void> {
-  if (ctx.auth?.type === "admin") return;
+  if (isTrusted(ctx.auth)) return;
   const r = ctx.record;
   const { abort, find } = ctx.helpers;
   const attempt = await find("attempts", String(r["attempt"] ?? ""));
@@ -150,11 +154,16 @@ export async function verdictBeforeCreate(ctx: VerdictCtx): Promise<void> {
   r["due_at"] = null;
 }
 
-/** verdicts afterCreate: the new verdict is the active one, and the output is judged. */
+/**
+ * verdicts afterCreate: the new verdict is the active one, and the output is
+ * judged. Server writes are skipped: storeAiVerdict activates its own verdict
+ * before the worker finishes, and this hook runs in the background.
+ */
 export async function verdictAfterCreate(ctx: VerdictCtx): Promise<void> {
+  if (!ctx.auth) return;
   const r = ctx.record;
   if (r["status"] !== "active" || !r["attempt"] || !r["id"]) return;
-  await activateVerdict(ctx.helpers.sql, String(r["attempt"]), String(r["id"]));
+  await activateVerdict(ctx.helpers, String(r["attempt"]), String(r["id"]));
 }
 
 // ── the blind judging payload (TECH-SPEC §10) ────────────────────────────────

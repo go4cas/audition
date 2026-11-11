@@ -6,13 +6,14 @@ import { deriveCost } from "./cost.ts";
 import { attachFile } from "./files.ts";
 import { callProvider, ProviderError, type ApiProvider, type FileOut, type HttpLike } from "./providers/index.ts";
 import { mockSeed } from "./providers/mock.ts";
-import { insertRecord, updateRecord, type Sql } from "./store.ts";
+import { insertRecord, updateRecord, type Records, type Sql, type Store } from "./store.ts";
 import { listOf, parseJson } from "./validation.ts";
 
 type Rec = Record<string, any>;
 
-export interface Deps {
+export interface Deps extends Store {
   sql: Sql;
+  records: Records;
   find(collection: string, id: string): Promise<Rec | null>;
   query(collection: string, opts?: { filter?: string; sort?: string; perPage?: number }): Promise<{ data: Rec[]; totalItems: number }>;
   enqueue(queue: string, payload: unknown, opts?: { uniqueKey?: string }): Promise<unknown>;
@@ -187,7 +188,7 @@ export async function startRun(deps: Deps, plan: Plan, render: PromptForTask, op
   for (const t of plan.tasks) prompts.set(String(t["id"]), await render(String(t["id"])));
 
   const preview = previewOf(plan);
-  const runId = await insertRecord(deps.sql, "runs", {
+  const runId = await insertRecord(deps, "runs", {
     workspace: plan.workspace["id"],
     role: plan.role["id"],
     tasks: plan.tasks.map((t) => t["id"]),
@@ -203,7 +204,7 @@ export async function startRun(deps: Deps, plan: Plan, render: PromptForTask, op
   for (const t of plan.tasks) {
     for (const c of plan.contenders) {
       const mode = c.contender["mode"] === "handoff" ? "handoff" : "api";
-      const id = await insertRecord(deps.sql, "attempts", {
+      const id = await insertRecord(deps, "attempts", {
         run: runId,
         task: t["id"],
         contender: c.contender["id"],
@@ -216,9 +217,9 @@ export async function startRun(deps: Deps, plan: Plan, render: PromptForTask, op
   }
 
   // Locked from their first run on: results must stay tied to exactly what ran.
-  for (const t of plan.tasks) if (!t["locked"]) await updateRecord(deps.sql, "tasks", String(t["id"]), { locked: true });
+  for (const t of plan.tasks) if (!t["locked"]) await updateRecord(deps, "tasks", String(t["id"]), { locked: true });
   const used = [...plan.contenders, ...(plan.judgeContender ? [plan.judgeContender] : [])];
-  for (const c of used) if (!c.contender["locked"]) await updateRecord(deps.sql, "contenders", String(c.contender["id"]), { locked: true });
+  for (const c of used) if (!c.contender["locked"]) await updateRecord(deps, "contenders", String(c.contender["id"]), { locked: true });
 
   for (const id of queued) await deps.enqueue("generate", { attempt: id }, { uniqueKey: `generate:${id}` });
   return runId;
@@ -245,12 +246,17 @@ export function runStatusFrom(statuses: string[]): RunStatus {
   return "done";
 }
 
-/** Recompute a run's status from its attempts. Call after every attempt change (T1, T2, T3). */
-export async function refreshRunStatus(sql: Sql, runId: string): Promise<RunStatus | null> {
-  const rows = await sql.query<{ status: string }>(`SELECT status FROM vb_attempts WHERE run = ?`, [runId]);
+/**
+ * Recompute a run's status from its attempts. Call after every attempt change
+ * (T1, T2, T3). The run is written through the records API only when the
+ * status moves, so its record history shows running → judging → done.
+ */
+export async function refreshRunStatus(store: Store, runId: string): Promise<RunStatus | null> {
+  const rows = await store.sql.query<{ status: string }>(`SELECT status FROM vb_attempts WHERE run = ?`, [runId]);
   if (rows.length === 0) return null;
   const status = runStatusFrom(rows.map((r) => r.status));
-  await sql.exec(`UPDATE vb_runs SET status = ?, updated_at = ? WHERE id = ? AND (status IS NULL OR status != ?)`, [status, Math.floor(Date.now() / 1000), runId, status]);
+  const run = await store.sql.queryOne<{ status: string | null }>(`SELECT status FROM vb_runs WHERE id = ?`, [runId]);
+  if (run && run.status !== status) await updateRecord(store, "runs", runId, { status });
   return status;
 }
 
@@ -324,6 +330,9 @@ export async function runGenerate(deps: WorkerDeps, attemptId: string): Promise<
   let runId: string | null = null;
   try {
     // Claim it: only a queued attempt moves to in_progress, and only once.
+    // One of the two documented SQL writes (store.ts, NOTES.md F1): the
+    // records API has no "only if still queued" update, and this is what
+    // stops two workers from running one attempt.
     const claim = await deps.sql.exec(
       `UPDATE vb_attempts SET status = 'in_progress', updated_at = ? WHERE id = ? AND status = 'queued'`,
       [Math.floor(now() / 1000), attemptId]);
@@ -359,9 +368,9 @@ export async function runGenerate(deps: WorkerDeps, attemptId: string): Promise<
           : "The provider returned an empty answer.", false);
       }
       for (const f of r.files) {
-        await attachFile({ sql: deps.sql, write: deps.write, dataDir: deps.dataDir }, "attempts", attemptId, "output_files", f.name, f.mime, f.bytes);
+        await attachFile(deps, "attempts", attemptId, "output_files", f.name, f.mime, f.bytes);
       }
-      await updateRecord(deps.sql, "attempts", attemptId, {
+      await updateRecord(deps, "attempts", attemptId, {
         output: r.text,
         tokens_in: r.tokensIn,
         tokens_out: r.tokensOut,
@@ -377,19 +386,19 @@ export async function runGenerate(deps: WorkerDeps, attemptId: string): Promise<
       status = "submitted";
     } catch (e) {
       calls = (e as { calls?: number }).calls ?? calls;
-      await updateRecord(deps.sql, "attempts", attemptId, { status: "failed", error: errorText(e), provider_calls: calls });
+      await updateRecord(deps, "attempts", attemptId, { status: "failed", error: errorText(e), provider_calls: calls });
     }
     deps.log(`generate attempt=${attemptId} status=${status} calls=${calls}`);
     if (status === "submitted" && run["judge"] === "ai") {
       await deps.enqueue("judge", { attempt: attemptId }, { uniqueKey: `judge:${attemptId}` });
     }
-    await refreshRunStatus(deps.sql, runId);
+    await refreshRunStatus(deps, runId);
     return { status, calls };
   } catch (e) {
     // Anything unexpected still ends the attempt, never the queue.
     try {
-      await updateRecord(deps.sql, "attempts", attemptId, { status: "failed", error: `Audition could not run this output: ${errorText(e)}` });
-      if (runId) await refreshRunStatus(deps.sql, runId);
+      await updateRecord(deps, "attempts", attemptId, { status: "failed", error: `Audition could not run this output: ${errorText(e)}` });
+      if (runId) await refreshRunStatus(deps, runId);
     } catch { /* nothing more to do */ }
     deps.log(`generate attempt=${attemptId} status=failed calls=${calls} error=${errorText(e)}`);
     return { status: "failed", calls };
@@ -406,6 +415,7 @@ function errorText(e: unknown): string {
 export function depsFrom(helpers: Rec): Deps & { render(t: string, v: Record<string, unknown>): string } {
   return {
     sql: helpers.sql,
+    records: helpers.records,
     find: (c, id) => helpers.find(c, id),
     query: (c, o) => helpers.query(c, o),
     enqueue: (q, p, o) => helpers.enqueue(q, p, o),

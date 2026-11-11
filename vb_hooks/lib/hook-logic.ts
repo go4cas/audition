@@ -1,7 +1,7 @@
 // The validation and locking hooks of TECH-SPEC §6. Each file in hooks/ is a
 // three-line wrapper that names the collection and event and calls one of
 // these. They take the hook context, so this file never imports "vaultbase".
-import { updateRecord, type Sql } from "./store.ts";
+import { isTrusted, updateRecord, type Records, type Sql } from "./store.ts";
 import {
   DEFAULT_FITNESS_WEIGHTS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_MIN_OUTPUTS, DEFAULT_PASS_MARK,
   fitnessWeightsError, normaliseContenderConfig, parseJson, requiredMode, rubricError, type Provider,
@@ -16,11 +16,13 @@ export interface Ctx {
     abort(message: string): never;
     find(collection: string, id: string): Promise<Rec | null>;
     sql: Sql;
+    records: Records;
   };
 }
 
 const has = (r: Rec, k: string) => Object.prototype.hasOwnProperty.call(r, k);
-const isAdmin = (ctx: Ctx) => ctx.auth?.type === "admin";
+/** The admin, or Audition's own server code (helpers.records writes carry no user). */
+const trusted = (ctx: Ctx) => isTrusted(ctx.auth);
 /** The record as it will be after this write. */
 const merged = (ctx: Ctx): Rec => ({ ...(ctx.existing ?? {}), ...ctx.record });
 const empty = (v: unknown) => v === undefined || v === null || v === "";
@@ -72,10 +74,10 @@ export async function roleBeforeDelete(ctx: Ctx): Promise<void> {
 
 // ── locking (tasks, contenders) ──────────────────────────────────────────────
 
-/** Only Audition sets `locked`: on create it starts false, and the owner can't change it. */
+/** Only Audition sets `locked` (startRun): on create it starts false, and the owner can't change it. */
 function guardLocked(ctx: Ctx): void {
   const { record: r } = ctx;
-  if (isAdmin(ctx)) {
+  if (trusted(ctx)) {
     if (!ctx.existing && empty(r["locked"])) r["locked"] = false;
     return;
   }
@@ -111,7 +113,7 @@ export async function taskBeforeWrite(ctx: Ctx): Promise<void> {
 
 export function connectionBeforeWrite(ctx: Ctx): void {
   const { record: r } = ctx;
-  if (!isAdmin(ctx)) {
+  if (!trusted(ctx)) {
     if (!ctx.existing) r["has_key"] = false;
     else if (has(r, "has_key") && Boolean(r["has_key"]) !== Boolean(ctx.existing["has_key"])) {
       ctx.helpers.abort("Whether a key is set is maintained by Audition; add or remove the key instead.");
@@ -130,8 +132,10 @@ export function connectionBeforeWrite(ctx: Ctx): void {
 
 /** connection_keys after create, update and delete: keep connections.has_key in step. */
 export async function syncHasKey(ctx: Ctx, value: boolean): Promise<void> {
-  const conn = (ctx.record["connection"] ?? ctx.existing?.["connection"]) as string | undefined;
-  if (conn) await updateRecord(ctx.helpers.sql, "connections", conn, { has_key: value });
+  const id = (ctx.record["connection"] ?? ctx.existing?.["connection"]) as string | undefined;
+  if (!id) return;
+  const conn = await ctx.helpers.find("connections", id);
+  if (conn && Boolean(conn["has_key"]) !== value) await updateRecord(ctx.helpers, "connections", id, { has_key: value });
 }
 
 // ── contenders ───────────────────────────────────────────────────────────────

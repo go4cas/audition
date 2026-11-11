@@ -13,11 +13,11 @@ export default defineRoute({
     if (ctx.auth?.type !== "admin") { ctx.set.status = 403; return { error: "Forbidden", code: 403 }; }
     const b = ctx.body as { op: "insert" | "update"; collection: string; data: Record<string, unknown>; id?: string };
     try {
-      if (b.op === "insert") return { data: { id: await insertRecord(ctx.helpers.sql, b.collection, b.data) } };
-      const ok = await updateRecord(ctx.helpers.sql, b.collection, String(b.id), b.data);
-      if (!ok) { ctx.set.status = 404; return { error: "Not found", code: 404 }; }
+      if (b.op === "insert") return { data: { id: await insertRecord(ctx.helpers, b.collection, b.data) } };
+      await updateRecord(ctx.helpers, b.collection, String(b.id), b.data);
       return { data: { id: b.id } };
     } catch (e) {
+      if ((e as Error)?.name === "RecordNotFoundError" || /not found/i.test(String((e as Error)?.message))) { ctx.set.status = 404; return { error: "Not found", code: 404 }; }
       ctx.set.status = 422;
       return { error: e instanceof Error ? e.message : String(e), code: 422 };
     }

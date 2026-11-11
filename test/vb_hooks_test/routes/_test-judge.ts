@@ -27,6 +27,7 @@ export default defineRoute({
     const dataDir = ctx.helpers.os.env("VAULTBASE_DATA_DIR") || "./vaultbase_data";
     const result = await judgeAttempt({
       sql: ctx.helpers.sql,
+      records: ctx.helpers.records,
       find: (c: string, id: string) => ctx.helpers.find(c, id),
       query: (c: string, o: object) => ctx.helpers.query(c, o),
       readFile: (s: string) => ctx.helpers.fs.readBytes(ctx.helpers.path.join(dataDir, "uploads", s)),

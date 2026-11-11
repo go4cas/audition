@@ -3,7 +3,7 @@
 // as `prompt_sent` on every attempt of that task, API and handoff alike, so
 // every contender sees the identical text. No "vaultbase" import (F7).
 import { listOf, parseJson, type Criterion } from "./validation.ts";
-import type { Sql } from "./store.ts";
+import { isTrusted, type Records, type Sql } from "./store.ts";
 import { deriveCost } from "./cost.ts";
 import { refreshRunStatus } from "./runs.ts";
 
@@ -223,12 +223,12 @@ export interface SubmitCtx {
 const isMetric = (v: unknown) => v === null || v === "" || (typeof v === "number" && Number.isInteger(v) && v >= 0);
 
 /**
- * attempts beforeUpdate. The admin (operations) passes; server code writes
- * through store.ts and never reaches this hook. The owner may only fill a
- * waiting handoff output and submit it once.
+ * attempts beforeUpdate. The admin (operations) and Audition's own server
+ * code (the workers, through helpers.records) pass. The owner may only fill
+ * a waiting handoff output and submit it once.
  */
 export async function attemptBeforeUpdate(ctx: SubmitCtx): Promise<void> {
-  if (ctx.auth?.type === "admin") return;
+  if (isTrusted(ctx.auth)) return;
   const { record: r, existing } = ctx;
   const abort = ctx.helpers.abort;
   if (!existing) abort("That output does not exist.");
@@ -366,6 +366,7 @@ export interface AfterCtx {
   helpers: {
     find(collection: string, id: string): Promise<Rec | null>;
     sql: Sql;
+    records: Records;
     enqueue(queue: string, payload: unknown, opts?: { uniqueKey?: string }): Promise<unknown>;
   };
 }
@@ -385,5 +386,5 @@ export async function attemptAfterUpdate(ctx: AfterCtx): Promise<void> {
   const run = await ctx.helpers.find("runs", runId);
   if (!run) return;
   if (run["judge"] === "ai") await ctx.helpers.enqueue("judge", { attempt: attemptId }, { uniqueKey: `judge:${attemptId}` });
-  await refreshRunStatus(ctx.helpers.sql, runId);
+  await refreshRunStatus(ctx.helpers, runId);
 }

@@ -22,6 +22,7 @@ export default defineWorker({
     const dataDir = helpers.os.env("VAULTBASE_DATA_DIR") || "./vaultbase_data";
     const result = await judgeAttempt({
       sql: helpers.sql,
+      records: helpers.records,
       find: (c: string, id: string) => helpers.find(c, id),
       query: (c: string, o: object) => helpers.query(c, o),
       readFile: (stored: string) => helpers.fs.readBytes(helpers.path.join(dataDir, "uploads", stored)),

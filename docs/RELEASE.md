@@ -181,7 +181,7 @@ Vaultbase upgrades follow TECH-SPEC §1, "Upgrade policy":
 2. You approve the version. The thread runs `bun run vb:bump <version>`, then `bun test`, including the upgrade test from the old binary to the new one (`AUDITION_UPGRADE_FROM` set to the old lock file) and the PR quotes the changelog sections it read.
 3. You merge the PR and tag a release.
 
-Owner uploads still go through Audition's own route (`POST /api/custom/files/:collection/:id/:field`, from T2). Vaultbase fixed its own upload endpoint (F9) in 0.41.1, and `test/files.test.ts` now checks that it works; moving the UI to it, and moving server writes to the records API, is part B of `docs/PLATFORM-UPGRADES.md`, a separate change after the upgrade.
+Owner uploads still go through Audition's own route (`POST /api/custom/files/:collection/:id/:field`, from T2). Vaultbase fixed its own upload endpoint (F9) in 0.41.1, and `test/files.test.ts` checks that it works, but it can't take Markdown, CSV or zip files (NOTES W1). Server writes go through the records API since part B of `docs/PLATFORM-UPGRADES.md`, which needs Vaultbase 0.43 or later: deploy it only on 0.44.0.
 
 **0.40.2 to 0.44.0** (the first Vaultbase upgrade, after v0.1.0) needs nothing beyond the steps below: no setting, schema or env change. `deploy/audition.service` uses only options 0.44.0 still accepts (0.42.0 refuses unknown ones). The upgrade test opened 0.40.2 data with 0.44.0 and found every record, file, key and sign-in.
 

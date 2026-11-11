@@ -126,6 +126,38 @@ async function driveRun(runId: string, tasks: Rec[], judge: string, rate?: (cont
   // Nothing was left behind: every output was made and judged.
   expect(done.counts.failed).toBe(0);
   expect(done.counts.judged).toBe(done.attempts.length);
+  await checkHistory(runId, done.attempts);
+}
+
+/**
+ * Record history (docs/PLATFORM-UPGRADES.md part B): server writes go through
+ * the records API, so the run's status changes and each output's way to
+ * "judged" are in Vaultbase's record history, the server's writes as system.
+ */
+async function checkHistory(runId: string, attempts: Rec[]) {
+  const historyOf = async (c: string, id: string) => {
+    const r = await h.api("admin", "GET", `/api/v1/${c}/${id}/history`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    return r.body.data.data as Rec[];
+  };
+  const run = await historyOf("runs", runId);
+  const runStatuses = new Set(run.map((e) => e.snapshot?.status));
+  expect(runStatuses.has("running") && runStatuses.has("done"), [...runStatuses].join(",")).toBe(true);
+  for (const e of run) expect(e.actor_type).toBeNull();
+  // One output of each mode: a history call per output would hit the API rate limit.
+  const sample = ["api", "handoff"].map((m) => attempts.find((a) => a.mode === m)).filter(Boolean) as Rec[];
+  for (const a of sample) {
+    const steps = await historyOf("attempts", a.id);
+    const statuses = new Set(steps.map((e) => e.snapshot?.status));
+    expect(statuses.has("judged"), `${a.mode} attempt: ${[...statuses].join(",")}`).toBe(true);
+    if (a.mode === "api") {
+      expect(statuses.has("submitted")).toBe(true);
+      for (const e of steps) expect(e.actor_type).toBeNull();
+    } else {
+      // The owner's own submit is the one write made as the owner.
+      expect(steps.filter((e) => e.actor_type === "user").map((e) => e.snapshot?.status)).toContain("submitted");
+    }
+  }
 }
 
 /** The workspace seeded i-th, in creation order. */

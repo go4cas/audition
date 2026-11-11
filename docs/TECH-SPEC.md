@@ -34,17 +34,17 @@ The `vaultbase-linux-x64` binary was downloaded by `bun run setup` (126,748,848 
 
 The upgrade notes between 0.37.0 and 0.40.2 that touch Audition:
 
-- **0.40.0: new collections keep record history by default.** The snapshot sets `history_enabled` explicitly on every collection (`false`, except `tasks`, `contenders` and `roles`, which are cheap to keep).
+- **0.40.0: new collections keep record history by default.** The snapshot sets `history_enabled` explicitly on every collection: `true` for `tasks`, `contenders`, `roles`, and (since part B) `runs`, `attempts`, `verdicts` and `castings`; `false` for the rest.
 - **0.39.0: changing a table that a view reads can be refused (409)** while the view depends on it. A later schema change to `attempts`, `runs` or `verdicts` may therefore have to drop and recreate the `leaderboard` view. T0 notes how in `NOTES.md`.
 - **0.39.0: admin-only views answer 404 to non-admins.** The `leaderboard` view's rules are `OWNER`, so this doesn't apply.
 
 The upgrade notes between 0.40.2 and 0.44.0 that touch Audition (none of the five changelogs has a **Security** section):
 
-- **0.41.1: uploads to `POST /api/v1/files/...` work again (F9 fixed).** The endpoint stores the file and answers its name; the client then saves the name into the record's field with a normal update, as Vaultbase's admin does. Audition's own upload route stays for now; moving to the built-in endpoint is part B (Q1).
+- **0.41.1: uploads to `POST /api/v1/files/...` work again (F9 fixed).** The endpoint stores the file and answers its name; the client then saves the name into the record's field with a normal update, as Vaultbase's admin does. Audition's own upload route stays: the built-in endpoint can't take Markdown, CSV or zip files (NOTES W1).
 - **0.42.0: registering a known email answers 409** (was 200). Audition registers the owner once, and provision checks for an existing owner first.
 - **0.42.0: the `vaultbase` CLI rejects unknown commands and options** (exit 2). `deploy/audition.service` and `bun run dev` use only `--apply-snapshot` and `--snapshot-mode sync`, which 0.44.0 accepts.
 - **0.42.0: `vaultbase setup-admin` follows the password policy, 12 characters by default** (was 8). `RELEASE.md` says so.
-- **0.43.0: `helpers.records.create/update/delete`** for hooks, routes and workers, writing through the records API path (history, realtime, webhooks). Not used yet; that is part B.
+- **0.43.0: `helpers.records.create/update/delete`** for hooks, routes and workers, writing through the records API path (history, realtime, webhooks). Audition's server writes use it since part B (F1 below).
 - **0.44.0: a Bearer token the server doesn't accept answers 401** on the records, files and batch APIs (was: treated as anonymous). The UI already signs the owner out on any 401.
 - **0.44.0: unknown `sort`, `expand` or `fields` names, and unknown body keys on create and update, answer 400** (were ignored). System fields (`id`, `created`, `updated`, …) are still accepted, so a record saved back as it was fetched works; `test/validation.test.ts` checks both.
 
@@ -118,6 +118,7 @@ Each finding names the file it comes from at tag v0.37.0; all were re-checked at
 **F1. Server code can't write records through the records API.** Hook, route and worker helpers can *read* records (`helpers.find`, `helpers.query`), but have no create or update helper (`src/core/hooks.ts`, `makeHookHelpers`). Writes go through `helpers.sql` (`src/core/hook-helpers-extra.ts`, `SqlHelpers`). A SQL write skips record hooks, record history and **realtime events**, because realtime is broadcast only from the records API (`src/realtime/manager.ts`, `broadcast`). The alternative, workers calling the REST API over loopback, is blocked by the egress guard by default (F3) and would need a stored admin token. Decisions:
 
 - All server-side writes go through one small module, `vb_hooks/lib/store.ts`. It knows the storage form of the few field types it writes (text, number, bool, json as a JSON string, single relation as an id, multiple relation as a JSON array of ids, autodate as unix seconds). It always sets `updated_at`. T0 proves with a round-trip test that a record written by `store.ts` reads back through REST exactly like one created through REST.
+- **Since Vaultbase 0.43 and part B of `docs/PLATFORM-UPGRADES.md` (Nov 11, 2026), F1 no longer holds.** `store.ts` is a thin layer over `helpers.records` (`insertRecord`, `updateRecord`, `deleteRecord`), so server writes get field validation, the collections' own hooks, record history (shown as system: no actor), realtime events and webhooks. Audition's before-hooks treat a write with no user (`auth === null`) as trusted, like the admin; every API rule on those collections needs a signed-in caller, so an anonymous REST request is refused before a hook runs. Two SQL writes stay, each with its reason in the code and a grep test (`test/store.test.ts`): the generate worker's claim of a queued attempt (`helpers.records.update` has no "only if" form), and the `vaultbase_files` row of a file made by server code (Vaultbase has no server-side file helper). NOTES "Server writes through the records API" has the details.
 - **The live run view polls** `GET /api/custom/runs/:id` every 2 seconds while the run is active, instead of subscribing to realtime. That is fine for one owner. The spec's "Live run progress: Realtime subscriptions on attempts" row changes to "polling" (see [spec changes](#spec-changes-in-this-pr)).
 - Record history isn't needed: versions of tasks and contenders are explicit records (`previous_version`), as the spec already says.
 
@@ -382,7 +383,7 @@ The `beforeUpdate` hook allows the owner to change only `output`, `output_files`
 
 Rules: list and view `OWNER` · create `OWNER` (human verdicts only) · update and delete `—`.
 
-The `beforeCreate` hook forces `judge_kind = human` and `method = rubric`. It fills `run`, `rubric_snapshot` and `score`, and checks that every rubric criterion has whole-number stars from 1 to 5. The attempt must be `submitted` or `judged`. The `afterCreate` hook marks every earlier active verdict on that attempt `overridden`, and sets the attempt to `judged`. AI verdicts are written by the judge worker through `store.ts`.
+The `beforeCreate` hook forces `judge_kind = human` and `method = rubric`. It fills `run`, `rubric_snapshot` and `score`, and checks that every rubric criterion has whole-number stars from 1 to 5. The attempt must be `submitted` or `judged`. The `afterCreate` hook marks every earlier active verdict on that attempt `overridden`, and sets the attempt to `judged`. AI verdicts are written by the judge worker through `store.ts` (the records API); the `afterCreate` hook skips server writes, because the worker activates its own verdict before it finishes.
 
 ### castings
 

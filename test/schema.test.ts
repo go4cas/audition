@@ -30,7 +30,7 @@ test("every collection states all five rules and history_enabled", () => {
     expect(typeof c.history_enabled, c.name).toBe("boolean");
   }
   const history = snapshot.collections.filter((c: { history_enabled: boolean }) => c.history_enabled).map((c: { name: string }) => c.name).sort();
-  expect(history).toEqual(["contenders", "roles", "tasks"]);
+  expect(history).toEqual(["attempts", "castings", "contenders", "roles", "runs", "tasks", "verdicts"]);
 });
 
 const LATER: Array<[string, string]> = [

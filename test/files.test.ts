@@ -80,3 +80,16 @@ test("F9 (fixed in 0.41.1): the owner uploads through Vaultbase's own endpoint, 
   expect(res.status).toBe(200);
   expect(await res.text()).toBe("hello from the owner");
 });
+
+// NOTES W1: why the owner upload route stays. Bun's multipart parser gives a
+// part the type of its file name, and Vaultbase's global allowlist has no
+// text/markdown or application/zip. Flips when Vaultbase accepts them.
+test("W1: Vaultbase's own upload endpoint refuses a Markdown and a zip file, whatever type the client declares", async () => {
+  for (const [name, type, seen] of [["notes.md", "text/plain", "text/markdown"], ["bundle.zip", "application/octet-stream", "application/zip"]] as const) {
+    const form = new FormData();
+    form.append("file", new File(["PK\u0005\u0006"], name, { type }));
+    const r = await fetch(`${h.url}/api/v1/files/tasks/${f.task.id}/attachments`, { method: "POST", headers: { authorization: `Bearer ${h.ownerToken}` }, body: form });
+    expect(r.status, name).toBe(415);
+    expect((await r.json() as { error: string }).error).toContain(seen);
+  }
+});
