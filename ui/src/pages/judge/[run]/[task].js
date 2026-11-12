@@ -4,12 +4,12 @@
 // records or raw outputs, so nothing here can reveal who made what
 // (test/ui.test.ts checks this file).
 import { html, reactive } from "@arrow-js/core";
-import { create, custom, fileLabel, fileUrl } from "../api.js";
-import { starInput } from "../components/forms.js";
-import { busy, crumbs, empty, page } from "../components/page.js";
-import { bump, chip, errorToast, icon, openLightbox, popId, toast } from "../lib/ui.js";
-import { refreshInbox } from "../state/inbox.js";
-import { APP } from "../lib/nav.js";
+import { create, custom, fileLabel, fileUrl } from "../../../api.js";
+import { starInput } from "../../../components/forms.js";
+import { busy, crumbs, empty, page } from "../../../components/page.js";
+import { bump, chip, errorToast, icon, openLightbox, popId, toast } from "../../../lib/ui.js";
+import { refreshInbox } from "../../../state/inbox.js";
+import { APP, routeArgs } from "../../../lib/nav.js";
 
 const weighted = (rubric, stars) => {
   let sum = 0, w = 0;
@@ -17,7 +17,10 @@ const weighted = (rubric, stars) => {
   return w ? Math.round((sum / w) * 100) / 100 : null;
 };
 
-export default function judge({ params }) {
+export const meta = { title: "Judge · Audition" };
+
+export default function judge() {
+  const { params } = routeArgs();
   return page({
     screen: "judge",
     load: async (s) => {

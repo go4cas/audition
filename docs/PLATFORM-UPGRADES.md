@@ -1,6 +1,6 @@
-# Platform upgrades plan: Vaultbase 0.44 and Quiver 3.1
+# Platform upgrades plan: Vaultbase 0.44 and Quiver 3.1/3.2
 
-Status: **approved by Cas on Nov 11, 2026**, with the recommended answers to Q1 to Q8. Part A is done (PR #19, Vaultbase 0.44.0). Part B is done for the server writes and record history; Q1 (owner uploads through Vaultbase's endpoint) was checked and is blocked, so the custom route stays (NOTES W1). B3 (realtime run page) shipped in its own small PR after part C (Q8, NOTES "Realtime run page"). Written Nov 11, 2026, before the feature roadmap continues.
+Status: **approved by Cas on Nov 11, 2026**, with the recommended answers to Q1 to Q8. Part A is done (PR #19, Vaultbase 0.44.0). Part B is done for the server writes and record history; Q1 (owner uploads through Vaultbase's endpoint) was checked and is blocked, so the custom route stays (NOTES W1). B3 (realtime run page) shipped in its own small PR after part C (Q8, NOTES "Realtime run page"). Written Nov 11, 2026, before the feature roadmap continues. Part D (Quiver 3.2 conventions) was added on Nov 12, 2026, when Cas chose full adoption.
 
 Both changes need Cas's OK under the orchestrator rules (a Vaultbase version change, a schema change after T0, and a scope change for the UI). This document gives the facts, a recommendation, the order of work and the open questions.
 
@@ -11,6 +11,7 @@ Both changes need Cas's OK under the orchestrator rules (a Vaultbase version cha
 | **A. Vaultbase 0.40.2 → 0.44.0** | Go straight to 0.44.0. Nothing in Audition breaks: the full suite passes on 0.44.0 except the tests that pin 0.40.2 behaviour on purpose. | Small | PR A |
 | **B. Server writes through `helpers.records`** | Do it, in its own PR after A. Move every record write in `vb_hooks/` off `helpers.sql`, turn on record history for verdicts and castings, and switch the live run page from polling to realtime. Keep two justified SQL bypasses (worker claims, server-made files). | Medium | PR B (B3 realtime may be its own PR) |
 | **C. Quiver 3.1 as a library** | Adopt it, after A and B, in its own PR: the router, guards, layout and page cleanup move to `@go4cas/quiver`, while the Design CSS and pages stay. URLs move from `#/…` to real paths under `/api/custom/app/`. | Medium | PR C |
+| **D. Quiver 3.2 conventions** | Cas chose full adoption on Nov 12, 2026: Quiver 3.2.1, and the app built from `ui/src` folders through `quiver:app`. URLs don't change. | Medium | PR D |
 
 Order: **A → B → C**, one branch and one PR each, and each one merged before the next starts. A is a prerequisite for B (B needs `helpers.records` from 0.43). C doesn't touch the server, so it could run in parallel with B, but doing it after keeps each review small, and the test suite only has to change for one thing at a time.
 
@@ -146,6 +147,40 @@ Estimate with quiver: about **141 KB**, under the budget but with only about 9 K
 
 Done when: the full suite and the walkthrough pass on real-path URLs, old `#/` links redirect, the bundle meets the budget, and the screenshots are retaken at 375 and 1280.
 
+## D. Quiver 3.2 conventions
+
+Added Nov 12, 2026. Quiver 3.2.0 and 3.2.1 shipped that morning. Cas chose "full conventions adoption" over a version bump alone.
+
+### What 3.2 adds
+
+- **3.2.0, the conventions layer.** The Bun plugin (`@go4cas/quiver/bun`) builds one module, `quiver:app`, from the app's source folder: `pages/**/*.js` are the routes (`[id]` is a parameter, `index.js` is the folder's path), `middleware/*.js` are global guards, `pages/**/_middleware.js` are section guards, `views/loading.js` and `views/error.js` are the views, `layouts/<name>.js` are layouts, `app.config.js` keys are provided, and each page's literal `meta.nav` builds the `nav` list. `createApp(app, options)` starts it all. A 3.1 app keeps working unchanged.
+- **3.2.1, audit fixes.** No API change. In Chromium a guard's redirect or cancel now runs before a link click or `go()` commits, so an in-app redirect to sign-in commits once, and a redirect is parsed once against the document's base URL. Recipe file names became PascalCase (Audition uses no recipes). The peer dependency is still `@arrow-js/core ^1.0.6`.
+
+### What changed in Audition
+
+| Before (3.1) | After (3.2.1) |
+| --- | --- |
+| `ui/src/routes.js`, a hand-written manifest with a `page()` adapter passing `{ params, query }` | `ui/src/pages/` as file routes (`runs/[id].js`, `judge/[run]/[task].js`, …); each page exports a literal `meta` and reads `routeArgs()` from `lib/nav.js` |
+| `beforeEach` sign-in guard in `main.js` | `ui/src/middleware/auth.js`, global middleware |
+| Loading and error views passed to `createApp()` | `ui/src/views/loading.js`, `views/error.js` |
+| Main nav hard-coded in the shell; `meta.section` on contender routes | Nav from `meta.nav` on the home and contenders pages; the shell marks the item whose path is the longest prefix |
+| `layouts/shell.js` | `components/shell.js`, still mounted once around `#main` (QD1) |
+| Four screens shared by two routes each | `ui/src/editors/` (workspace, role, task, contender); the route files are thin wrappers that pass the right ids (QD2) |
+| `initRouter()` then `createApp({ target })` | `await createApp(app, { target: "#main", base: BASE })` |
+
+The URLs are the same 17 routes as before. `test/ui-routes.test.ts` builds `quiver:app` with Quiver's CLI and checks the route list, the nav, the middleware, the views and that the scan prints no warnings.
+
+### Findings
+
+- **QD1. The shell is not a Quiver layout.** Quiver rebuilds a layout on every navigation: `load()` in `router.js` sets the status to `loading`, and the outlet in `app.js` then renders the loading view without any layout, and afterwards `Layout(Page())` in a new scope keyed by the path. As a layout, the top bar would disappear while each page loads, and the toaster and lightbox would be rebuilt, so a toast shown just before `go()` (save, then move on) would be lost. So the shell stays outside the outlet, as in part C. A "persistent layout" option in Quiver would let it become one.
+- **QD2. Literal `meta` per route file.** Quiver reads `meta` at build time, so it must be a literal in each route file, and the same module can't serve two routes with different titles. The shared screens moved to `ui/src/editors/` and each route file passes its ids (for example `/w/:id/roles/new` passes the workspace id as `ws`). The parameter names in the folders are now `[id]` throughout; the URLs didn't change.
+- **QD3. Chunk names.** Bun names a chunk after its file, which gave names like `[id]-….js` and several `index-….js`. `scripts/build-ui.ts` now names chunks by hash only (source maps keep the real file names). `test/ui.test.ts` finds the run, judge and handoff chunks by their `screen:"…"` marker and checks they are not in the first load.
+- **QD4. Not used: `layouts/`, `app.config.js`, section middleware.** Audition has no layout (QD1), nothing to provide, and only one guard.
+
+### Bundle
+
+First-load JS 53.1 → **56.5 KB** (budget 150 KB). All JS chunks together 151.3 → 156.9 KB (only the first load is budgeted, Q6). The bump alone, without the conventions, measured 57.5 KB.
+
 ---
 
 ## Open questions for Cas
@@ -165,4 +200,5 @@ Done when: the full suite and the walkthrough pass on real-path URLs, old `#/` l
 
 - Vaultbase `CHANGELOG.md` and `release-notes/v0.41.0.md` … `v0.44.0.md` at tag `v0.44.0`; `src/core/records-helper.ts`, `src/core/hooks.ts`, `src/api/records.ts`, `src/api/_rules.ts` (diffed against `v0.40.2`).
 - Vaultbase discussion #10 (Cas's question about server-side writes).
+- Quiver `CHANGELOG.md` on `go4cas/quiver` `main` (3.2.0 and 3.2.1, Nov 12, 2026) and the npm tarballs of 3.1.0 and 3.2.1 (`src/router.js`, `src/app.js`, `src/node/bun.js`, `src/node/conventions.js`, `AGENTS.md`), diffed.
 - Quiver at `go4cas/quiver` `main` (3.1.0 release commit `e4714a1`): `README.md`, `CHANGELOG.md`, `packages/quiver/package.json`, `docs/guide/routing.md` and `getting-started.md`; npm `@go4cas/quiver` dist-tag `latest` = 3.1.0.

@@ -1,15 +1,17 @@
-// Audition UI entry: quiver's router with real path URLs under
-// /api/custom/app/, the sign-in guard, and the app shell
-// (docs/PLATFORM-UPGRADES.md part C).
+// Audition UI entry. Quiver 3.2's conventions build the app from ui/src
+// (docs/PLATFORM-UPGRADES.md part D): pages/ are the routes, middleware/auth.js
+// is the sign-in guard, views/ are the loading and error views, and each page's
+// meta.nav makes the main nav. The shell (top bar, phone nav, lightbox,
+// toaster) is mounted once around #main and stays, so toasts and the chrome
+// survive navigation; quiver renders pages into #main.
 import { html } from "@arrow-js/core";
-import { afterEach, beforeEach, createApp, initRouter, useRoute } from "@go4cas/quiver";
+import { afterEach, createApp, useRoute } from "@go4cas/quiver";
+import app from "quiver:app";
 import { auth } from "./api.js";
-import { mountShell } from "./layouts/shell.js";
-import { errorBox, skeleton } from "./components/page.js";
+import { mountShell } from "./components/shell.js";
 import { installPopovers, placeThumbs } from "./lib/ui.js";
 import { BASE, fromHashLink, go } from "./lib/nav.js";
 import { refreshInbox } from "./state/inbox.js";
-import { notFound, routes } from "./routes.js";
 
 const root = document.getElementById("root");
 
@@ -27,25 +29,14 @@ async function start() {
   installPopovers();
   addEventListener("resize", placeThumbs);
 
-  // Sign-in guard: everything but /signin needs a token. The page asked for
-  // comes back after sign-in through ?next=.
-  beforeEach(({ to }) => {
-    if (auth.token || to === "/signin") return undefined;
-    return to === "/" ? "/signin" : "/signin?next=" + encodeURIComponent(to);
-  });
   afterEach(({ status }) => {
     scrollTo(0, 0);
     placeThumbs();
     if (auth.token && status === "ready" && !useRoute().meta()?.bare) refreshInbox();
   });
 
-  await initRouter({ routes, notFound, base: BASE });
-  mountShell(root);
-  createApp({
-    target: "#main",
-    loading: () => html`<section class="page">${skeleton()}</section>`,
-    error: ({ message, retry }) => html`<section class="page page--narrow" data-screen="error">${errorBox(message, retry)}</section>`,
-  });
+  mountShell(root, app.nav);
+  await createApp(app, { target: "#main", base: BASE });
 
   // Signed out (the button, or a 401): run the guard again for this page.
   auth.onChange((t) => { if (!t) go(useRoute().path()); });

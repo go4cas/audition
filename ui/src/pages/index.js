@@ -11,6 +11,8 @@ const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good 
 const today = () => new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
 const ownerName = () => { const m = me(); const n = m?.name || (m?.email || "").split("@")[0]; return n && n !== "owner" ? n.charAt(0).toUpperCase() + n.slice(1) : ""; };
 
+export const meta = { title: "Workspaces · Audition", nav: { label: "Workspaces", order: 1 } };
+
 export default function home() {
   return page({
     screen: "home",

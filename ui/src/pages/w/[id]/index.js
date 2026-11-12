@@ -1,11 +1,14 @@
 // 3. Workspace: numbered stages with role cards (the routing table), recent runs.
 import { html } from "@arrow-js/core";
-import { crumbs, empty, page } from "../components/page.js";
-import { avatar, chip, date, icon, plural } from "../lib/ui.js";
-import { championOf, leaderboards, load, runLabel, sortRoles } from "../state/data.js";
-import { APP } from "../lib/nav.js";
+import { crumbs, empty, page } from "../../../components/page.js";
+import { avatar, chip, date, icon, plural } from "../../../lib/ui.js";
+import { championOf, leaderboards, load, runLabel, sortRoles } from "../../../state/data.js";
+import { APP, routeArgs } from "../../../lib/nav.js";
 
-export default function workspace({ params }) {
+export const meta = { title: "Workspace · Audition" };
+
+export default function workspace() {
+  const { params } = routeArgs();
   return page({
     screen: "workspace",
     load: async (s) => {

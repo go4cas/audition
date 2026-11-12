@@ -1,8 +1,8 @@
-// Navigation helpers on top of quiver (docs/PLATFORM-UPGRADES.md part C).
+// Navigation helpers on top of quiver (docs/PLATFORM-UPGRADES.md parts C and D).
 // The app lives under one fixed base path, served by vb_hooks/routes/app.ts.
 // Pages pass base-relative paths ("/runs/123") with an optional query object;
 // APP is the base without its trailing slash, for building link hrefs.
-import { go as quiverGo, url } from "@go4cas/quiver";
+import { go as quiverGo, url, useRoute } from "@go4cas/quiver";
 
 export const BASE = "/api/custom/app/";
 export const APP = BASE.slice(0, -1);
@@ -20,6 +20,9 @@ export const go = (path, query) => quiverGo(withQuery(path, query));
 
 /** The current query string as a plain object. Quiver's routes are path-only. */
 export const currentQuery = () => Object.fromEntries(new URLSearchParams(location.search));
+
+/** What a page needs from the URL: { params, query }. Call it in the page function. */
+export const routeArgs = () => ({ params: useRoute().params(), query: currentQuery() });
 
 /**
  * An old hash link (`/api/custom/app/#/runs/123?task=x`, from before quiver)

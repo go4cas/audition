@@ -1,16 +1,19 @@
 // 14. Leaderboard: every scored output for a role, with the likely range,
 // fitness, and the suggested champion (GET /leaderboard/:role, TECH-SPEC §11).
 import { html, reactive } from "@arrow-js/core";
-import { custom } from "../api.js";
-import { busy, crumbs, empty, page } from "../components/page.js";
-import { avatar, chip, confetti, date, duration, errorToast, icon, money, plural, popId, short, stars1, toast } from "../lib/ui.js";
-import { load } from "../state/data.js";
-import { APP } from "../lib/nav.js";
+import { custom } from "../../api.js";
+import { busy, crumbs, empty, page } from "../../components/page.js";
+import { avatar, chip, confetti, date, duration, errorToast, icon, money, plural, popId, short, stars1, toast } from "../../lib/ui.js";
+import { load } from "../../state/data.js";
+import { APP, routeArgs } from "../../lib/nav.js";
 
 const pos = (v) => Math.max(0, Math.min(100, ((Number(v) - 1) / 4) * 100));
 const TERM = { quality: "Quality", tokens: "Tokens", time: "Time" };
 
-export default function leaderboard({ params }) {
+export const meta = { title: "Leaderboard · Audition" };
+
+export default function leaderboard() {
+  const { params } = routeArgs();
   const rangePop = popId();
   return page({
     screen: "leaderboard",

@@ -1,14 +1,17 @@
 // 9. Start a run: pick a role, tasks and contenders, choose the judge, and see
 // the call count (the spending guard) from POST /runs/preview before starting.
 import { html, reactive } from "@arrow-js/core";
-import { custom } from "../api.js";
-import { APP, go } from "../lib/nav.js";
-import { dropdown, seg } from "../components/forms.js";
-import { busy, crumbs, empty, page } from "../components/page.js";
-import { TYPE_ICON, TYPE_LABEL, avatar, bump, errorToast, icon, num, plural, popId, toast } from "../lib/ui.js";
-import { load, sortRoles } from "../state/data.js";
+import { custom } from "../../api.js";
+import { APP, go, routeArgs } from "../../lib/nav.js";
+import { dropdown, seg } from "../../components/forms.js";
+import { busy, crumbs, empty, page } from "../../components/page.js";
+import { TYPE_ICON, TYPE_LABEL, avatar, bump, errorToast, icon, num, plural, popId, toast } from "../../lib/ui.js";
+import { load, sortRoles } from "../../state/data.js";
 
-export default function newRun({ query }) {
+export const meta = { title: "Start a run · Audition" };
+
+export default function newRun() {
+  const { query } = routeArgs();
   const callsPop = popId();
   return page({
     screen: "new-run",

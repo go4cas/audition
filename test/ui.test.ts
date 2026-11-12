@@ -25,10 +25,10 @@ describe("dependencies", () => {
       for (const f of files(UI)) if (/\.(js|css|html)$/.test(f)) expect(readFileSync(f, "utf8").toLowerCase()).not.toContain(`@${banned}`);
     }
   });
-  test("UI code imports nothing but Arrow, quiver's core and its own modules", () => {
+  test("UI code imports nothing but Arrow, quiver's core, quiver:app and its own modules", () => {
     for (const f of js) {
       for (const m of readFileSync(f, "utf8").matchAll(/^\s*import\s[^'"]*["']([^"']+)["']/gm)) {
-        expect(m[1] === "@arrow-js/core" || m[1] === "@go4cas/quiver" || m[1].startsWith(".")).toBe(true);
+        expect(["@arrow-js/core", "@go4cas/quiver", "quiver:app"].includes(m[1]!) || m[1]!.startsWith(".")).toBe(true);
       }
     }
   });
@@ -46,7 +46,7 @@ describe("build", () => {
       return n + (statSync(full).isDirectory() ? files(full).filter((f) => f.endsWith(".mjs")).reduce((m, f) => m + statSync(f).size, 0) : statSync(full).size);
     }, 0);
     // First-load JS: main.js and every chunk it imports statically. Pages are
-    // separate chunks, loaded when their route opens (ui/src/routes.js).
+    // separate chunks, loaded when their route opens (ui/src/pages/, quiver:app).
     const firstLoad = new Set<string>();
     const walk = (file: string) => {
       if (firstLoad.has(file)) return;
@@ -60,9 +60,14 @@ describe("build", () => {
     // TECH-SPEC T4 Done-when 3: under 150 KB of minified first-load JS (CSS not
     // counted; Q6 in PLATFORM-UPGRADES). All chunks are reported above.
     expect(first).toBeLessThan(150 * 1024);
-    // Every page is its own chunk, not in the first load.
-    expect(files(join(dist, "chunks")).filter((f) => /\/(run|judge|handoff)-\w+\.js$/.test(f)).length).toBe(3);
-    for (const f of firstLoad) expect(f).not.toMatch(/\/(run|judge|handoff)-\w+\.js$/);
+    // Every page is its own chunk, not in the first load: each screen's marker
+    // is in exactly one chunk, and none of them is in the first load.
+    const chunks = files(join(dist, "chunks")).filter((f) => f.endsWith(".js"));
+    for (const screen of ["run", "judge", "handoff"]) {
+      const marker = `screen:"${screen}"`;
+      expect(chunks.filter((f) => readFileSync(f, "utf8").includes(marker)).length).toBe(1);
+      for (const f of firstLoad) expect(readFileSync(f, "utf8")).not.toContain(marker);
+    }
     // The bundle is minified and ships a linked source map.
     const main = readFileSync(join(dist, "main.js"), "utf8");
     expect(main).toContain("//# sourceMappingURL=main.js.map");
@@ -71,7 +76,7 @@ describe("build", () => {
 });
 
 describe("judging screen (Done-when 4)", () => {
-  const src = readFileSync(join(UI, "pages", "judge.js"), "utf8");
+  const src = readFileSync(join(UI, "pages", "judge", "[run]", "[task].js"), "utf8");
   test("never reads attempts: no attempts collection or route at all", () => {
     expect(src).not.toContain("/collections/attempts");
     expect(src).not.toContain("/api/v1/attempts");
@@ -82,10 +87,10 @@ describe("judging screen (Done-when 4)", () => {
     expect(new Set(calls)).toEqual(new Set(["judging"]));
     // From the API client it takes the blind route, verdict creation and file
     // download helpers, and nothing that lists or reads records.
-    const api = src.match(/import \{([^}]+)\} from "\.\.\/api\.js"/)![1].split(",").map((x) => x.trim()).sort();
+    const api = src.match(/import \{([^}]+)\} from "(?:\.\.\/)+api\.js"/)![1].split(",").map((x) => x.trim()).sort();
     expect(api).toEqual(["create", "custom", "fileLabel", "fileUrl"]);
     expect(src).not.toMatch(/\b(list|one|fetch|request)\(/);
-    expect(src).not.toMatch(/from "\.\.\/state\/data\.js"/);
+    expect(src).not.toMatch(/from "(?:\.\.\/)+state\/data\.js"/);
     expect([...src.matchAll(/\bcreate\("(\w+)"/g)].map((m) => m[1])).toEqual(["verdicts"]);
   });
   test("the blind route in api.js is GET /api/custom/judging/:run/:task", () => {

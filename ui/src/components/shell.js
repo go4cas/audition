@@ -1,23 +1,32 @@
 // The app shell from the wireframes: top bar, main outlet, phone bottom nav,
 // the lightbox dialog and the toaster. It is mounted once and stays: quiver
 // renders pages into #main, so toasts and the lightbox survive navigation.
-// The route's meta says whether the chrome shows (`bare`) and which main nav
-// item is current (`section`).
+// It is not a quiver layout on purpose: a layout is rebuilt on every
+// navigation and hidden while the next page's chunk loads (part D, QD1).
+// The main nav comes from the pages' meta.nav (quiver:app's `nav`); the route's
+// meta.bare hides the chrome (sign-in).
 import { html, reactive, watch } from "@arrow-js/core";
 import { useRoute } from "@go4cas/quiver";
 import { signOut } from "../api.js";
 import { icon } from "../lib/ui.js";
 import { inbox } from "../state/inbox.js";
-import { APP } from "../lib/nav.js";
+import { APP, href } from "../lib/nav.js";
 
-const shell = reactive({ bare: true, section: "workspaces" });
+const shell = reactive({ bare: true, section: "/" });
 
 export const logo = () => html`<svg class="lg" viewBox="0 0 64 64" aria-hidden="true"><rect class="lg-tile" width="64" height="64" rx="14"/><g transform="translate(6.40 6.40) scale(0.8)"><path class="lg-on-stroke" d="M13 55 L32 9 L51 55" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><polygon class="lg-gold lg-star" points="32.00,26.50 35.51,34.66 44.36,35.48 37.69,41.35 39.64,50.02 32.00,45.48 24.36,50.02 26.31,41.35 19.64,35.48 28.49,34.66" stroke-linejoin="round"/></g></svg>`;
 
-const current = (s) => () => (shell.section === s ? "page" : false);
+const current = (to) => () => (shell.section === to ? "page" : false);
+const ICONS = { "/": "workspaces", "/contenders": "contenders" };
+
+/** The nav item a path belongs to: the longest `to` it starts with. */
+export const sectionOf = (path, nav) =>
+  nav.map((n) => n.to).filter((to) => to === "/" || path === to || path.startsWith(to + "/")).sort((a, b) => b.length - a.length)[0] || "/";
 const countBadge = () => (inbox.count ? html`<span class="count" data-inbox-count>${() => inbox.count}</span>` : "");
 
-export function mountShell(root) {
+const link = (n) => html`<a href="${href(n.to)}" aria-current="${current(n.to)}">${icon(ICONS[n.to] || "arrow-right")}${n.label}</a>`;
+
+export function mountShell(root, nav = []) {
   const route = useRoute();
   // Keep the last chrome while the next page loads, so sign-in doesn't flash the top bar.
   watch(() => {
@@ -25,15 +34,14 @@ export function mountShell(root) {
     if (status === "idle" || status === "loading") return;
     const meta = route.meta() || {};
     shell.bare = !!meta.bare;
-    shell.section = meta.section || (/^\/contenders/.test(route.path()) ? "contenders" : "workspaces");
+    shell.section = sectionOf(route.path(), nav);
   });
   html`
     <header class="topbar" hidden="${() => shell.bare}">
       <div class="topbar__inner">
         <a class="brand" href="${APP + "/"}"><span class="brand__mark has-logo">${logo()}</span>Audition</a>
         <nav class="nav" aria-label="Main">
-          <a href="${APP + "/"}" aria-current="${current("workspaces")}">${icon("workspaces")}Workspaces</a>
-          <a href="${APP + "/contenders"}" aria-current="${current("contenders")}">${icon("contenders")}Contenders</a>
+          ${nav.map((n) => link(n))}
         </nav>
         <div class="topbar__end">
           <a class="inbox-btn hide-phone" href="${APP + "/"}">${icon("inbox")}Waiting for you ${() => countBadge()}</a>
@@ -43,9 +51,9 @@ export function mountShell(root) {
     </header>
     <main id="main"></main>
     <nav class="bottom-nav" aria-label="Main" hidden="${() => shell.bare}">
-      <a href="${APP + "/"}" aria-current="${current("workspaces")}">${icon("workspaces")}Workspaces</a>
+      ${nav.slice(0, 1).map((n) => link(n))}
       <a href="${APP + "/?waiting=1"}">${icon("inbox")}Waiting${() => countBadge()}</a>
-      <a href="${APP + "/contenders"}" aria-current="${current("contenders")}">${icon("contenders")}Contenders</a>
+      ${nav.slice(1).map((n) => link(n))}
     </nav>
     <dialog class="lightbox" id="lightbox" aria-label="Large image" @click="${(e) => { if (e.target === e.currentTarget || e.target.closest("[data-close]")) e.currentTarget.close(); }}">
       <div class="lightbox__frame">
