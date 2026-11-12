@@ -187,6 +187,18 @@ test("Software Factory: run with the AI judge, paste one output, override a verd
   await p.getByText("Finished").first().waitFor();
   await shot("run-done");
 
+  // Repeat (Phase 2a): every Monday at 09:00 local becomes a Vaultbase cron job.
+  await pick("rp-day", "Monday");
+  await p.fill("#rp-time", "09:00");
+  await p.getByRole("button", { name: "Repeat", exact: true }).click();
+  await toastSays("Repeats every Monday at 09:00");
+  await p.getByText("Repeats every Monday at 09:00").first().waitFor();
+  expect((await one("runs", `id = "${sfRun}"`)).schedule).toMatch(/^0 \d+ \* \* [0-6]$/);
+  await shot("run-repeat");
+  await p.getByRole("button", { name: "Stop repeating" }).click();
+  await toastSays("Stopped repeating");
+  expect((await one("runs", `id = "${sfRun}"`)).schedule || "").toBe("");
+
   // Blind judging with AI verdicts: change one output's stars.
   const t0 = tasks[0];
   await go(`/judge/${sfRun}/${t0.id}`);

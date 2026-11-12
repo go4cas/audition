@@ -11,6 +11,8 @@ import { TYPE_ICON, avatar, chip, duration, errorToast, icon, money, num, output
 import { load, runLabel } from "../../state/data.js";
 import { refreshInbox } from "../../state/inbox.js";
 import { subscribe } from "../../lib/realtime.js";
+import { DAYS, describe, toCron } from "../../lib/schedule.js";
+import { dropdown } from "../../components/forms.js";
 
 export const meta = { title: "Run · Audition" };
 
@@ -101,6 +103,8 @@ export default function run() {
           </div>
         </div></div>
 
+        ${() => (v().run.status === "done" ? repeatPanel(s, d, r) : "")}
+
         <div class="notice">${icon("blind")}<div class="small">Outputs and scores stay hidden here so judging stays blind. You'll see them on the judging screen, without names.</div></div>
 
         ${taskIds.map((tid) => {
@@ -122,6 +126,42 @@ export default function run() {
         })}`;
     },
   });
+}
+
+const EVERY = [{ value: "day", label: "Day" }, { value: "week", label: "Week" }, { value: "month", label: "Month" }];
+const DAY_OPTS = DAYS.map((label, value) => ({ value, label }));
+
+// Repeat: turn a done run into a Vaultbase cron job that runs it again, daily,
+// weekly or monthly (docs/PHASE-2A.md, part 2).
+function repeatPanel(s, d, r) {
+  const parent = r.rerun_of ? d.byId.runs.get(r.rerun_of) : null;
+  if (parent?.schedule) {
+    return html`<div class="notice">${icon("again")}<div class="small">This run is a repeat. <a href="${APP + "/runs/" + parent.id}">The run it repeats</a> ${describe(parent.schedule)} holds the schedule.</div></div>`;
+  }
+  const f = s.rep || (s.rep = reactive({ schedule: r.schedule || "", every: "week", day: 1, date: 1, time: "09:00" }));
+  const unattended = r.judge === "me" || (r.contenders || []).some((id) => d.byId.contenders.get(id)?.mode === "handoff");
+  const save = (schedule) => (e) => busy(e, async () => {
+    try {
+      const cron = schedule === undefined ? toCron(f) : schedule;
+      const out = await custom.runSchedule(r.id, cron);
+      f.schedule = out.run?.schedule || "";
+      toast(f.schedule ? `Repeats ${describe(f.schedule)}` : "Stopped repeating", "done", "again");
+    } catch (err) { errorToast(err); }
+  });
+  return html`<div class="panel"><div class="panel__body gap-10">
+    ${() => (f.schedule
+      ? html`<div class="row-between"><span class="row-tight">${icon("again")}<strong>${"Repeats " + describe(f.schedule)}</strong></span><button class="btn btn--sm" type="button" @click="${save(null)}">Stop repeating</button></div>
+        <p class="small muted">Each repeat is a new run like Run again. You get an email when it finishes.</p>`
+      : html`<div class="row-tight">${icon("again")}<strong>Repeat this run</strong></div>
+        <div class="fields-2">
+          <div class="field"><label for="rp-every">Every</label>${dropdown({ id: "rp-every", label: "Every", options: () => EVERY, value: () => f.every, onChange: (v) => { f.every = v; } })}</div>
+          ${() => (f.every === "week" ? html`<div class="field"><label for="rp-day">On</label>${dropdown({ id: "rp-day", label: "On", options: () => DAY_OPTS, value: () => f.day, onChange: (v) => { f.day = v; } })}</div>` : "")}
+          ${() => (f.every === "month" ? html`<div class="field"><label for="rp-date">On day</label><input class="input" id="rp-date" type="number" min="1" max="28" value="${f.date}" @input="${(e) => { f.date = Number(e.target.value) || 1; }}"></div>` : "")}
+          <div class="field"><label for="rp-time">At (your time)</label><input class="input" id="rp-time" type="time" value="${f.time}" @input="${(e) => { f.time = e.target.value; }}"></div>
+        </div>
+        ${unattended ? html`<div class="notice" data-state="warning">${icon("warning")}<div class="small">${r.judge === "me" ? "You judge this run, so each repeat waits for you to judge it." : "Some contenders are copy and paste, so their outputs wait for you each time."} You get an email when a repeat needs you.</div></div>` : ""}
+        <div><button class="btn btn--primary" type="button" @click="${save(undefined)}">${icon("again")}Repeat</button></div>`)}
+  </div></div>`;
 }
 
 function attemptRow(d, r, a) {

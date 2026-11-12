@@ -96,6 +96,7 @@ export const custom = {
   preview: async (body) => data(await request("POST", C("/runs/preview"), body)),
   startRun: async (body) => data(await request("POST", C("/runs"), body)),
   runAgain: async (id) => data(await request("POST", C(`/runs/${id}/again`))),
+  runSchedule: async (id, schedule) => data(await request("POST", C(`/runs/${id}/schedule`), { schedule })),
   run: async (id) => data(await request("GET", C(`/runs/${id}`))),
   handoff: async (runId, taskId) => data(await request("GET", C(`/handoff/${runId}/${taskId}`))),
   judging: async (runId, taskId) => data(await request("GET", C(`/judging/${runId}/${taskId}`))),

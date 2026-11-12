@@ -17,6 +17,16 @@ How to run Audition on your own machine, and the Phase 1 check with a real Anthr
 
 If `bun run dev` says "Provider variables are set", unset them (for example `unset ANTHROPIC_API_KEY`) and run it again. Keys go into the app, never the environment.
 
+## Emails and repeats (Phase 2a)
+
+Audition emails the owner when a run finishes (or its outputs are ready for you to judge), when the leaderboard suggests a new champion, and when a scheduled repeat can't start. It sends through Vaultbase's own SMTP settings; with SMTP not set up it skips the email and writes one line to the hook log, and nothing else changes.
+
+1. In the Vaultbase admin, open **Settings → Email** and set the SMTP host, port, user, password and From address, then turn SMTP on. The send test there checks the settings.
+2. Set **App URL** (`app.url`) to Audition's address, for example `https://audition.example.com`, so the links in the emails open the app. Without it the links are paths only.
+3. Emails go to the owner account's email address.
+
+A run's **Repeat** panel makes a Vaultbase cron job named `repeat-<run id>`; the admin's **Jobs** page lists it with its next run time. Cron in Vaultbase is UTC, so where clocks change, a repeat moves by an hour with them. A slot missed while the server was down is not caught up. The job `sweep-stale-outputs` runs every 5 minutes and fails API outputs stuck for 20 minutes (or queued for an hour).
+
 ## Local Anthropic check
 
 This is the Phase 1 check with a real key (TECH-SPEC §15, T5 Done-when 3). You run it yourself, outside any Claude session. It takes about 15 minutes and costs a few cents: three model calls for generation and up to eight for judging, each capped by the contender's max output tokens.
