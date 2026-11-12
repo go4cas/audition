@@ -15,7 +15,7 @@ Four parts, each built on Vaultbase's own features. Part order is also the build
 ## Part 1 — Stale-attempt sweep
 
 - A file job `vb_hooks/jobs/sweep.ts`, every 5 minutes.
-- An API output still `queued` or `in_progress` 15 minutes after it was last updated is marked `failed` with the error "Timed out: no answer from the provider". The run's status is then refreshed, so a run never hangs in "running".
+- An API output `in_progress` for 20 minutes since its last update (the queue's own job timeout is 15 minutes), or still `queued` an hour after it was made, is marked `failed` with a "Timed out" error. The run's status is then refreshed, so a run never hangs in "running".
 - Handoff outputs (`waiting`) are never swept: they wait for you as long as it takes.
 - Writes go through `helpers.records`, so record history shows each sweep as **system**.
 
@@ -40,8 +40,9 @@ The idea: some calls can only be judged later ("Was the stock call right four we
 
 ## Part 4 — Email alerts to the owner
 
+- An after-update hook on runs puts the email on an `email` queue, so a slow mail server never holds up a run.
 - Sent to the owner account's email, through Vaultbase's SMTP settings. If SMTP isn't set up, Audition skips the email and writes one line to the hook log; nothing fails.
-- **Run finished**: when a run reaches "judging" with judge "Me" (it needs you), or "done". The email names the role, how many outputs, any failures, and a link to the run.
+- **Run finished**: with judge "Me" when its outputs are ready for you (judging), with the AI judge when it is done. One email per run. The email names the role, how many outputs, any failures, and a link to the run.
 - **Champion change**: in the same email, when the leaderboard's suggested champion for that role is now a different contender from the confirmed casting (or there is none yet), with a link to confirm. Confirming stays your click; Audition never confirms on its own. (Your own click doesn't email you.)
 - **Outcome checks due**: the daily list from Part 3.
 - `docs/OPERATIONS.md` gets the SMTP setup steps.
@@ -61,3 +62,8 @@ The idea: some calls can only be judged later ("Was the stock call right four we
 2. The `leaderboard` view: quality from `method = rubric` only; add `n_outcome` and `mean_outcome` (Q3).
 
 Both are additive: existing data and screens keep working.
+
+## Build status
+
+- Done on this branch: parts 1, 2 and 4 (sweep, Repeat, emails), with `test/arena.test.ts`, `test/ui-schedule.test.ts` and a Repeat step in the browser walkthrough.
+- Waiting on Cas: part 3 (outcome checks), because of the two schema changes.
