@@ -85,5 +85,7 @@ test("ties go to the higher mean, then more outputs, then the name", () => {
 
 test("view rows arrive as text and are parsed to numbers (O4)", () => {
   const r = parseViewRow({ contender: "c1", n: "2", mean_score: "3.5", sum_sq: "25", n_tokens: "2", mean_tokens: "450", n_time: "0", mean_time_ms: null, n_cost: "0", mean_cost: null }, "Mock", "mock");
-  expect(r).toEqual({ contender: "c1", name: "Mock", group: "mock", n: 2, mean_score: 3.5, sum_sq: 25, n_tokens: 2, mean_tokens: 450, n_time: 0, mean_time_ms: null, n_cost: 0, mean_cost: null });
+  expect(r).toEqual({ contender: "c1", name: "Mock", group: "mock", n: 2, mean_score: 3.5, sum_sq: 25, n_tokens: 2, mean_tokens: 450, n_time: 0, mean_time_ms: null, n_cost: 0, mean_cost: null, n_outcome: 0, mean_outcome: null });
+  // Phase 2a: scored outcome checks, parsed the same way.
+  expect(parseViewRow({ contender: "c1", n: "1", mean_score: "4", n_outcome: "2", mean_outcome: "3.5" }, "M", "m")).toMatchObject({ n_outcome: 2, mean_outcome: 3.5 });
 });

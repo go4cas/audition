@@ -18,6 +18,8 @@
       "mean_time_ms": 500,
       "mean_cost": null,
       "fitness": 0.5,
+      "n_outcome": 0,
+      "mean_outcome": null,
       "qualifies": false,
       "enough_data": false
     },
@@ -33,6 +35,8 @@
       "mean_time_ms": 1000,
       "mean_cost": 0.01,
       "fitness": 0.25,
+      "n_outcome": 0,
+      "mean_outcome": null,
       "qualifies": true,
       "enough_data": true
     },
@@ -48,6 +52,8 @@
       "mean_time_ms": 2000,
       "mean_cost": null,
       "fitness": 0.17,
+      "n_outcome": 0,
+      "mean_outcome": null,
       "qualifies": true,
       "enough_data": true
     },
@@ -63,6 +69,8 @@
       "mean_time_ms": 800,
       "mean_cost": null,
       "fitness": 0.16,
+      "n_outcome": 0,
+      "mean_outcome": null,
       "qualifies": false,
       "enough_data": true
     }

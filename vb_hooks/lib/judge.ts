@@ -172,7 +172,7 @@ export async function judgeAttempt(deps: JudgeDeps, attemptId: string): Promise<
   const run = attempt["run"] ? await find("runs", String(attempt["run"])) : null;
   if (!run) return { outcome: "skipped", reason: "the output has no run" };
   if (run["judge"] !== "ai" || !run["judge_contender"]) return { outcome: "skipped", reason: "the run is not AI-judged" };
-  const existing = await sql.queryOne(`SELECT id FROM vb_verdicts WHERE attempt = ? AND status = 'active'`, [attemptId]);
+  const existing = await sql.queryOne(`SELECT id FROM vb_verdicts WHERE attempt = ? AND status = 'active' AND COALESCE(method, 'rubric') = 'rubric'`, [attemptId]);
   if (existing) return { outcome: "skipped", reason: "the output already has a verdict" };
 
   const fail = async (error: string, tries: number): Promise<JudgeOutcome> => {

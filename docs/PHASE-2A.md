@@ -65,5 +65,6 @@ Both are additive: existing data and screens keep working.
 
 ## Build status
 
-- Done on this branch: parts 1, 2 and 4 (sweep, Repeat, emails), with `test/arena.test.ts`, `test/ui-schedule.test.ts` and a Repeat step in the browser walkthrough.
-- Waiting on Cas: part 3 (outcome checks), because of the two schema changes.
+- Parts 1, 2 and 4 (sweep, Repeat, emails) merged in PR #25 on Nov 12, 2026.
+- Part 3 (outcome checks): Cas approved both schema changes on Nov 12, 2026 (Q2, Q3). Built in its own PR: `roles.outcome_after_days` (1 to 365 days, empty = off; the seed sets 28 on the Stock analyst role), the leaderboard view counting rubric verdicts only plus `n_outcome` and `mean_outcome`, `lib/outcomes.ts`, `GET /outcomes`, `POST /outcomes/:id`, the daily job `outcome-checks-due`, the Outcome checks screen, outcome items in "Waiting for you", the leaderboard's Outcome column and the role setting. `test/outcomes.test.ts` holds the Phase 2 Done-when end to end.
+- The check is created when a rubric verdict first becomes active (AI or owner); an owner override keeps the same check. The daily email lists checks that came due in the past day, so each is emailed once; the screen lists every due check until it is scored.

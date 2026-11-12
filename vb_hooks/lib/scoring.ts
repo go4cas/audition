@@ -7,6 +7,7 @@ import { insertRecord, isTrusted, updateRecord, type Records, type Sql, type Sto
 import { listOf, parseJson, type Criterion } from "./validation.ts";
 import { htmlToText } from "./handoff.ts";
 import { refreshRunStatus } from "./runs.ts";
+import { ensureOutcomeCheck } from "./outcomes.ts";
 
 export interface Score { stars: number; reason?: string }
 export type Scores = Record<string, Score>;
@@ -87,12 +88,14 @@ export function blindOrder<T extends { id: string }>(runId: string, taskId: stri
 export async function activateVerdict(store: Store, attemptId: string, verdictId: string): Promise<void> {
   const { sql } = store;
   const others = await sql.query<{ id: string }>(
-    `SELECT id FROM vb_verdicts WHERE attempt = ? AND status = 'active' AND id != ?`, [attemptId, verdictId],
+    `SELECT id FROM vb_verdicts WHERE attempt = ? AND status = 'active' AND id != ? AND COALESCE(method, 'rubric') = 'rubric'`, [attemptId, verdictId],
   );
   for (const o of others) await updateRecord(store, "verdicts", o.id, { status: "overridden" });
   const a = await sql.queryOne<{ status: string; run: string | null }>(`SELECT status, run FROM vb_attempts WHERE id = ?`, [attemptId]);
   if (a && a.status !== "judged" && a.status !== "failed") await updateRecord(store, "attempts", attemptId, { status: "judged" });
   if (a?.run) await refreshRunStatus(store, a.run);
+  // Phase 2a: a role with "check the outcome after N days" gets its check now.
+  await ensureOutcomeCheck(store, attemptId);
 }
 
 /** Store an AI verdict from the judge worker, and make it the active one. */
@@ -100,7 +103,7 @@ export async function storeAiVerdict(store: Store, v: {
   attempt: string; run: string; judgeContender: string; scores: Scores; rubric: Criterion[];
 }): Promise<{ id: string; status: "active" | "overridden" }> {
   // A human verdict that is already there wins: the AI one is kept as history.
-  const human = await store.sql.queryOne(`SELECT id FROM vb_verdicts WHERE attempt = ? AND status = 'active' AND judge_kind = 'human'`, [v.attempt]);
+  const human = await store.sql.queryOne(`SELECT id FROM vb_verdicts WHERE attempt = ? AND status = 'active' AND judge_kind = 'human' AND COALESCE(method, 'rubric') = 'rubric'`, [v.attempt]);
   const status = human ? "overridden" : "active";
   const id = await insertRecord(store, "verdicts", {
     attempt: v.attempt, run: v.run, method: "rubric", judge_kind: "ai", judge_contender: v.judgeContender,
@@ -215,7 +218,7 @@ export async function blindPayload(deps: BlindDeps, runId: string, taskId: strin
     : [];
   const verdicts = ids.length
     ? await sql.query<{ id: string; attempt: string; judge_kind: string; scores: string; score: number; status: string; created_at: number }>(
-      `SELECT id, attempt, judge_kind, scores, score, status, created_at FROM vb_verdicts WHERE attempt IN (${marks}) ORDER BY created_at, rowid`, ids)
+      `SELECT id, attempt, judge_kind, scores, score, status, created_at FROM vb_verdicts WHERE attempt IN (${marks}) AND COALESCE(method, 'rubric') = 'rubric' ORDER BY created_at, rowid`, ids)
     : [];
 
   const outputs = blindOrder(runId, taskId, attempts).map(({ attempt: a, label }) => {
