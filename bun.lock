@@ -6,7 +6,7 @@
       "name": "audition",
       "dependencies": {
         "@arrow-js/core": "1.0.6",
-        "@go4cas/quiver": "3.1.0",
+        "@go4cas/quiver": "3.2.1",
       },
       "devDependencies": {
         "playwright": "1.63.0",
@@ -16,7 +16,7 @@
   "packages": {
     "@arrow-js/core": ["@arrow-js/core@1.0.6", "", {}, "sha512-75f4N0iHtHTwgxf9XS8a1vtfGZZmCvqT0Ix+ScDLclNuR9Fqp2yOIK1u8vmN1BPsS4aRfMVTdSFSmgGCqkJSCg=="],
 
-    "@go4cas/quiver": ["@go4cas/quiver@3.1.0", "", { "peerDependencies": { "@arrow-js/core": "^1.0.6" }, "bin": { "quiver": "bin/quiver.js" } }, "sha512-jIJrp5WZLNvgw8Cr/Lbr6170p8tftLsCQsVJ1q44a4QEUNaz5t5KhZj7pzUgqGfEkPOsEL9052wTTaAnOXTr9g=="],
+    "@go4cas/quiver": ["@go4cas/quiver@3.2.1", "", { "peerDependencies": { "@arrow-js/core": "^1.0.6" }, "bin": { "quiver": "bin/quiver.js" } }, "sha512-Z/LiJLQh9AhWjziaXKYH3NUWHFxAI2RwwXKobOrVRYPoHS+qCUdEHRObBvB9fxbGK7hadBioXmHkEQwk+269Vw=="],
 
     "playwright": ["playwright@1.63.0", "", { "dependencies": { "playwright-core": "1.63.0" }, "bin": { "playwright": "cli.js" } }, "sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg=="],
 

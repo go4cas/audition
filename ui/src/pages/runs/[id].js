@@ -4,15 +4,18 @@
 // polls that route every 2 seconds instead (PLATFORM-UPGRADES B3). Outputs and
 // scores stay hidden here so judging stays blind.
 import { html, reactive } from "@arrow-js/core";
-import { custom } from "../api.js";
-import { APP, go } from "../lib/nav.js";
-import { busy, crumbs, page } from "../components/page.js";
-import { TYPE_ICON, avatar, chip, duration, errorToast, icon, money, num, outputChip, plural, popId, time, toast } from "../lib/ui.js";
-import { load, runLabel } from "../state/data.js";
-import { refreshInbox } from "../state/inbox.js";
-import { subscribe } from "../lib/realtime.js";
+import { custom } from "../../api.js";
+import { APP, go, routeArgs } from "../../lib/nav.js";
+import { busy, crumbs, page } from "../../components/page.js";
+import { TYPE_ICON, avatar, chip, duration, errorToast, icon, money, num, outputChip, plural, popId, time, toast } from "../../lib/ui.js";
+import { load, runLabel } from "../../state/data.js";
+import { refreshInbox } from "../../state/inbox.js";
+import { subscribe } from "../../lib/realtime.js";
 
-export default function run({ params }) {
+export const meta = { title: "Run · Audition" };
+
+export default function run() {
+  const { params } = routeArgs();
   return page({
     screen: "run",
     load: async (s) => {

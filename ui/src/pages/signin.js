@@ -2,11 +2,14 @@
 // sign-in is on (Vaultbase answers mfa_required).
 import { html, reactive } from "@arrow-js/core";
 import { signIn, signInCode } from "../api.js";
-import { go } from "../lib/nav.js";
+import { go, routeArgs } from "../lib/nav.js";
 import { icon, toast } from "../lib/ui.js";
-import { logo } from "../layouts/shell.js";
+import { logo } from "../components/shell.js";
 
-export default function signin({ query }) {
+export const meta = { title: "Sign in · Audition", bare: true };
+
+export default function signin() {
+  const { query } = routeArgs();
   const s = reactive({ email: "", password: "", code: "", mfa: null, error: "", busy: false });
   const submit = async (e) => {
     e.preventDefault();

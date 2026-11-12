@@ -1,17 +1,20 @@
 // 11. Copy and paste: copy the prompt, paste it into the tool, paste the reply
 // back (with files, and tokens and time if the tool showed them).
 import { html, reactive } from "@arrow-js/core";
-import { custom, fileLabel, fileUrl, update, upload } from "../api.js";
-import { APP, go } from "../lib/nav.js";
-import { filePicker, fileIcon, rawFiles } from "../components/forms.js";
-import { crumbs, empty, page } from "../components/page.js";
-import { avatar, bump, chip, copyText, errorToast, icon, outputChip, toast } from "../lib/ui.js";
-import { load, runLabel } from "../state/data.js";
-import { inbox, refreshInbox } from "../state/inbox.js";
+import { custom, fileLabel, fileUrl, update, upload } from "../../../api.js";
+import { APP, go, routeArgs } from "../../../lib/nav.js";
+import { filePicker, fileIcon, rawFiles } from "../../../components/forms.js";
+import { crumbs, empty, page } from "../../../components/page.js";
+import { avatar, bump, chip, copyText, errorToast, icon, outputChip, toast } from "../../../lib/ui.js";
+import { load, runLabel } from "../../../state/data.js";
+import { inbox, refreshInbox } from "../../../state/inbox.js";
 
 const LABELS = /^(You are acting as:|Role description:|TASK:|You will be judged on:|Work in the repository|Attached files:|WHEN DONE,?)/;
 
-export default function handoff({ params, query }) {
+export const meta = { title: "Paste replies · Audition" };
+
+export default function handoff() {
+  const { params, query } = routeArgs();
   return page({
     narrow: true, screen: "handoff",
     load: async (s) => {

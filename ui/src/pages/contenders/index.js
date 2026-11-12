@@ -1,11 +1,11 @@
 // 7. Contenders: connections (with write-only API keys) and every contender.
 import { html, reactive } from "@arrow-js/core";
-import { create, custom } from "../api.js";
-import { dropdown } from "../components/forms.js";
-import { busy, empty, page } from "../components/page.js";
-import { avatar, chip, errorToast, icon, money, num, plural, popId, toast } from "../lib/ui.js";
-import { PROVIDER_LABEL, contenderMeta, load } from "../state/data.js";
-import { APP } from "../lib/nav.js";
+import { create, custom } from "../../api.js";
+import { dropdown } from "../../components/forms.js";
+import { busy, empty, page } from "../../components/page.js";
+import { avatar, chip, errorToast, icon, money, num, plural, popId, toast } from "../../lib/ui.js";
+import { PROVIDER_LABEL, contenderMeta, load } from "../../state/data.js";
+import { APP } from "../../lib/nav.js";
 
 const PROVIDERS = [
   { value: "anthropic", label: "Anthropic", icon: "key", desc: "Claude models through the Anthropic API" },
@@ -18,6 +18,8 @@ async function saveKey(conn, key) {
   if (conn.has_key) await custom.removeKey(conn.id);
   await create("connection_keys", { connection: conn.id, api_key: key });
 }
+
+export const meta = { title: "Contenders · Audition", nav: { label: "Contenders", order: 2 } };
 
 export default function contenders() {
   const keyPop = popId();
