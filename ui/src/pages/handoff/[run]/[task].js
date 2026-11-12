@@ -7,7 +7,7 @@ import { filePicker, fileIcon, rawFiles } from "../../../components/forms.js";
 import { crumbs, empty, page } from "../../../components/page.js";
 import { avatar, bump, chip, copyText, errorToast, icon, outputChip, toast } from "../../../lib/ui.js";
 import { load, runLabel } from "../../../state/data.js";
-import { inbox, refreshInbox } from "../../../state/inbox.js";
+import { inbox, itemHref, refreshInbox } from "../../../state/inbox.js";
 
 const LABELS = /^(You are acting as:|Role description:|TASK:|You will be judged on:|Work in the repository|Attached files:|WHEN DONE,?)/;
 
@@ -112,4 +112,4 @@ export default function handoff() {
   });
 }
 
-const itemHref0 = () => { const g = inbox.items[0]; return g.kind === "paste" ? `${APP}/handoff/${g.run}/${g.task}` : `${APP}/judge/${g.run}/${g.task}`; };
+const itemHref0 = () => itemHref(inbox.items[0]);

@@ -208,7 +208,8 @@ async function castRole(ws: Rec, role: Rec, cast: Rec[], opts: { addTask: boolea
   for (const t of tasks) expect((await route("GET", `/api/v1/tasks/${t.id}`)).locked).toBe(true);
 
   // Judging was by the workspace's own judge.
-  const verdicts = await list("verdicts", `run = "${run.id}" && status = "active"`);
+  // Rubric verdicts: a role that checks outcomes also gets one outcome check per output (Phase 2a).
+  const verdicts = await list("verdicts", `run = "${run.id}" && status = "active" && method = "rubric"`);
   expect(verdicts.length).toBe(tasks.length * cast.length);
   for (const v of verdicts) expect(v.judge_kind).toBe(judge === "ai" ? "ai" : "human");
 

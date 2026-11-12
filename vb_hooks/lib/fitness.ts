@@ -17,6 +17,9 @@ export interface RawRow {
   mean_time_ms: number | null;
   n_cost: number;
   mean_cost: number | null;
+  /** Phase 2a outcome checks: scored ones only. Never part of quality or fitness. */
+  n_outcome?: number;
+  mean_outcome?: number | null;
 }
 
 export interface Row {
@@ -31,6 +34,8 @@ export interface Row {
   mean_time_ms: number | null;
   mean_cost: number | null;
   fitness: number;
+  n_outcome: number;
+  mean_outcome: number | null;
   qualifies: boolean;
   enough_data: boolean;
 }
@@ -113,6 +118,8 @@ export function leaderboard(raw: RawRow[], opts: { weights: FitnessWeights; minO
       mean_time_ms: r.n_time > 0 && r.mean_time_ms !== null ? round(r.mean_time_ms, 0) : null,
       mean_cost: r.n_cost > 0 && r.mean_cost !== null ? round(r.mean_cost, 6) : null,
       fitness: round(fitness, 4),
+      n_outcome: r.n_outcome ?? 0,
+      mean_outcome: r.n_outcome && r.mean_outcome != null ? round(r.mean_outcome, 2) : null,
       qualifies: enough_data && r.mean_score > passMark,
       enough_data,
     };
@@ -140,6 +147,8 @@ export function parseViewRow(v: Record<string, unknown>, name: string, group: st
     mean_time_ms: num(v["mean_time_ms"]),
     n_cost: num(v["n_cost"]) ?? 0,
     mean_cost: num(v["mean_cost"]),
+    n_outcome: num(v["n_outcome"]) ?? 0,
+    mean_outcome: num(v["mean_outcome"]),
   };
 }
 

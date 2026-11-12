@@ -10,6 +10,14 @@ import { load } from "../state/data.js";
 
 const PASS = [3, 3.5, 4, 4.5].map((v) => ({ value: v, label: v.toFixed(1) + " stars", icon: "star", desc: { 3: "Usable, needs some fixing", 3.5: "Solid, with small issues", 4: "Strong, ready to use", 4.5: "Excellent" }[v] }));
 const TYPES = ["text", "image", "file", "code"].map((t) => ({ value: t, label: TYPE_LABEL[t], icon: TYPE_ICON[t], desc: t === "code" ? "Names a repository and commit" : undefined }));
+// Phase 2a: "was the call right later?" checks, for roles whose calls play out over time.
+const OUTCOME = [
+  { value: null, label: "Off", icon: "draft", desc: "Judged once, on the day" },
+  { value: 7, label: "After 1 week", icon: "time" },
+  { value: 14, label: "After 2 weeks", icon: "time" },
+  { value: 28, label: "After 4 weeks", icon: "time", desc: "Good for stock calls" },
+  { value: 91, label: "After 3 months", icon: "time" },
+];
 const SWATCH = ["var(--accent)", "color-mix(in srgb, var(--accent) 68%, var(--surface))", "color-mix(in srgb, var(--accent) 42%, var(--surface))", "color-mix(in srgb, var(--accent) 22%, var(--surface))"];
 
 export default function role({ params, query }) {
@@ -27,6 +35,7 @@ export default function role({ params, query }) {
       s.f = reactive({
         name: r?.name || "", description: r?.description || "", stage: r ? r.stage : query.stage || null,
         pass_mark: r?.pass_mark ?? 3.5, default_output_type: r?.default_output_type || "text",
+        outcome_after_days: r?.outcome_after_days || null,
         rubric: (r?.rubric || [{ name: "", weight: 100, guidance: "" }]).map((c) => ({ ...c })),
       });
     },
@@ -34,6 +43,7 @@ export default function role({ params, query }) {
       const { d, ws, f, r } = s;
       const stages = d.stages.filter((x) => x.workspace === ws.id);
       const stageOpts = [...stages.map((x) => ({ value: x.id, label: x.name, icon: "stage" })), { value: null, label: "No stage", icon: "draft", desc: "Sits on its own, outside the stages" }];
+      const outcomeOpts = OUTCOME.some((o) => o.value === f.outcome_after_days) ? OUTCOME : [...OUTCOME, { value: f.outcome_after_days, label: `After ${f.outcome_after_days} days`, icon: "time" }];
       const weights = () => f.rubric.map((c) => c.weight);
       const tasks = r ? d.tasks.filter((t) => t.role === r.id && !d.tasks.some((n) => n.previous_version === t.id)) : [];
       const runs = r ? d.runs.filter((x) => x.role === r.id).length : 0;
@@ -41,7 +51,7 @@ export default function role({ params, query }) {
         e.preventDefault();
         const rubric = f.rubric.map((c) => ({ name: c.name.trim(), weight: Number(c.weight) || 0, guidance: c.guidance.trim() })).filter((c) => c.name);
         if (rubric.reduce((a, c) => a + c.weight, 0) !== 100) { toast("Rubric weights need to add up to 100", "error", "warning"); return; }
-        const body = { workspace: ws.id, name: f.name.trim(), description: f.description.trim(), stage: f.stage || null, pass_mark: Number(f.pass_mark), default_output_type: f.default_output_type, rubric };
+        const body = { workspace: ws.id, name: f.name.trim(), description: f.description.trim(), stage: f.stage || null, pass_mark: Number(f.pass_mark), default_output_type: f.default_output_type, outcome_after_days: f.outcome_after_days || null, rubric };
         try {
           const saved = isNew ? await create("roles", body) : await update("roles", r.id, body);
           toast(isNew ? "Role added" : "Role saved. Old scores keep their rubric.");
@@ -84,6 +94,8 @@ export default function role({ params, query }) {
                 <div class="field"><label for="ro-pass">${icon("pass-mark")}Pass mark <button class="info-btn" type="button" popovertarget="${passPop}" aria-label="What is the pass mark?">${icon("help")}</button></label>
                   ${dropdown({ id: "ro-pass", label: "Pass mark", options: () => PASS, value: () => f.pass_mark, onChange: (v) => { f.pass_mark = v; } })}</div>
                 <div class="field"><label for="ro-type">Usual output</label>${dropdown({ id: "ro-type", label: "Usual output", options: () => TYPES, value: () => f.default_output_type, onChange: (v) => { f.default_output_type = v; } })}</div>
+                <div class="field"><label for="ro-outcome">${icon("time")}Check the outcome</label>${dropdown({ id: "ro-outcome", label: "Check the outcome", options: () => outcomeOpts, value: () => f.outcome_after_days, onChange: (v) => { f.outcome_after_days = v; } })}
+                  <span class="hint">For calls that play out later. On the day, you're asked "Was the call right?". It shows as its own column on the leaderboard.</span></div>
               </div>
               <div class="pop" id="${passPop}" popover><div class="pop__head">${icon("pass-mark")}Pass mark</div><div class="pop__body"><p>A contender has to average more than this to be suggested as champion. 3.5 stars means "solid, with small issues".</p><p class="xs muted">Changing the rubric later is safe: old scores keep the rubric they were judged with.</p></div></div>
             </div>

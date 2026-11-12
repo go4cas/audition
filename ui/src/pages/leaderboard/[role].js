@@ -67,6 +67,8 @@ export default function leaderboard() {
         return html`<div class="notice">${icon("info-fill")}<div class="small"><strong>No champion yet.</strong> A contender needs ${plural(min, "scored output")} and an average above ${role.pass_mark} stars. Use Run again to collect more.</div></div>`;
       };
 
+      // Phase 2a: outcome checks, in their own column, never in quality or fitness.
+      const outcomeCol = !!role.outcome_after_days || rows.some((r) => r.n_outcome);
       const row = (r) => {
         const fitPop = popId();
         const q = ((r.mean_score - 1) / 4) * w.quality / 100;
@@ -79,6 +81,7 @@ export default function leaderboard() {
           <td class="num">${r.n}</td>
           <td class="num"><span class="score">${icon("star")}${stars1(r.mean_score)}</span></td>
           <td>${range ? html`<span class="range" data-tip="${`${stars1(r.ci_low)} to ${stars1(r.ci_high)}${r.ci_high - r.ci_low > 1.5 ? ": wide, so not consistent yet" : ""}`}"><span class="range__band" style="${`left:${pos(r.ci_low)}%;width:${pos(r.ci_high) - pos(r.ci_low)}%`}"></span><span class="range__pass" style="${`left:${pos(role.pass_mark)}%`}"></span><span class="range__dot" style="${`left:${pos(r.mean_score)}%`}"></span></span>` : html`<span class="xs muted">needs 2 outputs</span>`}</td>
+          ${outcomeCol ? html`<td class="${"num" + (r.n_outcome ? "" : " muted")}">${r.n_outcome ? html`<span class="score" data-tip="${"Was the call right? Average of " + plural(r.n_outcome, "check")}">${icon("star")}${stars1(r.mean_outcome)} <span class="xs muted">(${r.n_outcome})</span></span>` : html`<span class="xs muted">none yet</span>`}</td>` : ""}
           <td class="${"num" + (r.mean_tokens == null ? " muted" : "")}">${r.mean_tokens == null ? "N/A" : short(r.mean_tokens)}</td>
           <td class="${"num" + (r.mean_time_ms == null ? " muted" : "")}">${r.mean_time_ms == null ? "N/A" : duration(r.mean_time_ms)}</td>
           <td class="${"num" + (r.mean_cost == null ? " muted" : "")}">${money(r.mean_cost)}</td>
@@ -108,7 +111,7 @@ export default function leaderboard() {
         <div class="panel">
           <div class="panel__head"><h2 class="h-md">${icon("leaderboard")}Contenders</h2><label class="switch"><input type="checkbox" @change="${(e) => { ui.group = e.target.checked; }}"><span class="switch__track"></span>Group by model</label></div>
           ${rows.length ? html`<div class="table-wrap"><table>
-            <thead><tr><th>Contender</th><th class="num">Outputs</th><th class="num">Average</th><th>Likely range <button class="info-btn" type="button" popovertarget="${rangePop}" aria-label="What is the likely range?">${icon("help")}</button></th><th class="num">Tokens</th><th class="num">Time</th><th class="num">Cost</th><th>Fitness</th><th></th></tr></thead>
+            <thead><tr><th>Contender</th><th class="num">Outputs</th><th class="num">Average</th><th>Likely range <button class="info-btn" type="button" popovertarget="${rangePop}" aria-label="What is the likely range?">${icon("help")}</button></th>${outcomeCol ? html`<th class="num"><span data-tip="Was the call right, checked later. Shown on its own; it doesn't change the average or fitness." tabindex="0">Outcome</span></th>` : ""}<th class="num">Tokens</th><th class="num">Time</th><th class="num">Cost</th><th>Fitness</th><th></th></tr></thead>
             <tbody>${() => (ui.group ? groups().map(([g, rs]) => html`<tr class="group-row"><td colspan="9"><span class="eyebrow">${g}</span></td></tr>${rs.map(row)}`) : rows.map(row))}</tbody>
           </table></div>` : empty("leaderboard", "No scored outputs yet", "Judge some outputs and they show up here.")}
         </div>

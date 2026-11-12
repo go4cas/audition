@@ -15,7 +15,7 @@ type Rec = Record<string, unknown> & { id: string };
 type Criterion = [name: string, weight: number, guidance: string];
 
 interface TaskDef { title: string; prompt: string; output_type?: string; base_ref?: boolean; attachments?: string[] }
-interface RoleDef { stage?: string; name: string; description: string; rubric: Criterion[]; pass_mark: number; output_type: string; tasks: TaskDef[] }
+interface RoleDef { stage?: string; name: string; description: string; rubric: Criterion[]; pass_mark: number; output_type: string; outcome_after_days?: number; tasks: TaskDef[] }
 interface WorkspaceDef {
   name: string; description: string; judge: "me" | "ai"; weights: { quality: number; tokens: number; time: number };
   stages: string[]; roles: RoleDef[];
@@ -150,6 +150,8 @@ export const WORKSPACES: WorkspaceDef[] = [
     roles: [
       {
         name: "Stock analyst", description: "A short, balanced review of one listed company.", pass_mark: 3.5, output_type: "text",
+        // Phase 2a: was the call right four weeks later?
+        outcome_after_days: 28,
         rubric: [["Uses the facts given", 35, g("Works from the attached summary.")], ["Balanced risks and upside", 25, g("Names both sides fairly.")], ["Clear view with reasoning", 25, g("Buy, hold or sell, with reasons.")], ["Plain language", 15, g("No jargon a non-expert can't follow.")]],
         tasks: [
           { title: "Review the attached quarterly summary for Northwind Foods and give a buy, hold or sell view with three reasons", prompt: "<p>Review the attached quarterly summary for a fictional company, Northwind Foods, and give a buy, hold or sell view with three reasons.</p>", attachments: ["northwind-foods-q3.txt"] },
@@ -239,6 +241,7 @@ export async function seedReference(base: string, adminToken: string): Promise<S
         workspace: ws.id, stage: r.stage ? stages.get(r.stage)!.id : null, name: r.name, description: r.description,
         rubric: r.rubric.map(([name, weight, guidance]) => ({ name, weight, guidance })),
         pass_mark: r.pass_mark, default_output_type: r.output_type,
+        ...(r.outcome_after_days ? { outcome_after_days: r.outcome_after_days } : {}),
       }, `${w.name} / ${r.name}`);
       for (const t of r.tasks) {
         const before = report.created.length;

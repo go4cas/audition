@@ -288,6 +288,35 @@ test("Stock Review: add a connection with a key and a contender; paste an output
   await p.getByText(/^[A-Z]-1\.md$/).first().waitFor();
   expect(await p.getByText("notes.md").count()).toBe(0);
   await p.getByText("Judged by AI").first().waitFor();
+
+  // Phase 2a: the Stock analyst role checks outcomes after 28 days. Bring two
+  // checks' due date forward (the clock can't move), then check them blind.
+  await go(`/r/${role.id}`);
+  await p.locator("#ro-outcome", { hasText: "After 4 weeks" }).waitFor();
+  const checks = await h.sql<{ id: string; due_at: number }>(`SELECT id, due_at FROM vb_verdicts WHERE run = ? AND method = 'outcome'`, [run]);
+  expect(checks.length).toBe(2);
+  for (const c of checks) {
+    expect(Number(c.due_at)).toBeGreaterThan(Date.now() / 1000 + 27 * 86400);
+    await h.store("update", "verdicts", { due_at: Math.floor(Date.now() / 1000) - 60 }, c.id);
+  }
+  await go("/");
+  await p.getByText("Check the outcome: Review the attached").first().waitFor();
+  await shot("home-outcome");
+  await go("/outcomes");
+  await p.getByText("2 checks to go").waitFor();
+  const body = await p.evaluate(() => document.querySelector("#main")!.textContent!);
+  for (const name of ["Mock Erratic", "ChatGPT"]) expect(body).not.toContain(name);
+  await shot("outcomes");
+  const first = p.locator("[data-outcome]").first();
+  await first.locator(".star-input label").nth(1).click(); // 4 stars (labels run 5 to 1)
+  await first.locator("input.input").fill("Flat for a month: hold was right");
+  await first.getByRole("button", { name: "Save outcome" }).click();
+  await toastSays("Outcome saved");
+  await p.getByText("1 check to go").waitFor();
+  await go(`/leaderboard/${role.id}`);
+  await p.getByRole("columnheader", { name: "Outcome" }).waitFor();
+  await p.locator("td", { hasText: "(1)" }).first().waitFor();
+  await shot("leaderboard-outcome");
 }, 180_000);
 
 test("Marketing Pipeline: an image run judged blind in the image grid", async () => {

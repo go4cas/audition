@@ -248,6 +248,7 @@ Rules: all `OWNER`.
 | rubric | json, required | `[{ "name": "Accuracy", "weight": 40, "guidance": "…" }]`. The hook checks 1 to 8 criteria, unique names, whole-number weights summing to 100. |
 | pass_mark | number, 1 to 5 | default 3.5 |
 | default_output_type | select `text`, `image`, `file`, `code` | |
+| outcome_after_days | number, 1 to 365, optional | Phase 2a (Cas approved Nov 12, 2026): when set, each judged output gets an outcome check due this many days later. Empty means off. |
 
 Rules: all `OWNER`, except delete: `OWNER`, and the hook refuses when the role has runs.
 
@@ -370,16 +371,16 @@ The `beforeUpdate` hook allows the owner to change only `output`, `output_files`
 | --- | --- | --- |
 | attempt | rel → attempts, cascade, required | |
 | run | rel → runs, cascade | Denormalised for queries |
-| method | select `rubric`, `pairwise`, `outcome` | Only `rubric` in Phase 1 |
+| method | select `rubric`, `pairwise`, `outcome` | `rubric`; `outcome` for Phase 2a outcome checks (`docs/PHASE-2A.md`) |
 | judge_kind | select `human`, `ai` | |
 | judge_contender | rel → contenders, setNull | For AI verdicts |
 | scores | json | `{ "<criterion>": { "stars": 1-5, "reason": "…" } }` |
 | rubric_snapshot | json | The role's rubric at the moment of scoring |
 | score | number | Weighted, 1 to 5, two decimals |
-| status | select `active`, `overridden` | Exactly one `active` verdict per scored attempt |
+| status | select `active`, `overridden` | Exactly one `active` rubric verdict per scored attempt; an outcome check stays `active` alongside it |
 | opponent | rel → attempts | *later* |
 | winner | select `this`, `opponent`, `tie` | *later* |
-| due_at | date | *later* |
+| due_at | date | Outcome checks only: when the check comes due (unix seconds). Score stays empty until the owner scores it. |
 
 Rules: list and view `OWNER` · create `OWNER` (human verdicts only) · update and delete `—`.
 
@@ -415,14 +416,17 @@ SELECT
   COUNT(a.duration_ms)                                           AS n_time,
   AVG(a.duration_ms)                                             AS mean_time_ms,
   COUNT(a.cost)                                                  AS n_cost,
-  AVG(a.cost)                                                    AS mean_cost
+  AVG(a.cost)                                                    AS mean_cost,
+  (SELECT COUNT(o.score) … WHERE o.method = 'outcome' AND o.status = 'active'
+     AND orun.role = r.role AND oa.contender = a.contender)       AS n_outcome,
+  (SELECT AVG(o.score) …same…)                                   AS mean_outcome
 FROM vb_attempts a
 JOIN vb_runs r     ON r.id = a.run
-JOIN vb_verdicts v ON v.attempt = a.id AND v.status = 'active'
+JOIN vb_verdicts v ON v.attempt = a.id AND v.status = 'active' AND COALESCE(v.method, 'rubric') = 'rubric'
 GROUP BY r.role, a.contender
 ```
 
-Only scored outputs count, and tokens and time are averaged over those same outputs. Rules: list and view `OWNER`. T0 confirms the table names (`vb_<name>`, from `src/core/collections.ts`, `userTableName`) and the storage form of relation columns before writing this query.
+The exact query is in `schema/snapshot.json`. Phase 2a (Cas approved Nov 12, 2026): quality counts rubric verdicts only, and scored outcome checks get their own two columns, which never enter quality or fitness. Only scored outputs count, and tokens and time are averaged over those same outputs. Rules: list and view `OWNER`. T0 confirms the table names (`vb_<name>`, from `src/core/collections.ts`, `userTableName`) and the storage form of relation columns before writing this query.
 
 ## 7. Custom routes
 
@@ -437,7 +441,7 @@ All routes need the owner (`requireAuth: true`, plus a check that the caller is 
 | `GET /runs/:id` | T1 | `{ run, counts: { queued, in_progress, waiting, submitted, judged, failed }, attempts: [{ id, task, contender, mode, status, tokens_in, tokens_out, duration_ms, provider_calls, cost, finish_reason, error }] }`, for the live view to poll. Not blind. |
 | `GET /handoff/:runId/:taskId` | T2 | `{ prompt, attachments: [{ name, url }], waiting: [{ attempt, contender_name }] }`. The prompt is the stored `prompt_sent`. |
 | `GET /judging/:runId/:taskId` | T3 | The blind payload (§10) |
-| `GET /leaderboard/:roleId` | T3 | `{ terms_used: ["quality", "tokens"], dropped: [{ term: "time", reason: "Codex (manual) has no time data" }], rows: [{ contender, name, group, n, mean_score, ci_low, ci_high, mean_tokens, mean_time_ms, mean_cost, fitness, qualifies, enough_data }], suggested: contenderId \| null, casting: { contender, since } \| null }` |
+| `GET /leaderboard/:roleId` | T3 | `{ terms_used: ["quality", "tokens"], dropped: [{ term: "time", reason: "Codex (manual) has no time data" }], rows: [{ contender, name, group, n, mean_score, ci_low, ci_high, mean_tokens, mean_time_ms, mean_cost, fitness, n_outcome, mean_outcome, qualifies, enough_data }], suggested: contenderId \| null, casting: { contender, since } \| null }` |
 | `POST /castings` | T3 | `{ role, contender, rationale? }`. Refuses unless the contender qualifies (§11). Creates a confirmed casting with `suggested_by` set to `system` if it was the suggestion, otherwise `human`. |
 | `DELETE /connections/:id/key` | T1 | Removes the stored key (F2) |
 | `POST /files/:collection/:id/:field` | T2 | The owner's upload path, built while Vaultbase's own was broken (NOTES.md F9, fixed in 0.41.1; F15, O6). Kept until part B of `docs/PLATFORM-UPGRADES.md`. Multipart, parts named `file`. Only `attempts/output_files` (handoff, waiting) and `tasks/attachments` (unlocked). 25 MB per file, Phase 1 types, all or nothing. Returns `{ data: record }`. |
