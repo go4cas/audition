@@ -383,3 +383,14 @@ Part D of `docs/PLATFORM-UPGRADES.md`; Cas chose full adoption on Nov 12, 2026. 
 - **QD4.** `layouts/`, `app.config.js` and section middleware are not used (QD1; nothing to provide; one guard).
 - 3.2.1 runs guards before the navigation commits in Chromium (link clicks and `go()`, not the first load), so an in-app redirect to sign-in, such as after signing out, commits once at `/signin`.
 - Checks: `bun test` 274/274 on a fresh Vaultbase 0.44.0 (new: `test/ui-routes.test.ts`, 4 tests). Bundle: first-load JS 56.5 KB (was 53.1), all JS 156.9 KB (was 151.3). 42 walkthrough screenshots retaken at 1280 and 375; the only differences from part C's are the date and the mock's random outputs.
+
+## Push alerts (Nov 13, 2026)
+
+Cas chose OneSignal, Vaultbase's built-in push provider, on Nov 13, 2026. Plan and wiring: `docs/PUSH-ALERTS.md`.
+
+- **P1. Vaultbase 0.44 push is OneSignal or FCM only.** `helpers.notify` writes the `notifications` inbox row (with a realtime event) and queues one `_notify` job per enabled provider. No VAPID web-push provider; `registerPushProvider` is for code that embeds Vaultbase, not `vb_hooks/`.
+- **P2. The inbox exists only after a provider is turned on.** `PATCH /api/v1/admin/notifications/providers/:name {enabled:true}` creates `notifications` and `device_tokens` (needs the `users` auth collection). Before that `GET /api/v1/notifications` is 404, and the Alerts page says "Alerts are off".
+- **P3. OneSignal widens the CSP, only while it is on.** The app route reads the setting per request and adds OneSignal's origins; it also serves `OneSignalSDKWorker.js` inside the app's scope.
+- **P4. Arrow 1.0.6 keeps a recycled template's static values** (adds to U3). Two look-alike buttons switched in a reactive slot kept the first button's attributes; the "On this device" panel is mounted once with every changing part reactive.
+- **P5. Headless Chromium reports notifications as denied** even after `grantPermissions`; the UI test stands in for the browser prompt and for OneSignal's SDK.
+- Checks: `bun test` 311/311 on a fresh Vaultbase 0.44.0 (new: `test/push.test.ts`, `test/ui-alerts.test.ts`). Bundle: first-load JS 60.2 KB (was 56.5), all JS 173.8 KB. Not verified: a real OneSignal account and a real push to a phone.

@@ -118,11 +118,14 @@ export async function scoreOutcome(store: Store, id: string, body: unknown, now 
 }
 
 /** The daily email's text, or null when nothing came due. */
-export function dueEmail(due: OutcomeDue[], link: string): { subject: string; body: string } | null {
+export function dueEmail(due: OutcomeDue[], link: string): { subject: string; body: string; title: string; short: string } | null {
   if (!due.length) return null;
   const lines = due.map((d) => `- ${d.role_name} (${d.workspace_name}): ${d.task_title}`);
+  const title = `${due.length} outcome check${due.length === 1 ? "" : "s"} due`;
   return {
-    subject: `Audition: ${due.length} outcome check${due.length === 1 ? "" : "s"} due`,
+    title,
+    short: `${OUTCOME_QUESTION} ${[...new Set(due.map((d) => d.role_name))].join(", ")}`,
+    subject: `Audition: ${title}`,
     body: `${due.length === 1 ? "This call is" : "These calls are"} ready to check. ${OUTCOME_QUESTION}\n\n${lines.join("\n")}\n\nCheck them here: ${link}\n`,
   };
 }

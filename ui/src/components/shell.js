@@ -10,6 +10,7 @@ import { useRoute } from "@go4cas/quiver";
 import { signOut } from "../api.js";
 import { icon } from "../lib/ui.js";
 import { inbox } from "../state/inbox.js";
+import { alerts } from "../state/alerts.js";
 import { APP, href } from "../lib/nav.js";
 
 const shell = reactive({ bare: true, section: "/" });
@@ -34,7 +35,8 @@ export function mountShell(root, nav = []) {
     if (status === "idle" || status === "loading") return;
     const meta = route.meta() || {};
     shell.bare = !!meta.bare;
-    shell.section = sectionOf(route.path(), nav);
+    const path = route.path();
+    shell.section = path === "/alerts" ? "/alerts" : sectionOf(path, nav);
   });
   html`
     <header class="topbar" hidden="${() => shell.bare}">
@@ -45,6 +47,7 @@ export function mountShell(root, nav = []) {
         </nav>
         <div class="topbar__end">
           <a class="inbox-btn hide-phone" href="${APP + "/"}">${icon("inbox")}Waiting for you ${() => countBadge()}</a>
+          <a class="icon-btn bell-btn" href="${APP + "/alerts"}" data-alerts aria-current="${() => (shell.section === "/alerts" ? "page" : false)}" data-tip="Alerts" data-tip-side="bottom" aria-label="${() => (alerts.unread ? `Alerts, ${alerts.unread} unread` : "Alerts")}">${icon("bell")}${() => (alerts.unread ? html`<span class="dot-count" data-alerts-count>${() => alerts.unread}</span>` : "")}</a>
           <button class="icon-btn" type="button" data-tip="Sign out" data-tip-side="bottom" aria-label="Sign out" @click="${() => signOut()}">${icon("sign-in")}</button>
         </div>
       </div>

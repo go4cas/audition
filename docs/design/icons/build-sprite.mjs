@@ -29,6 +29,7 @@ const ICONS = [
   ["regular", "timer", "time"], ["regular", "coins", "tokens"], ["regular", "currency-dollar", "cost"],
   ["regular", "eye-slash", "blind"], ["regular", "shuffle", "shuffle"], ["regular", "shield-check", "mfa"],
   ["regular", "clock-counter-clockwise", "history"], ["regular", "trophy", "trophy"],
+  ["regular", "bell", "bell"], ["regular", "bell-slash", "bell-off"],
   // Actions
   ["regular", "plus", "plus"], ["regular", "play", "play"], ["regular", "arrow-clockwise", "again"],
   ["regular", "arrow-right", "arrow-right"], ["regular", "arrow-up", "arrow-up"], ["regular", "arrow-down", "arrow-down"],

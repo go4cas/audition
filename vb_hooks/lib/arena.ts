@@ -14,6 +14,22 @@ export interface Mailer {
   sql: Sql;
   email(opts: { to: string; subject: string; body: string }): Promise<void>;
   log(...args: unknown[]): void;
+  /** Vaultbase's helpers.notify: an inbox row (realtime) plus push to every enabled provider. */
+  notify?(userId: string, payload: { title: string; body: string; data?: Record<string, unknown> }): Promise<unknown>;
+}
+
+/** What one alert says: the email's subject and text, and a short push version. */
+export interface Alert {
+  type: "run-finished" | "repeat-skipped" | "outcomes-due";
+  subject: string;
+  body: string;
+  push: { title: string; body: string; page: string };
+}
+
+/** The single owner's user id (the first account in users). */
+export async function ownerId(sql: Sql): Promise<string | null> {
+  const row = await sql.queryOne<{ id: string }>(`SELECT id FROM vb_users ORDER BY created_at, rowid LIMIT 1`);
+  return row?.id ?? null;
 }
 
 /** The single owner's email address (the first account in users). */
@@ -52,6 +68,36 @@ export async function emailOwner(m: Mailer, subject: string, body: string): Prom
       : `email failed: ${subject}: ${msg}`);
     return false;
   }
+}
+
+/**
+ * Push an alert to the owner through Vaultbase's helpers.notify: a row in the
+ * notifications inbox (the app's bell, live over realtime) and a push to every
+ * provider turned on in the admin (Settings, Notifications). Never throws;
+ * without notifications set up, Vaultbase skips both and this logs one line.
+ */
+export async function pushOwner(m: Mailer, a: Alert): Promise<boolean> {
+  if (!m.notify) return false;
+  try {
+    const id = await ownerId(m.sql);
+    if (!id) { m.log("push skipped: no owner account"); return false; }
+    const url = await appLink(m.sql, a.push.page);
+    const out = await m.notify(id, { title: a.push.title, body: a.push.body, data: { type: a.type, page: a.push.page, url } }) as
+      { inboxRowId?: string | null; enqueued?: unknown[] } | undefined;
+    const sent = !!out?.inboxRowId || (out?.enqueued?.length ?? 0) > 0;
+    m.log(sent ? `push sent: ${a.push.title}` : `push skipped (notifications are not set up): ${a.push.title}`);
+    return sent;
+  } catch (e) {
+    m.log(`push failed: ${a.push.title}: ${e instanceof Error ? e.message : String(e)}`);
+    return false;
+  }
+}
+
+/** Alert the owner: the email and the push, each on its own, neither ever throws. */
+export async function alertOwner(m: Mailer, a: Alert): Promise<{ email: boolean; push: boolean }> {
+  const email = await emailOwner(m, a.subject, a.body);
+  const push = await pushOwner(m, a);
+  return { email, push };
 }
 
 // ── Stale-attempt sweep ──────────────────────────────────────────────────────
@@ -156,8 +202,12 @@ export async function repeatRun(deps: Deps, mail: Mailer, render: PromptForTask,
     const why = e instanceof Error ? e.message : String(e);
     const role = await deps.find("roles", String(run["role"]));
     const link = await appLink(deps.sql, `/runs/${runId}`);
-    await emailOwner(mail, `Audition: a repeat of ${roleName(role)} was skipped`,
-      `The scheduled repeat of the ${roleName(role)} run could not start:\n\n${why}\n\nThe schedule stays on, and the next repeat will try again. Change it or stop it here:\n${link}\n`);
+    await alertOwner(mail, {
+      type: "repeat-skipped",
+      subject: `Audition: a repeat of ${roleName(role)} was skipped`,
+      body: `The scheduled repeat of the ${roleName(role)} run could not start:\n\n${why}\n\nThe schedule stays on, and the next repeat will try again. Change it or stop it here:\n${link}\n`,
+      push: { title: `A repeat of ${roleName(role)} was skipped`, body: why, page: `/runs/${runId}` },
+    });
     return null;
   }
 }
@@ -196,10 +246,19 @@ export async function runFinishedEmail(deps: ArenaDeps, runId: string): Promise<
   const champ = await championNote(deps, String(run["role"]));
   if (champ) lines.push("", champ);
 
-  const subject = run["status"] === "judging"
-    ? `Audition: ${roleName(role)} outputs are ready to judge`
-    : `Audition: ${roleName(role)} run finished`;
-  return emailOwner(deps, subject, lines.join("\n") + "\n");
+  const judging = run["status"] === "judging";
+  const title = judging ? `${roleName(role)} outputs are ready to judge` : `${roleName(role)} run finished`;
+  const short = [
+    `${rows.length} output${rows.length === 1 ? "" : "s"}${count("failed") ? `, ${count("failed")} failed` : ""}.`,
+    champ ? "The leaderboard suggests a new champion." : "",
+  ].filter(Boolean).join(" ");
+  const sent = await alertOwner(deps, {
+    type: "run-finished",
+    subject: `Audition: ${title}`,
+    body: lines.join("\n") + "\n",
+    push: { title, body: short, page: champ && !judging ? `/leaderboard/${String(run["role"])}` : `/runs/${runId}` },
+  });
+  return sent.email;
 }
 
 /** A line when the leaderboard suggests a champion other than the confirmed one; else null. */
@@ -218,5 +277,6 @@ export function arenaDepsFrom(helpers: Rec, base: Deps): ArenaDeps {
     ...base,
     email: (o) => helpers.email(o),
     log: (...a) => helpers.log(...a),
+    notify: (id, p) => helpers.notify(id, p),
   };
 }

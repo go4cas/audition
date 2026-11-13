@@ -65,6 +65,9 @@ export async function list(collection, { filter, sort, expand, perPage = 500 } =
     if (!r.totalPages || page >= r.totalPages) return out;
   }
 }
+/** One page of a collection, with its totals: { data, totalItems, totalPages }. */
+export const page = (collection, { filter, sort, perPage = 50, page: n = 1 } = {}) =>
+  request("GET", R(collection) + q({ filter, sort, perPage, page: n }));
 export const one = async (collection, id) => (await request("GET", `${R(collection)}/${id}`)).data;
 export const create = async (collection, data) => (await request("POST", R(collection), data)).data;
 export const update = async (collection, id, data) => (await request("PATCH", `${R(collection)}/${id}`, data)).data;
@@ -97,6 +100,7 @@ export const custom = {
   startRun: async (body) => data(await request("POST", C("/runs"), body)),
   runAgain: async (id) => data(await request("POST", C(`/runs/${id}/again`))),
   outcomes: async () => data(await request("GET", C("/outcomes"))),
+  push: async () => data(await request("GET", C("/push"))),
   scoreOutcome: async (id, body) => data(await request("POST", C(`/outcomes/${id}`), body)),
   runSchedule: async (id, schedule) => data(await request("POST", C(`/runs/${id}/schedule`), { schedule })),
   run: async (id) => data(await request("GET", C(`/runs/${id}`))),

@@ -27,6 +27,18 @@ Audition emails the owner when a run finishes (or its outputs are ready for you 
 
 A run's **Repeat** panel makes a Vaultbase cron job named `repeat-<run id>`; the admin's **Jobs** page lists it with its next run time. Cron in Vaultbase is UTC, so where clocks change, a repeat moves by an hour with them. A slot missed while the server was down is not caught up. The job `sweep-stale-outputs` runs every 5 minutes and fails API outputs stuck for 20 minutes (or queued for an hour).
 
+## Push alerts
+
+Audition also sends its alerts (the same moments as the emails, plus outcome checks due) through Vaultbase's notifications: an inbox in the app (the bell) and a push to your devices. See docs/PUSH-ALERTS.md.
+
+1. Make a free account at onesignal.com and add a **Web** app. Use Audition's address (with HTTPS) as the **Site URL**, for example `https://audition.example.com/api/custom/app/`. If OneSignal asks where the service worker lives, give the path `/api/custom/app/`, the file name `OneSignalSDKWorker.js` and the scope `/api/custom/app/`.
+2. From the OneSignal app's **Settings → Keys & IDs**, copy the **App ID** and the **API key**.
+3. In the Vaultbase admin, open **Settings → Notifications → OneSignal**, paste both, and turn it on. The first time, Vaultbase creates its `notifications` and `device_tokens` collections. **Test connection** checks the keys.
+4. In Audition, open the bell, then **Turn on alerts here** on each phone or computer that should get alerts, and allow notifications when the browser asks. On an iPhone or iPad, first add Audition to the Home Screen (Share, Add to Home Screen) and open it from there.
+5. To check it end to end, send yourself a test from the admin (**Notifications → Send test**, to the owner account), or start a short run.
+
+Without step 3, the bell's page says "Alerts are off" and nothing else changes. Alerts are kept in the inbox even on devices without push.
+
 ## Local Anthropic check
 
 This is the Phase 1 check with a real key (TECH-SPEC §15, T5 Done-when 3). You run it yourself, outside any Claude session. It takes about 15 minutes and costs a few cents: three model calls for generation and up to eight for judging, each capped by the contender's max output tokens.
