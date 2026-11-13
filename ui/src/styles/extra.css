@@ -99,3 +99,6 @@ tr.group-row td { background: var(--surface-2); padding-block: 6px; }
 .alert-item.is-unread .alert-item__icon { color: var(--waiting); }
 .alert-item__when { white-space: nowrap; }
 @media (max-width: 560px) { .alert-item__link { grid-template-columns: auto 1fr; } .alert-item__when { grid-column: 2; } }
+.push-device__body { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--s4); }
+.push-device__text { display: grid; gap: 2px; flex: 1 1 16rem; min-width: 0; }
+.push-device__label { display: inline-flex; align-items: center; gap: 6px; }

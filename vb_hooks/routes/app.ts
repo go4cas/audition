@@ -3,13 +3,15 @@
 // with real path routes (quiver, docs/PLATFORM-UPGRADES.md part C).
 import { defineRoute } from "vaultbase";
 import { resolveAsset, securityHeaders } from "../lib/static.ts";
+import { ONESIGNAL_WORKER, ONESIGNAL_WORKER_JS, pushConfig, withOneSignal } from "../lib/push.ts";
 
 // The app's CSP: the strict policy from lib/static.ts, plus inline *style
 // attributes* only (style-src-attr). The Design markup sets per-element custom
 // properties such as an avatar's hue (--h) or a bar's width. Inline <style>
 // elements and all inline scripts stay blocked.
 const APP_CSP = securityHeaders()["content-security-policy"]!.replace("style-src 'self';", "style-src 'self'; style-src-attr 'unsafe-inline';");
-const headers = () => ({ ...securityHeaders(), "content-security-policy": APP_CSP });
+// With OneSignal turned on (docs/PUSH-ALERTS.md), its SDK origins are added.
+const headers = (oneSignal = false) => ({ ...securityHeaders(), "content-security-policy": oneSignal ? withOneSignal(APP_CSP) : APP_CSP });
 
 export default defineRoute({
   name: "app",
@@ -18,6 +20,12 @@ export default defineRoute({
   requireAuth: false,
   async handle(ctx) {
     const { helpers } = ctx;
+    const oneSignal = (await pushConfig(helpers.sql)).provider === "onesignal";
+    // OneSignal's service worker must come from our origin, inside the app's scope.
+    if (ctx.path === `/app/${ONESIGNAL_WORKER}`) {
+      if (!oneSignal) return new Response("Not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", ...headers() } });
+      return new Response(ONESIGNAL_WORKER_JS, { status: 200, headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache", ...headers(true) } });
+    }
     const dist = helpers.os.env("AUDITION_UI_DIST")
       || helpers.path.join(helpers.os.env("VAULTBASE_HOOKS_DIR") || "vb_hooks", "..", "ui", "dist");
     const asset = await resolveAsset(dist, ctx.path, {
@@ -35,7 +43,7 @@ export default defineRoute({
       headers: {
         "content-type": asset.mime,
         "cache-control": asset.isIndex ? "no-cache" : "public, max-age=300",
-        ...headers(),
+        ...headers(oneSignal),
       },
     });
   },

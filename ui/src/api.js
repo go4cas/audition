@@ -100,6 +100,7 @@ export const custom = {
   startRun: async (body) => data(await request("POST", C("/runs"), body)),
   runAgain: async (id) => data(await request("POST", C(`/runs/${id}/again`))),
   outcomes: async () => data(await request("GET", C("/outcomes"))),
+  push: async () => data(await request("GET", C("/push"))),
   scoreOutcome: async (id, body) => data(await request("POST", C(`/outcomes/${id}`), body)),
   runSchedule: async (id, schedule) => data(await request("POST", C(`/runs/${id}/schedule`), { schedule })),
   run: async (id) => data(await request("GET", C(`/runs/${id}`))),

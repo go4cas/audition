@@ -38,6 +38,10 @@ async function start() {
 
   mountShell(root, app.nav);
   followAlerts();
+  // Push on this device (docs/PUSH-ALERTS.md), loaded after the first page.
+  const push = () => import("./lib/push.js");
+  if (auth.token) push().then((m) => m.checkPush());
+  auth.onChange((t) => push().then((m) => (t ? m.checkPush() : m.pushSignedOut())));
   await createApp(app, { target: "#main", base: BASE });
 
   // Signed out (the button, or a 401): run the guard again for this page.
