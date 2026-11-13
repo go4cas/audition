@@ -88,7 +88,7 @@ describe("judging screen (Done-when 4)", () => {
     // From the API client it takes the blind route, verdict creation and file
     // download helpers, and nothing that lists or reads records.
     const api = src.match(/import \{([^}]+)\} from "(?:\.\.\/)+api\.js"/)![1].split(",").map((x) => x.trim()).sort();
-    expect(api).toEqual(["create", "custom", "fileLabel", "fileUrl"]);
+    expect(api).toEqual(["THUMB", "create", "custom", "fileLabel", "fileUrl", "thumbUrl"]);
     expect(src).not.toMatch(/\b(list|one|fetch|request)\(/);
     expect(src).not.toMatch(/from "(?:\.\.\/)+state\/data\.js"/);
     expect([...src.matchAll(/\bcreate\("(\w+)"/g)].map((m) => m[1])).toEqual(["verdicts"]);

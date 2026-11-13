@@ -133,6 +133,10 @@ ssh -L 8091:127.0.0.1:8091 you@your-vps
 
 Then open <http://127.0.0.1:8091/_/> and sign in as the admin. Hooks and routes are read-only there in production, because they come from the release in git.
 
+**Keep File storage on local.** Leave the admin's File storage setting on the local disk (the default); don't switch it to S3 or R2. Audition's own upload route, the mock image provider and the seed write files through `vb_hooks/lib/files.ts`, which puts the bytes straight into the local upload folder because Vaultbase has no server-side file helper yet. With File storage moved elsewhere, those files would be missing from it. This can change once Vaultbase ships a helper like `helpers.files.save` (requested in Vaultbase discussion #11).
+
+**Downloads are in the audit log.** Both file fields (task attachments and output files) have `auditDownloads` on, so every file download shows in the admin's Audit log as `files.download`, with who, which record and which field. A thumbnail shown on the judge page is logged the same way (NOTES TH2). Image previews on the judge page are Vaultbase thumbnails (`thumbs` on the same fields); Vaultbase keeps them in `uploads/.thumbs/` and makes them again if that folder is lost, so it needs no backup.
+
 ## Backups
 
 Audition uses Vaultbase's own scheduled backups. `bun run provision` turns them on with these settings (all editable in the admin under Settings, **Backup & restore**):

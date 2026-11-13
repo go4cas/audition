@@ -93,3 +93,46 @@ test("W1: Vaultbase's own upload endpoint refuses a Markdown and a zip file, wha
     expect((await r.json() as { error: string }).error).toContain(seen);
   }
 });
+
+// Previews use Vaultbase's own thumbnails: the file fields list the sizes the
+// UI asks for (THUMB in ui/src/api.js), and any other size gets the full file.
+test("thumbnails: the listed sizes are made and served, other sizes fall back to the full file", async () => {
+  const { THUMB } = await import("../ui/src/api.js");
+  const snapshot = await Bun.file(new URL("../schema/snapshot.json", import.meta.url)).json();
+  for (const [col, field] of [["tasks", "attachments"], ["attempts", "output_files"]]) {
+    const def = snapshot.collections.find((c: any) => c.name === col).fields.find((x: any) => x.name === field);
+    expect(def.options.thumbs, `${col}.${field}`).toEqual(Object.values(THUMB));
+  }
+  const png = testImage(0, 1024);
+  const attempt = await h.store("insert", "attempts", { task: f.task.id, contender: f.contender.id, mode: "api", status: "submitted" });
+  const name = (await attach("attempts", attempt, "output_files", "big.png", "image/png", png)).body.data.filename as string;
+  const get = (q = "") => fetch(`${h.url}/api/v1/files/${name}${q}`, { headers: { authorization: `Bearer ${h.ownerToken}` } });
+  const dims = (b: Uint8Array) => { const v = new DataView(b.buffer, b.byteOffset); return [v.getUint32(16), v.getUint32(20)]; };
+
+  const small = await get(`?thumb=${THUMB.small}`);
+  expect(small.status).toBe(200);
+  expect(small.headers.get("x-vaultbase-thumb")).toBeNull();
+  expect(dims(new Uint8Array(await small.arrayBuffer()))).toEqual([160, 120]);
+  const card = await get(`?thumb=${THUMB.card}`);
+  expect(dims(new Uint8Array(await card.arrayBuffer()))).toEqual([640, 640]);
+
+  const other = await get("?thumb=300x300");
+  expect(other.headers.get("x-vaultbase-thumb")).toBe("not-allowed");
+  expect(new Uint8Array(await other.arrayBuffer())).toEqual(png);
+  expect(new Uint8Array(await (await get()).arrayBuffer())).toEqual(png);
+});
+
+// auditDownloads is on for both file fields: every owner download is in the
+// audit log, under the file name, with the record and field it came from.
+test("download audit: an owner download lands in Vaultbase's audit log", async () => {
+  const name = (await attach("tasks", f.task.id, "attachments", "audited.txt", "text/plain", new TextEncoder().encode("audit me"))).body.data.filename as string;
+  const before = await h.api("admin", "GET", `/api/v1/admin/audit-log?perPage=200`);
+  expect(before.body.data.data.filter((e: any) => e.target === name)).toEqual([]);
+  expect((await fetch(`${h.url}/api/v1/files/${name}`, { headers: { authorization: `Bearer ${h.ownerToken}` } })).status).toBe(200);
+  const log = await h.api("admin", "GET", `/api/v1/admin/audit-log?perPage=200`);
+  const hits = log.body.data.data.filter((e: any) => e.target === name);
+  expect(hits.length).toBe(1);
+  expect(hits[0].action).toBe("files.download");
+  expect(hits[0].actor_email).toBe("owner@test.local");
+  expect(JSON.parse(hits[0].summary)).toMatchObject({ collection: "tasks", record: f.task.id, field: "attachments" });
+});

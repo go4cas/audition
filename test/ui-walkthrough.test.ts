@@ -326,6 +326,10 @@ test("Marketing Pipeline: an image run judged blind in the image grid", async ()
   await p.locator(`a[href="${APP}/handoff/${run}/${task.id}"]`).first().waitFor();
   await paste(run, task.id, "Warm tones, a coffee bag on a wooden table.", "sale-image.png");
   await waitFor(async () => { const c = await counts(run); return (c?.submitted || 0) === 2; }, "both image outputs");
+  // The grid shows Vaultbase thumbnails; only opening an image fetches the full file.
+  const fileGets: string[] = [];
+  const onReq = (r: { url(): string }) => { const u = new URL(r.url()); if (u.pathname.startsWith("/api/v1/files/")) fileGets.push(u.pathname + u.search); };
+  p.on("request", onReq);
   await go(`/judge/${run}/${task.id}`);
   await p.locator(".image-grid [data-output]").nth(1).waitFor();
   expect(await p.locator(".image-grid [data-output]").count()).toBe(2);
@@ -333,6 +337,13 @@ test("Marketing Pipeline: an image run judged blind in the image grid", async ()
   await shot("judge-images");
   await p.locator(".image-card__img").first().click();
   await p.locator("#lightbox[open] img").waitFor();
+  await p.waitForFunction(() => (document.querySelector<HTMLImageElement>("#lightbox[open] img")?.src || "").startsWith("blob:"));
+  p.off("request", onReq);
+  const thumbs = fileGets.filter((u) => u.endsWith("?thumb=640x640_cover"));
+  const full = fileGets.filter((u) => !u.includes("?"));
+  expect(thumbs.length).toBeGreaterThanOrEqual(2);
+  expect(full.length).toBe(1);
+  expect(fileGets.length).toBe(thumbs.length + full.length);
   await p.keyboard.press("Escape");
   const cards = p.locator(".image-grid [data-output]");
   for (let i = 0; i < 2; i++) {
