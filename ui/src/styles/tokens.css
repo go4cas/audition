@@ -65,7 +65,7 @@
   --disabled-opacity: 0.45;
   /* Chip style is switched with one attribute on <html>, not a token, because it swaps
    * several properties at once: data-chips="soft" (default) | "solid" | "outline".
-   * Cas plans to move to "outline" later; nothing else needs to change. */
+   * The app uses "outline" (index.html, Cas chose it Nov 13 2026). */
 
   /* ---- Type ---- */
   --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
