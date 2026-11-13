@@ -11,7 +11,7 @@
 #   bash install.sh preflight            # only read the server and report
 #
 # Options: --version vX.Y.Z  --bundle FILE.tar.gz  --domain NAME  --email ADDRESS
-#          --port N  --proxy auto|caddy|nginx|none  --tls-cert FILE --tls-key FILE  --yes
+#          --port N  --proxy auto|caddy|nginx|tunnel|none  --tls-cert FILE --tls-key FILE  --yes
 #
 # Contained by design (docs/VPS-INSTALL.md): it only creates things named
 # "audition": the `audition` user, /opt/audition, /var/lib/audition,
@@ -83,7 +83,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-case "$PROXY" in auto|caddy|nginx|none) ;; *) die "--proxy must be auto, caddy, nginx or none";; esac
+case "$PROXY" in auto|caddy|nginx|tunnel|none) ;; *) die "--proxy must be auto, caddy, nginx, tunnel or none";; esac
 
 have() { command -v "$1" >/dev/null 2>&1; }
 installed() { [ -f "$MARKER" ]; }
@@ -217,7 +217,10 @@ detect_proxy() {
   case "$h" in
     caddy) echo caddy;;
     nginx) echo nginx;;
-    "") if systemctl is-active -q caddy 2>/dev/null; then echo caddy; elif systemctl is-active -q nginx 2>/dev/null; then echo nginx; else echo none; fi;;
+    "") if systemctl is-active -q caddy >/dev/null 2>&1; then echo caddy
+        elif systemctl is-active -q nginx >/dev/null 2>&1; then echo nginx
+        elif systemctl is-active -q cloudflared >/dev/null 2>&1 || pgrep -x cloudflared >/dev/null 2>&1; then echo tunnel
+        else echo none; fi;;
     *) echo none;;
   esac
 }
@@ -312,8 +315,21 @@ setup_proxy() {
       [ -n "$TLS_CERT" ] || note "It serves plain HTTP on port 80. For HTTPS: sudo bash $0 proxy --tls-cert FILE --tls-key FILE (for example a Cloudflare origin certificate)"
       PROXY_DONE="nginx"
       ;;
+    tunnel)
+      # A Cloudflare Tunnel run from the dashboard (a token) keeps its routes
+      # in Cloudflare, not on this server: nothing to write here.
+      ok "Cloudflare Tunnel found: no proxy file needed on this server"
+      printf '\n%sTwo steps in the Cloudflare dashboard%s (nothing on this server):\n' "$B" "$N"
+      note "1. Zero Trust > Networks > Tunnels > your tunnel > Public hostname > Add:"
+      note "     hostname $DOMAIN, service type HTTP, URL 127.0.0.1:$PORT"
+      note "   Cloudflare adds the DNS record and serves HTTPS."
+      note "2. Your domain > Security > WAF > Custom rules > Create, action Block, expression:"
+      note "     (starts_with(http.request.uri.path, \"/_/\") and http.request.uri.path ne \"/_/ready\")"
+      note "   This keeps the Vaultbase admin off the internet (reach it through an SSH tunnel)."
+      PROXY_DONE="tunnel"
+      ;;
     none)
-      warn "No Caddy or nginx found in front of ports 80/443, so no proxy was set up."
+      warn "No Caddy, nginx or Cloudflare Tunnel found in front of this server, so no proxy was set up."
       note "Point your proxy for $DOMAIN at http://127.0.0.1:$PORT. Ready-made site files:"
       note "  $PREFIX/current/deploy/Caddyfile and $PREFIX/current/deploy/nginx.conf (replace __DOMAIN__ and __PORT__)"
       PROXY_DONE="none"

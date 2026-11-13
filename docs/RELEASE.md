@@ -27,13 +27,22 @@ The installer installs no packages, edits no shared config file, and doesn't tou
 
 On a Linux server with systemd (Ubuntu, Debian and the like; x86_64 or arm64), as a user with sudo:
 
-1. In your DNS, point the domain at the server (for Cloudflare: an `A`/`AAAA` record, proxied, SSL/TLS mode **Full (strict)**).
+1. With a Caddy or nginx proxy, point the domain at the server in your DNS (for Cloudflare: an `A`/`AAAA` record, proxied, SSL/TLS mode **Full (strict)**). With a Cloudflare Tunnel, skip this: the tunnel adds the record (see below).
 2. Download the installer and run it:
 
    ```sh
    curl -fsSLO https://github.com/go4cas/audition/releases/latest/download/install.sh
    sudo bash install.sh
    ```
+
+   **While the repository is private** the server can't download from GitHub. Download `install.sh` and `audition-<tag>-linux-x64.tar.gz` from the release page on your own computer (or `gh release download <tag> -R go4cas/audition -p 'install.sh' -p '*linux-x64.tar.gz'`), copy them up, and point the installer at the bundle. The Vaultbase binary still comes from Vaultbase's public release.
+
+   ```sh
+   scp install.sh audition-<tag>-linux-x64.tar.gz you@your-vps:
+   ssh you@your-vps sudo bash install.sh --bundle audition-<tag>-linux-x64.tar.gz
+   ```
+
+   Upgrades work the same way, with the new bundle. Without a checksum file to compare against, the installer trusts the bundle you copied; the Vaultbase binary is still checked.
 
 It shows a read-only pre-flight report of the server (`deploy/preflight.sh`), then asks three things: the domain, your email, and a password for signing in to Audition. It stops before changing anything if something named `audition` already exists, and picks another port if 8091 is taken. After you say yes, it:
 
@@ -45,13 +54,18 @@ It shows a read-only pre-flight report of the server (`deploy/preflight.sh`), th
 - adds the proxy site file, checks it (`caddy validate` or `nginx -t`), and reloads the proxy. If the check fails, it removes the file and leaves the proxy as it was;
 - checks that the domain reaches Audition through the proxy.
 
-Options, to skip the questions or change a default: `--domain`, `--email`, `--port`, `--version vX.Y.Z`, `--proxy auto|caddy|nginx|none`, `--tls-cert FILE --tls-key FILE`, `--yes`. `bash install.sh --help` lists them. `bash install.sh preflight` only prints the report.
+Options, to skip the questions or change a default: `--domain`, `--email`, `--port`, `--version vX.Y.Z`, `--bundle FILE`, `--proxy auto|caddy|nginx|tunnel|none`, `--tls-cert FILE --tls-key FILE`, `--yes`. `bash install.sh --help` lists them. `bash install.sh preflight` only prints the report.
 
 **Proxy and TLS.** The installer looks at what holds ports 80 and 443:
 
 - **Caddy:** it adds `audition.caddy` to the folder an `import <folder>/*` line in `/etc/caddy/Caddyfile` already pulls in. Without such a line it doesn't edit the Caddyfile: it leaves the site file in `/etc/audition/audition.caddy` and prints the one `import` line to add. Caddy gets the certificate itself, unless you pass `--tls-cert/--tls-key`.
 - **nginx:** it adds `sites-available/audition.conf` (with its `sites-enabled` link), or `conf.d/audition.conf`. Without `--tls-cert/--tls-key` it serves port 80 only, which is enough behind Cloudflare's Flexible mode; for Full (strict), add a [Cloudflare origin certificate](https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/) with `sudo bash install.sh proxy --tls-cert origin.pem --tls-key origin-key.pem`.
-- **Anything else** (Traefik, a container, a Cloudflare Tunnel): it sets up no proxy and prints where to point it (`http://127.0.0.1:<port>`); the bundle's `deploy/Caddyfile` and `deploy/nginx.conf` are ready-made site files.
+- **A Cloudflare Tunnel** (`cloudflared` running, nothing on 80/443): nothing goes on the server, and no port or firewall rule is opened. The installer prints two steps for the Cloudflare dashboard:
+  1. Zero Trust, Networks, Tunnels, your tunnel, **Public hostname**, Add: the domain, service type HTTP, URL `127.0.0.1:<port>`. Cloudflare adds the DNS record and serves HTTPS.
+  2. Your domain, Security, WAF, **Custom rules**, Create, action **Block**, expression `(starts_with(http.request.uri.path, "/_/") and http.request.uri.path ne "/_/ready")`. With no local proxy this rule is what keeps the Vaultbase admin off the internet.
+
+  `cloudflared` connects from 127.0.0.1, which `audition.env` trusts, and Cloudflare passes the visitor's address on in `X-Forwarded-For`, so Vaultbase's rate limits should see it. Check on the first install: sign-ins in the admin's logs should show your own address, not 127.0.0.1.
+- **Anything else** (Traefik, a container): it sets up no proxy and prints where to point it (`http://127.0.0.1:<port>`); the bundle's `deploy/Caddyfile` and `deploy/nginx.conf` are ready-made site files.
 
 Both site files trust `CF-Connecting-IP` only from [Cloudflare's addresses](https://www.cloudflare.com/ips/), and `audition.env` trusts the proxy (`VAULTBASE_TRUSTED_PROXIES=127.0.0.1,::1`). Together they let Vaultbase's rate limits see the visitor's real address, and nobody can fake it by connecting to the server directly. If Cloudflare adds ranges, update the site file and run `sudo bash install.sh proxy`.
 
@@ -83,7 +97,7 @@ Do this after every install, upgrade and restore.
 - [ ] Start a run: any role, one task, `Mock Steady`, judged by Me. It finishes; judge it; it shows on the leaderboard.
 - [ ] While that run is live, the browser's dev tools (Network, WS) show an open `/realtime` socket. If it fails, the run page still works by polling: check that Cloudflare's WebSockets setting is on and Caddy passes `/realtime` through (NOTES "Realtime run page").
 - [ ] In the admin, Settings, Backup & restore shows the schedule on and a next run.
-- [ ] `https://<your domain>/_/` answers 404 (the admin isn't public).
+- [ ] `https://<your domain>/_/` answers 404 (the admin isn't public), or 403 from Cloudflare's WAF rule behind a tunnel.
 
 ## The Vaultbase admin
 
