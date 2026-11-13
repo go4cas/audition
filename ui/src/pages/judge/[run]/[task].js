@@ -4,7 +4,7 @@
 // records or raw outputs, so nothing here can reveal who made what
 // (test/ui.test.ts checks this file).
 import { html, reactive } from "@arrow-js/core";
-import { create, custom, fileLabel, fileUrl } from "../../../api.js";
+import { THUMB, create, custom, fileLabel, fileUrl, thumbUrl } from "../../../api.js";
 import { starInput } from "../../../components/forms.js";
 import { busy, crumbs, empty, page } from "../../../components/page.js";
 import { bump, chip, errorToast, icon, openLightbox, popId, toast } from "../../../lib/ui.js";
@@ -88,7 +88,7 @@ export default function judge() {
       };
       const files = (o) => {
         const imgs = o.files.filter((f) => f.is_image), rest = o.files.filter((f) => !f.is_image);
-        return html`${imgs.length ? html`<div class="thumbs">${imgs.map((f, i) => html`<button class="thumb" type="button" aria-label="${"Image " + (i + 1) + " of output " + o.label}" @click="${async () => openLightbox(`Output ${o.label}, image ${i + 1}`, await fileUrl(f.url))}">${blobImg(f.url, `Output ${o.label}, image ${i + 1}`)}</button>`)}</div>` : ""}
+        return html`${imgs.length ? html`<div class="thumbs">${imgs.map((f, i) => html`<button class="thumb" type="button" aria-label="${"Image " + (i + 1) + " of output " + o.label}" @click="${async () => openLightbox(`Output ${o.label}, image ${i + 1}`, await fileUrl(f.url))}">${blobImg(f.url, `Output ${o.label}, image ${i + 1}`, THUMB.small)}</button>`)}</div>` : ""}
           ${rest.length ? html`<ul class="files">${rest.map((f) => html`<li>${icon("file")}<button class="link-btn" type="button" @click="${async () => { try { const a = document.createElement("a"); a.href = await fileUrl(f.url); a.download = fileLabel(f.name); a.click(); } catch (err) { errorToast(err); } }}">${fileLabel(f.name)}</button></li>`)}</ul>` : ""}`;
       };
       const scoreEl = (o) => html`<span class="score" data-score="${o.label}">${icon("star")}<span>${() => { const v = score(o); return v == null ? "–" : v.toFixed(1); }}</span></span>`;
@@ -121,7 +121,7 @@ export default function judge() {
             const first = imgs[0];
             return html`<article class="${() => "image-card" + (score(o) != null && !out(o).dirty && o.verdict ? " is-rated" : "")}" data-output="${o.label}">
               <button class="image-card__img ph" type="button" aria-label="${"Enlarge output " + o.label}" @click="${async () => { if (first) openLightbox(`Output ${o.label}`, await fileUrl(first.url)); }}">
-                ${first ? blobImg(first.url, `Output ${o.label}`) : html`<span class="muted small">No image</span>`}
+                ${first ? blobImg(first.url, `Output ${o.label}`, THUMB.card) : html`<span class="muted small">No image</span>`}
                 <span class="letter-tile">${o.label}</span><span class="zoom">${icon("enlarge")}</span>
                 ${imgs.length > 1 ? html`<span class="chip">${icon("image")}${imgs.length} images</span>` : ""}
               </button>
@@ -151,9 +151,13 @@ export default function judge() {
   });
 }
 
-/** An <img> whose protected file is fetched with the owner's token. */
-function blobImg(url, alt) {
+/**
+ * An <img> of a protected file's thumbnail, fetched with the owner's token.
+ * The lightbox opens the full-size file.
+ */
+function blobImg(url, alt, size) {
   const st = reactive({ src: "" });
-  fileUrl(url).then((u) => { st.src = u; }).catch(() => {});
+  // A busy thumbnail queue answers 503; fall back to the full file then.
+  thumbUrl(url, size).catch(() => fileUrl(url)).then((u) => { st.src = u; }).catch(() => {});
   return html`<img class="art" alt="${alt}" decoding="async" src="${() => st.src || false}">`;
 }

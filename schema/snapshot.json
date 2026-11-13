@@ -408,6 +408,11 @@
           "options": {
             "multiple": true,
             "maxSize": 26214400,
+            "thumbs": [
+              "160x120_cover",
+              "640x640_cover"
+            ],
+            "auditDownloads": true,
             "mimeTypes": [
               "text/plain",
               "application/json",
@@ -632,6 +637,11 @@
           "options": {
             "multiple": true,
             "maxSize": 26214400,
+            "thumbs": [
+              "160x120_cover",
+              "640x640_cover"
+            ],
+            "auditDownloads": true,
             "mimeTypes": [
               "text/plain",
               "application/json",

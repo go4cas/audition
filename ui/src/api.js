@@ -139,5 +139,12 @@ export function fileUrl(nameOrUrl) {
   }
   return blobCache.get(path);
 }
+/**
+ * A small preview of an image file, made and cached by Vaultbase. The sizes
+ * must be in the file field's `thumbs` list (schema/snapshot.json), or
+ * Vaultbase sends the full file. Opening an image still uses fileUrl.
+ */
+export const THUMB = { small: "160x120_cover", card: "640x640_cover" };
+export const thumbUrl = (nameOrUrl, size) => fileUrl(`${nameOrUrl}?thumb=${size}`);
 /** Original file name: Vaultbase stores files as <uuid>.<ext>. */
 export const fileLabel = (name) => String(name).replace(/^.*\//, "");
