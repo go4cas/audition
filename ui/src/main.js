@@ -12,6 +12,7 @@ import { mountShell } from "./components/shell.js";
 import { installPopovers, placeThumbs } from "./lib/ui.js";
 import { BASE, fromHashLink, go } from "./lib/nav.js";
 import { refreshInbox } from "./state/inbox.js";
+import { followAlerts } from "./state/alerts.js";
 
 const root = document.getElementById("root");
 
@@ -36,6 +37,7 @@ async function start() {
   });
 
   mountShell(root, app.nav);
+  followAlerts();
   await createApp(app, { target: "#main", base: BASE });
 
   // Signed out (the button, or a 401): run the guard again for this page.

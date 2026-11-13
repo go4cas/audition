@@ -65,6 +65,9 @@ export async function list(collection, { filter, sort, expand, perPage = 500 } =
     if (!r.totalPages || page >= r.totalPages) return out;
   }
 }
+/** One page of a collection, with its totals: { data, totalItems, totalPages }. */
+export const page = (collection, { filter, sort, perPage = 50, page: n = 1 } = {}) =>
+  request("GET", R(collection) + q({ filter, sort, perPage, page: n }));
 export const one = async (collection, id) => (await request("GET", `${R(collection)}/${id}`)).data;
 export const create = async (collection, data) => (await request("POST", R(collection), data)).data;
 export const update = async (collection, id, data) => (await request("PATCH", `${R(collection)}/${id}`, data)).data;

@@ -84,3 +84,18 @@ tr.group-row td { background: var(--surface-2); padding-block: 6px; }
 .range__band--demo { left: 30%; width: 40%; }
 .range__pass--demo { left: 45%; }
 .range__dot--demo { left: 50%; }
+
+/* Alerts (docs/PUSH-ALERTS.md): the bell in the top bar and the Alerts page */
+.bell-btn { position: relative; }
+.bell-btn[aria-current="page"] { color: var(--text); background: var(--surface-hover); }
+.dot-count { position: absolute; top: -2px; right: -4px; background: var(--waiting); color: #fff; border-radius: var(--r-pill); min-width: 1.1rem; height: 1.1rem; display: inline-grid; place-items: center; padding: 0 4px; font-size: 0.65rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+:root[data-theme="dark"] .dot-count { color: #160b33; }
+.alert-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.alert-item__link { display: grid; grid-template-columns: auto 1fr auto; gap: var(--s3); align-items: start; padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); color: var(--text); text-decoration: none; transition: border-color var(--t-fast); }
+.alert-item__link:hover { border-color: var(--waiting-line); }
+.alert-item__text { display: grid; gap: 2px; min-width: 0; }
+.alert-item__icon { color: var(--text-muted); padding-top: 2px; }
+.alert-item.is-unread .alert-item__link { border-color: var(--waiting-line); background: var(--waiting-bg); }
+.alert-item.is-unread .alert-item__icon { color: var(--waiting); }
+.alert-item__when { white-space: nowrap; }
+@media (max-width: 560px) { .alert-item__link { grid-template-columns: auto 1fr; } .alert-item__when { grid-column: 2; } }
