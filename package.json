@@ -9,7 +9,8 @@
     "stop": "bun scripts/stop.ts",
     "seed": "bun scripts/seed.ts",
     "provision": "bun scripts/provision.ts",
-    "build:ui": "bun scripts/build-ui.ts"
+    "build:ui": "bun scripts/build-ui.ts",
+    "bundle": "bun scripts/bundle.ts"
   },
   "dependencies": {
     "@arrow-js/core": "1.0.6",

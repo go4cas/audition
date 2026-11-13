@@ -1,6 +1,6 @@
 # Installing on the shared VPS (proposal)
 
-Status: proposal, not yet agreed. Nothing here has been run on the server. Once Cas answers the open questions, [RELEASE.md](RELEASE.md) and `deploy/` change to match, in the same branch.
+Status: built as the one-command installer, `deploy/install.sh` (Cas asked for a simpler VPS install on Nov 13 2026; how to use it is in [RELEASE.md](RELEASE.md)). Nothing has been run on the VPS yet. The sections below are the reasoning; "What was built" maps each point to the installer.
 
 Audition goes on Cas's existing Hostinger VPS, next to production apps (Market Jury, openGym and others), at **audition.go4cas.com** (Cas, Nov 13 2026). The goal: installing, running, upgrading or removing Audition must not change anything those apps depend on.
 
@@ -36,11 +36,28 @@ These are already contained and stay as they are: the `audition` system user (no
 7. **Resource limits in the unit.** Add `MemoryMax=` (for example 512M), `CPUQuota=` (for example 100%) and `TasksMax=`, so a runaway run can't starve Market Jury or openGym. Values come from the pre-flight's memory and CPU numbers.
 8. **Clean uninstall.** A documented removal that touches only Audition's names: stop and disable `audition.service`, remove the unit, remove the proxy site file (validate, reload), remove `/opt/audition`, `/etc/audition`, the `audition` user, and, only after an off-server copy, `/var/lib/audition` and any `/var/lib/audition.before-*` rollback copies. Then delete the DNS record.
 
+## What was built
+
+| Point above | In the installer |
+| --- | --- |
+| 1. Read first | Runs `preflight.sh` and shows it before asking to go ahead; stops if anything named `audition` already exists |
+| 2. One user, namespaced folders, no global commands | `/opt/audition/{releases,current,bin}`, `/var/lib/audition`, `/etc/audition`; nothing in `/usr/local` |
+| 3. No global installs | A prebuilt release bundle per architecture (GitHub workflow): no Bun, git or build step on the server; no packages installed |
+| 4. Own port on loopback | 8091, or the next free port up to 8199, or `--port` |
+| 5. Own proxy site file | Caddy: a file in the folder the Caddyfile already imports (or the `import` line printed, never added); nginx: `sites-available/audition.conf`. Validated before reload, removed again if rejected. TLS by Caddy itself, or `--tls-cert/--tls-key` |
+| 6. No firewall changes | None made |
+| 7. Resource limits | `MemoryHigh=768M`, `MemoryMax=1G`, `CPUQuota=150%`, `TasksMax=512` in the unit |
+| 8. Clean uninstall | `install.sh uninstall` (keeps data), `--purge` (removes everything); proxy files tracked in `/etc/audition/installed-files` |
+
+It also upgrades (rerun with `--version`, with a cold rollback copy), rolls back (`install.sh rollback`), and asks only for the domain, your email and a password: the Vaultbase admin is made through Vaultbase's setup key with a random password.
+
 ## Plain systemd or Docker
 
 Recommendation: **plain systemd**, unless the other apps already run in Docker. Audition is one binary with one data folder, and the unit's hardening already gives most of what a container would. Docker would add a daemon if it isn't there, and Docker-published ports bypass `ufw` rules, which is easy to get wrong next to other apps. If the server is Docker-based (for example everything behind a Traefik or Caddy container), a small Audition image with the data folder as a volume fits better, and this plan changes to that.
 
 ## Open questions for Cas
+
+Still useful before the first install, though the installer now handles Caddy, nginx and "something else" on its own:
 
 1. **Reverse proxy:** what serves 80/443 today (Caddy, nginx, Traefik, a Cloudflare Tunnel, Hostinger's panel), and how are other sites added?
 2. **TLS and DNS:** is go4cas.com on Cloudflare, proxied (orange cloud), with Full (strict) and origin certs, or does the proxy get Let's Encrypt certs?

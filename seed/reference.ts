@@ -4,7 +4,9 @@
 import { join } from "node:path";
 import { call } from "../scripts/lib/vaultbase.ts";
 
-const FIXTURES = join(import.meta.dir, "fixtures");
+// AUDITION_SEED_FIXTURES: where the fixtures are when the seed runs from the
+// compiled setup tool in a release bundle (scripts/bundle.ts).
+const FIXTURES = process.env["AUDITION_SEED_FIXTURES"] || join(import.meta.dir, "fixtures");
 
 /** The demo repo for the Software Factory coding tasks (open question O2). */
 export const DEMO_REPO = "github.com/go4cas/audition-factory-demo";

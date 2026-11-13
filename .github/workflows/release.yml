@@ -1,0 +1,35 @@
+# When a GitHub release is published, build the server bundles
+# (scripts/bundle.ts) and attach them to it, so deploy/install.sh can
+# install that release with no Bun or build step on the server.
+name: Release bundles
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and attach (it must already exist)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - run: bun run bundle --version "$TAG" --arch all
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" release-dist/* --clobber

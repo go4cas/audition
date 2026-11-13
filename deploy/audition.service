@@ -1,10 +1,8 @@
 # Audition on Vaultbase, as a systemd service (docs/RELEASE.md).
 # Based on Vaultbase 0.40.2's deploy/systemd/vaultbase.service, with
-# Audition's paths: the app checkout is read-only, only the data folder is
-# writable.
-#
-#   sudo cp deploy/audition.service /etc/systemd/system/
-#   sudo systemctl daemon-reload && sudo systemctl enable --now audition
+# Audition's paths: the release in /opt/audition is read-only, only the data
+# folder is writable. deploy/install.sh installs it; nothing outside
+# /opt/audition, /var/lib/audition and /etc/audition is used.
 
 [Unit]
 Description=Audition (Vaultbase)
@@ -17,15 +15,22 @@ Type=simple
 User=audition
 Group=audition
 EnvironmentFile=/etc/audition/audition.env
-# Applies the schema from the checked-out release on every start, exactly as
-# `bun run dev` does. /usr/local/bin/vaultbase is a symlink to the pinned,
-# checksum-verified binary (see "Install" in RELEASE.md).
-ExecStart=/usr/local/bin/vaultbase --apply-snapshot /opt/audition/schema/snapshot.json --snapshot-mode sync
+# Applies the schema from the current release on every start, exactly as
+# `bun run dev` does. /opt/audition/bin/vaultbase is a symlink to the pinned,
+# checksum-verified binary, and /opt/audition/current to the release in use.
+ExecStart=/opt/audition/bin/vaultbase --apply-snapshot /opt/audition/current/schema/snapshot.json --snapshot-mode sync
 Restart=on-failure
 RestartSec=2s
 TimeoutStopSec=30s
 LimitNOFILE=65536
 UMask=0077
+
+# Good neighbour on a shared server: caps so a runaway run can't starve the
+# other apps. Raise them in a drop-in (systemctl edit audition) if needed.
+MemoryHigh=768M
+MemoryMax=1G
+CPUQuota=150%
+TasksMax=512
 
 NoNewPrivileges=yes
 ProtectSystem=strict

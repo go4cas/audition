@@ -33,14 +33,14 @@ done
 section "Names Audition would use"
 if getent passwd audition >/dev/null; then warn "user 'audition' already exists: $(getent passwd audition)"; else ok "no user 'audition'"; fi
 if getent group audition >/dev/null; then warn "group 'audition' already exists"; else ok "no group 'audition'"; fi
-for p in /opt/audition /var/lib/audition /etc/audition /usr/local/lib/audition /srv/audition /var/log/caddy/audition-access.log; do
+for p in /opt/audition /var/lib/audition /var/lib/audition-rollback /etc/audition /etc/caddy/sites/audition.caddy /etc/nginx/sites-available/audition.conf /etc/nginx/conf.d/audition.conf; do
   if [ -e "$p" ]; then warn "$p already exists"; else ok "$p is free"; fi
 done
 for u in audition.service; do
   if systemctl list-unit-files "$u" 2>/dev/null | grep -q "^$u"; then warn "systemd unit $u already exists"; else ok "no systemd unit $u"; fi
 done
 
-section "Shared tools (Audition's current docs install these globally)"
+section "Shared tools (the installer uses none of them and changes none)"
 for b in bun vaultbase caddy node docker git curl; do
   if have "$b"; then
     v=$("$b" --version 2>/dev/null | head -1 | cut -c1-60)
@@ -49,8 +49,6 @@ for b in bun vaultbase caddy node docker git curl; do
     info "$b not on PATH"
   fi
 done
-[ -e /usr/local/bin/bun ] && warn "/usr/local/bin/bun exists: the current install step would replace it"
-[ -e /usr/local/bin/vaultbase ] && warn "/usr/local/bin/vaultbase exists: the current install step would repoint it"
 ls -d /usr/local/lib/vaultbase* /opt/*/vaultbase* 2>/dev/null | sed 's/^/INFO  other Vaultbase install: /'
 if have pgrep; then
   pgrep -a vaultbase 2>/dev/null | sed 's/^/INFO  running Vaultbase: /'
@@ -82,13 +80,12 @@ if have ss; then
   done
 fi
 if [ -f /etc/caddy/Caddyfile ]; then
-  warn "/etc/caddy/Caddyfile exists: the current docs would overwrite it (use a separate site file instead)"
-  info "Caddyfile site blocks and imports:"
+  info "Caddyfile site blocks and imports (the installer adds a site file to an imported folder, never edits this file):"
   grep -nE '^[^#[:space:]][^{]*\{|^\s*import\s' /etc/caddy/Caddyfile 2>/dev/null | sed 's/^/        /'
-  grep -qE '^\s*(servers|trusted_proxies)' /etc/caddy/Caddyfile 2>/dev/null && warn "Caddyfile has a global servers/trusted_proxies block: Audition's own would clash"
+  grep -qE '^[[:space:]]*import[[:space:]]+[^[:space:]]*\*' /etc/caddy/Caddyfile 2>/dev/null \
+    || warn "the Caddyfile imports no folder of site files: the installer will prepare Audition's site file and print the one line to add"
 fi
 ls /etc/caddy/*.pem 2>/dev/null | sed 's/^/INFO  cert in \/etc\/caddy: /'
-[ -e /etc/caddy/cloudflare-origin.pem ] && warn "/etc/caddy/cloudflare-origin.pem exists: the current docs would overwrite it"
 [ -d /etc/nginx/sites-enabled ] && info "nginx sites-enabled: $(ls /etc/nginx/sites-enabled 2>/dev/null | tr '\n' ' ')"
 [ -d /etc/nginx/conf.d ] && info "nginx conf.d: $(ls /etc/nginx/conf.d 2>/dev/null | tr '\n' ' ')"
 [ -d /etc/cloudflared ] && info "cloudflared config: $(ls /etc/cloudflared 2>/dev/null | tr '\n' ' ')"
