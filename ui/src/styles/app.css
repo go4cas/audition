@@ -195,7 +195,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .state[data-state="disabled"] { opacity: var(--disabled-opacity); border-style: dashed; }
 .state[data-state="champion"] { --fg: var(--gold-ink); --bg: var(--gold-soft); --ln: color-mix(in srgb, var(--gold) 45%, transparent); }
 .state[data-state="champion"] .i { color: var(--gold); }
-/* Chip style: ONE setting on <html>, data-chips="soft" (default, also used when unset), "solid" or "outline".
+/* Chip style: ONE setting on <html>, data-chips="soft" (also used when unset), "solid" or "outline". The app sets "outline" in index.html.
    Soft: tinted fill + matching border. Solid: state colour fills the chip. Outline: transparent with a coloured border.
    .state--soft / --solid / --outline pin one chip to a style regardless of the setting (used on the State system screen). */
 .state--solid, :root[data-chips="solid"] .state:not(.state--soft):not(.state--outline) { color: var(--surface); background: var(--fg); border-color: var(--fg); }

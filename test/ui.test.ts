@@ -113,3 +113,10 @@ describe("wording (Done-when 5)", () => {
     }
   });
 });
+
+describe("chips", () => {
+  test("the app shows state chips in the outline style (Cas, Nov 13 2026)", () => {
+    expect(readFileSync(join(UI, "index.html"), "utf8")).toMatch(/<html[^>]*\sdata-chips="outline"/);
+    expect(readFileSync(join(UI, "styles", "app.css"), "utf8")).toContain(`:root[data-chips="outline"] .state`);
+  });
+});
