@@ -6,115 +6,77 @@ Nothing here has been deployed yet. Every step on the server is yours to run, wh
 
 ## What runs where
 
-Audition in production is one Vaultbase 0.44.0 process behind Caddy, with Cloudflare in front. Vaultbase does the backend work: the database, sign-ins, files, the hooks and routes Audition adds, encrypted API keys, and its own scheduled backups. Bun is only needed on the server to fetch the binary, build the UI and run the setup script; the running service is the Vaultbase binary alone.
+Audition in production is one Vaultbase 0.44.0 process on 127.0.0.1, behind the reverse proxy the server already has (Caddy or nginx), usually with Cloudflare in front. Vaultbase does the backend work: the database, sign-ins, files, the hooks and routes Audition adds, encrypted API keys, and its own scheduled backups. The server needs no Bun, git or build step: each GitHub release carries a ready-made bundle.
+
+The install is contained, so it can share a server with other apps (docs/VPS-INSTALL.md). Everything it adds is named `audition`:
 
 | Path | What | Who can write |
 | --- | --- | --- |
-| `/opt/audition` | The Audition release, a git checkout at a tag: `vb_hooks/`, `schema/`, `ui/dist/` | root only |
-| `/usr/local/lib/audition/vaultbase-<version>` | The pinned Vaultbase binary, checked against `vaultbase.lock.json` | root only |
-| `/usr/local/bin/vaultbase` | A symlink to the binary in use, so a rollback is one `ln` | root only |
+| `/opt/audition/releases/<tag>` | A release bundle: `vb_hooks/`, `schema/`, `ui/dist/`, the setup tool, `deploy/`. The current and the previous one are kept | root only |
+| `/opt/audition/current` | A symlink to the release in use | root only |
+| `/opt/audition/bin/vaultbase-<version>` and `vaultbase` | The pinned Vaultbase binary, checked against `vaultbase.lock.json`, and a symlink to the one in use | root only |
 | `/var/lib/audition` | All data: database, uploaded files, the encryption key, the sign-in secret, and `backups/` | the `audition` user |
-| `/etc/audition/audition.env` | The service's settings ([deploy/audition.env.example](../deploy/audition.env.example)) | root (readable by `audition`) |
+| `/var/lib/audition-rollback` | A stopped copy of the data from before the last upgrade | root only |
+| `/etc/audition/` | `audition.env` (the service's settings), `admin-credentials` (the Vaultbase admin, root only), `install.conf` and `installed-files` (what the installer added) | root |
+| `/etc/systemd/system/audition.service` | The service ([deploy/audition.service](../deploy/audition.service)): hardened, with memory and CPU caps | root |
+| One proxy site file | `audition.caddy` in the folder your Caddyfile imports, or `sites-available/audition.conf` for nginx | root |
 
-The repo's [deploy/](../deploy/) folder holds the three files to copy: [audition.service](../deploy/audition.service) (systemd), [audition.env.example](../deploy/audition.env.example) and [Caddyfile](../deploy/Caddyfile).
-
-Vaultbase listens on 127.0.0.1:8091 only. The app is at `https://<your domain>/` (Caddy sends `/` to `/api/custom/app/`). The Vaultbase admin (`/_/`) is not public: you reach it through an SSH tunnel (see [The Vaultbase admin](#the-vaultbase-admin)).
+The installer installs no packages, edits no shared config file, and doesn't touch the firewall. Vaultbase listens on 127.0.0.1 only, on 8091 or the next free port. The app is at `https://<your domain>/` (the proxy sends `/` to `/api/custom/app/`). The Vaultbase admin (`/_/`) is not public: you reach it through an SSH tunnel (see [The Vaultbase admin](#the-vaultbase-admin)).
 
 ## Install
 
-On a fresh Ubuntu or Debian VPS, as a user with sudo. Replace `audition.example.com` and `v0.1.0` with your domain and the release tag.
+On a Linux server with systemd (Ubuntu, Debian and the like; x86_64 or arm64), as a user with sudo:
 
-### 1. User, folders and Bun
+1. In your DNS, point the domain at the server (for Cloudflare: an `A`/`AAAA` record, proxied, SSL/TLS mode **Full (strict)**).
+2. Download the installer and run it:
 
-```sh
-sudo useradd --system --home /var/lib/audition --shell /usr/sbin/nologin audition
-sudo install -d -o audition -g audition -m 0700 /var/lib/audition
-sudo install -d -m 0755 /etc/audition /usr/local/lib/audition
-curl -fsSL https://bun.sh/install | sudo env BUN_INSTALL=/usr/local bash   # Bun 1.4 or later
-```
+   ```sh
+   curl -fsSLO https://github.com/go4cas/audition/releases/latest/download/install.sh
+   sudo bash install.sh
+   ```
 
-### 2. The release
+It shows a read-only pre-flight report of the server (`deploy/preflight.sh`), then asks three things: the domain, your email, and a password for signing in to Audition. It stops before changing anything if something named `audition` already exists, and picks another port if 8091 is taken. After you say yes, it:
 
-```sh
-sudo git clone https://github.com/go4cas/audition.git /opt/audition
-cd /opt/audition
-sudo git checkout v0.1.0
-sudo bun install --frozen-lockfile
-sudo bun run setup        # downloads Vaultbase 0.44.0 and refuses it unless the SHA-256 matches
-sudo bun run build:ui     # builds ui/dist
-sudo install -m 0755 .vaultbase/bin/0.44.0/vaultbase /usr/local/lib/audition/vaultbase-0.44.0
-sudo ln -sfn /usr/local/lib/audition/vaultbase-0.44.0 /usr/local/bin/vaultbase
-vaultbase --version       # vaultbase 0.44.0
-```
+- downloads the release bundle and the pinned Vaultbase binary, and refuses either unless its SHA-256 matches;
+- creates the `audition` system user (no login), the folders above and `audition.env`;
+- installs and starts `audition.service`;
+- creates the Vaultbase admin with a random password through Vaultbase's setup key, and saves it in `/etc/audition/admin-credentials` (root only);
+- runs the setup tool (`bin/audition-setup`, the compiled `bun run provision`): Audition's settings, the App URL for links in emails, Vaultbase's scheduled backups (see [Backups](#backups)), your account, and the seed (the generic handoff template, the mock connection and contenders, and the four example workspaces);
+- adds the proxy site file, checks it (`caddy validate` or `nginx -t`), and reloads the proxy. If the check fails, it removes the file and leaves the proxy as it was;
+- checks that the domain reaches Audition through the proxy.
 
-Don't run `bun run dev` on the server: it starts its own instance with a data folder inside the checkout.
+Options, to skip the questions or change a default: `--domain`, `--email`, `--port`, `--version vX.Y.Z`, `--proxy auto|caddy|nginx|none`, `--tls-cert FILE --tls-key FILE`, `--yes`. `bash install.sh --help` lists them. `bash install.sh preflight` only prints the report.
 
-### 3. Settings and the admin
+**Proxy and TLS.** The installer looks at what holds ports 80 and 443:
 
-```sh
-sudo install -o root -g audition -m 0640 deploy/audition.env.example /etc/audition/audition.env
-```
+- **Caddy:** it adds `audition.caddy` to the folder an `import <folder>/*` line in `/etc/caddy/Caddyfile` already pulls in. Without such a line it doesn't edit the Caddyfile: it leaves the site file in `/etc/audition/audition.caddy` and prints the one `import` line to add. Caddy gets the certificate itself, unless you pass `--tls-cert/--tls-key`.
+- **nginx:** it adds `sites-available/audition.conf` (with its `sites-enabled` link), or `conf.d/audition.conf`. Without `--tls-cert/--tls-key` it serves port 80 only, which is enough behind Cloudflare's Flexible mode; for Full (strict), add a [Cloudflare origin certificate](https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/) with `sudo bash install.sh proxy --tls-cert origin.pem --tls-key origin-key.pem`.
+- **Anything else** (Traefik, a container, a Cloudflare Tunnel): it sets up no proxy and prints where to point it (`http://127.0.0.1:<port>`); the bundle's `deploy/Caddyfile` and `deploy/nginx.conf` are ready-made site files.
 
-Vaultbase's own commands (`setup-admin`, `doctor`, `backup`) read this file when you point them at it, and must run as the `audition` user so the files they write stay the service's. This alias saves typing:
+Both site files trust `CF-Connecting-IP` only from [Cloudflare's addresses](https://www.cloudflare.com/ips/), and `audition.env` trusts the proxy (`VAULTBASE_TRUSTED_PROXIES=127.0.0.1,::1`). Together they let Vaultbase's rate limits see the visitor's real address, and nobody can fake it by connecting to the server directly. If Cloudflare adds ranges, update the site file and run `sudo bash install.sh proxy`.
 
-```sh
-alias vb='sudo -u audition env VAULTBASE_ENV_FILE=/etc/audition/audition.env vaultbase'
-vb setup-admin --email you@example.com --password '<a long password>'
-```
-
-The admin password needs at least 12 characters: since 0.42.0, `setup-admin` follows Vaultbase's password policy.
-
-The admin is the Vaultbase administrator (settings, backups, restores). The owner, made in step 5, is the person who uses Audition. They can be the same person, with different passwords.
-
-### 4. The service
-
-```sh
-sudo cp deploy/audition.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now audition
-journalctl -u audition -n 20     # "applied snapshot: 14 created", the hooks folder, "Vaultbase running"
-curl -fsS http://127.0.0.1:8091/_/ready
-```
-
-On its first start Vaultbase creates `.encryption-key` and `.secret` in `/var/lib/audition`. **Copy both somewhere safe now**, away from the server (a password manager is fine). Backups don't contain them, and without `.encryption-key` the stored API keys can never be read again: Vaultbase refuses to start on data whose key is lost.
+**Save the keys.** On its first start Vaultbase creates `.encryption-key` and `.secret` in `/var/lib/audition`. **Copy both somewhere safe now**, away from the server (a password manager is fine). Backups don't contain them, and without `.encryption-key` the stored API keys can never be read again: Vaultbase refuses to start on data whose key is lost.
 
 ```sh
 sudo cat /var/lib/audition/.encryption-key /var/lib/audition/.secret
 ```
 
-### 5. Provision: settings, owner, backups and the seed
+**Remove it.** `sudo bash install.sh uninstall` stops and removes the service, the proxy site file and `/opt/audition`, and keeps the data, `/etc/audition` and the `audition` user, so running the installer again picks up where it was. `sudo bash install.sh uninstall --purge` removes those too. If you added the `import` line for Caddy by hand, remove it first; uninstall tells you.
 
-`bun run provision` does once, against the running service, what `bun run dev` does locally, without writing any credentials file:
+### Running Vaultbase's own commands
 
-- applies Audition's settings (the 15-minute queue timeout, MFA available),
-- turns on Vaultbase's scheduled backups (see [Backups](#backups)),
-- creates the owner if there isn't one,
-- runs the seed: the generic handoff template (needed for manual contenders), the mock connection and contenders, and the four example workspaces.
+Vaultbase's commands (`doctor`, `backup`, `setup-admin`) read the service's env file when you point them at it, and must run as the `audition` user so the files they write stay the service's:
 
 ```sh
-cd /opt/audition
-read -rp 'Admin email: ' AUDITION_ADMIN_EMAIL; read -rsp 'Admin password: ' AUDITION_ADMIN_PASSWORD; echo
-read -rp 'Owner email: ' AUDITION_OWNER_EMAIL; read -rsp 'Owner password: ' AUDITION_OWNER_PASSWORD; echo
-export AUDITION_ADMIN_EMAIL AUDITION_ADMIN_PASSWORD AUDITION_OWNER_EMAIL AUDITION_OWNER_PASSWORD
-bun run provision
+alias vb='sudo -u audition env VAULTBASE_ENV_FILE=/etc/audition/audition.env /opt/audition/bin/vaultbase'
+vb doctor
 ```
 
-It prints the backup schedule it set and the next run. It is safe to run again; it only adds what is missing. Running it again does bring back an example workspace you deleted.
-
-### 6. Caddy and Cloudflare
-
-1. In Cloudflare, add an `A` (and `AAAA`) record for the domain pointing at the VPS, **proxied** (orange cloud). Under SSL/TLS, set the mode to **Full (strict)**.
-2. Under SSL/TLS, Origin Server, create an **Origin Certificate** for the domain. Save the certificate as `/etc/caddy/cloudflare-origin.pem` and the key as `/etc/caddy/cloudflare-origin-key.pem` (owner `caddy`, mode 0600 for the key).
-3. Install Caddy (`sudo apt install caddy`), copy [deploy/Caddyfile](../deploy/Caddyfile) to `/etc/caddy/Caddyfile`, put in your domain, and `sudo systemctl reload caddy`.
-4. Firewall: allow SSH, and 80 and 443 only from [Cloudflare's ranges](https://www.cloudflare.com/ips/). Port 8091 stays closed; Vaultbase only listens on 127.0.0.1 anyway.
-
-The Caddyfile trusts Cloudflare's addresses for `CF-Connecting-IP`, and the env file trusts Caddy (`VAULTBASE_TRUSTED_PROXIES=127.0.0.1,::1`). Together they let Vaultbase's rate limits see the visitor's real address instead of Cloudflare's. If Cloudflare adds ranges, update the Caddyfile.
-
-### 7. Smoke test
+### Smoke test
 
 Do this after every install, upgrade and restore.
 
-- [ ] `curl -fsS http://127.0.0.1:8091/_/ready` answers, and `vaultbase --version` is the pinned version.
+- [ ] `sudo bash install.sh status` says active and ready, with the pinned Vaultbase version.
 - [ ] `vb doctor` says clean.
 - [ ] `https://<your domain>/` opens the sign-in page; the owner signs in.
 - [ ] Home lists the workspaces; a leaderboard opens.
@@ -128,10 +90,10 @@ Do this after every install, upgrade and restore.
 The admin (`/_/`) is where settings, backups and restores live. Open it through an SSH tunnel, from your own machine:
 
 ```sh
-ssh -L 8091:127.0.0.1:8091 you@your-vps
+ssh -L 8091:127.0.0.1:<port> you@your-vps   # <port>: PORT in /etc/audition/install.conf
 ```
 
-Then open <http://127.0.0.1:8091/_/> and sign in as the admin. Hooks and routes are read-only there in production, because they come from the release in git.
+Then open <http://127.0.0.1:8091/_/> and sign in as the admin (the email and password in `/etc/audition/admin-credentials`). Hooks and routes are read-only there in production, because they come from the release in git.
 
 **Keep File storage on local.** Leave the admin's File storage setting on the local disk (the default); don't switch it to S3 or R2. Audition's own upload route, the mock image provider and the seed write files through `vb_hooks/lib/files.ts`, which puts the bytes straight into the local upload folder because Vaultbase has no server-side file helper yet. With File storage moved elsewhere, those files would be missing from it. This can change once Vaultbase ships a helper like `helpers.files.save` (requested in Vaultbase discussion #11).
 
@@ -139,7 +101,7 @@ Then open <http://127.0.0.1:8091/_/> and sign in as the admin. Hooks and routes 
 
 ## Backups
 
-Audition uses Vaultbase's own scheduled backups. `bun run provision` turns them on with these settings (all editable in the admin under Settings, **Backup & restore**):
+Audition uses Vaultbase's own scheduled backups. The installer's setup step (`provision`) turns them on with these settings (all editable in the admin under Settings, **Backup & restore**):
 
 | Setting | Value | Meaning |
 | --- | --- | --- |
@@ -150,7 +112,7 @@ Audition uses Vaultbase's own scheduled backups. `bun run provision` turns them 
 
 Each backup is a consistent snapshot of the database (SQLite `VACUUM INTO`, safe while Audition runs) plus a manifest of the uploaded files, in `/var/lib/audition/backups/`. The files are stored once and shared between backups, so fourteen backups don't take fourteen times the space. The same page takes a backup on demand, and lists every backup with its size and file count.
 
-**What a backup doesn't hold:** `.encryption-key` and `.secret`. You copied both in install step 4, and they never change. Without the encryption key a restored database starts, but the API keys in it can't be read.
+**What a backup doesn't hold:** `.encryption-key` and `.secret`. You copied both after installing ("Save the keys"), and they never change. Without the encryption key a restored database starts, but the API keys in it can't be read.
 
 ### Off the server
 
@@ -169,10 +131,10 @@ In the admin, under Settings, **Backup & restore**, pick the backup and restore 
 
 ### Restore onto a new server
 
-1. Install steps 1 to 3 as above, with the same release tag. **Don't start the service yet.**
-2. Put the saved `.encryption-key` and `.secret` into `/var/lib/audition` (owner `audition`, mode 0600).
+1. Run the installer with the same release tag (`--version`). It makes a fresh instance with its own admin.
+2. `sudo systemctl stop audition`, then put the saved `.encryption-key` and `.secret` into `/var/lib/audition` (owner `audition`, mode 0600), replacing the new ones.
 3. Copy the backups (the whole `backups/` folder, or the R2 prefix) into `/var/lib/audition/backups/`, owned by `audition`.
-4. Start the service (step 4), restore the newest backup from the admin, then run the smoke test. You don't need `provision`: the settings, the owner and the seed are all in the backup.
+4. `sudo systemctl start audition`, restore the newest backup from the admin, then run the smoke test. The settings, your account and the seed all come from the backup. The admin is the backup's too: sign in with the old admin password from then on.
 
 ## Upgrades
 
@@ -192,55 +154,38 @@ Owner uploads still go through Audition's own route (`POST /api/custom/files/:co
 
 ### On the server
 
-Vaultbase upgrades its data folder when it starts, and it can't downgrade. So the safety copy is a **cold copy of the whole data folder, taken while the service is stopped**: it holds the database, the files and both keys, and it starts as it was on the old binary. (A Vaultbase backup holds only the database and files, and a restore runs inside the new version, so it isn't the rollback.)
-
 ```sh
-NEW=v0.2.0                                   # the release tag
-cd /opt/audition
-sudo git fetch --tags && sudo git checkout "$NEW"
-sudo bun install --frozen-lockfile
-sudo bun run setup && sudo bun run build:ui
-VER=$(bun -e 'console.log((await Bun.file("vaultbase.lock.json").json()).version)')
-sudo install -m 0755 .vaultbase/bin/$VER/vaultbase /usr/local/lib/audition/vaultbase-$VER
-
-sudo systemctl stop audition
-sudo cp -a /var/lib/audition /var/lib/audition.before-$NEW   # the rollback copy
-sudo ln -sfn /usr/local/lib/audition/vaultbase-$VER /usr/local/bin/vaultbase
-sudo systemctl start audition
-journalctl -u audition -n 30
+sudo bash install.sh --version v0.3.0      # the release tag
 ```
 
-Then run the smoke test. Keep the `before-` copy until the next upgrade.
-
-The UI and hooks change with the checkout before the service stops. Vaultbase reloads changed hook files within a second, so between `git checkout` and `systemctl stop` the old binary may already run the new hooks; the window is short and the stop follows. For a Vaultbase upgrade where that matters, stop the service before `git checkout`.
+Running the installer again on a server that has Audition upgrades it. It downloads and checks the new bundle (and the new Vaultbase binary, when the pin changed), stops the service, takes a **cold copy of the whole data folder** into `/var/lib/audition-rollback` (the database, the files and both keys), switches `/opt/audition/current` and the binary symlink, and starts the service. Vaultbase upgrades its data folder when it starts and can't downgrade, so that copy is the rollback, not a Vaultbase backup. Then run the smoke test. Hook files only change while the service is stopped.
 
 ### Rollback
 
-Never start the old binary on data the new one has opened. Roll back with the copy:
-
 ```sh
-OLD=v0.1.0; OLDVER=0.40.2
-sudo systemctl stop audition
-sudo mv /var/lib/audition /var/lib/audition.failed-$(date +%F)
-sudo cp -a /var/lib/audition.before-v0.2.0 /var/lib/audition
-cd /opt/audition && sudo git checkout "$OLD" && sudo bun install --frozen-lockfile && sudo bun run build:ui
-sudo ln -sfn /usr/local/lib/audition/vaultbase-$OLDVER /usr/local/bin/vaultbase
-sudo systemctl start audition
+sudo bash install.sh rollback
 ```
 
-Anything done in Audition between the upgrade and the rollback is lost; `audition.failed-*` still holds it if you need to look.
+It stops the service, moves the current data aside to `/var/lib/audition.failed-<date>`, puts back the copy from before the upgrade, points everything at the previous release and binary, and starts it. Never start the old binary on data the new one has opened; the rollback never does. Anything done in Audition between the upgrade and the rollback is lost; `audition.failed-*` still holds it if you need to look.
 
 ## Day to day on the server
 
 | What | How |
 | --- | --- |
-| Status | `systemctl status audition` |
+| Status | `sudo bash install.sh status`, `systemctl status audition` |
 | Log | `journalctl -u audition -f` |
 | Restart | `sudo systemctl restart audition` |
-| Health | `curl -fsS http://127.0.0.1:8091/_/ready`, `vb doctor` |
+| Health | `vb doctor` (alias above) |
 | Back up now | Admin, Settings, Backup & restore |
 | A one-off database copy | `vb backup --to /var/lib/audition/manual-$(date +%F).db` (database only, no files or keys) |
-| Is there a newer Vaultbase? | `vaultbase update` |
+| Is there a newer Vaultbase? | `vb update` |
+| Redo the proxy site file | `sudo bash install.sh proxy [--tls-cert FILE --tls-key FILE]` |
+
+## Making a release
+
+1. Tag the release on `main` and publish it on GitHub (Releases, Draft a new release).
+2. The **Release bundles** workflow (`.github/workflows/release.yml`) runs `bun run bundle` and attaches `install.sh`, `preflight.sh`, `audition-<tag>-linux-x64.tar.gz`, `audition-<tag>-linux-arm64.tar.gz` and `SHA256SUMS` to the release. For a release published before the workflow existed, run it by hand from the Actions tab with the tag.
+3. `bun run bundle` makes the same files locally in `release-dist/`.
 
 ## How this was checked
 
@@ -251,4 +196,6 @@ Anything done in Audition between the upgrade and the rollback is lost; `auditio
 - A cold copy of the data folder starts on its own, with every record, both keys, and the owner's sign-in.
 - Wrong passwords hit Vaultbase's auth rate limit (`429`) within 20 tries (review finding R6).
 
-The systemd unit passes `systemd-analyze verify`. Not checked from here: running it under systemd, the Caddyfile (the session couldn't run Caddy), and Cloudflare. The first install on the VPS is the check for those; note anything that differs.
+`test/install.test.ts` builds a release bundle and runs the installer's steps from the bundle alone: the admin through Vaultbase's setup key (refused without it), then the compiled setup tool, then the owner's sign-in, the four workspaces and the UI.
+
+The whole installer (install, a second run, a refused checksum, upgrade, rollback, uninstall, reinstall on the kept data, purge, and the `proxy` command) was run as root in a scratch Ubuntu 24.04 machine, next to an existing Caddy site and then an nginx site, which kept answering throughout. That machine had no systemd, so a stand-in started the unit's `ExecStart` as its user; the unit's hardening and limits, real ACME certificates and Cloudflare were not checked there. The first install on the VPS is the check for those; note anything that differs.

@@ -1,22 +1,20 @@
-# Audition behind Cloudflare (docs/RELEASE.md). Replace audition.example.com
-# with your domain. The DNS record is proxied by Cloudflare (orange cloud),
-# SSL/TLS mode "Full (strict)", and Caddy uses a Cloudflare Origin
-# Certificate, so ports 80 and 443 only need to accept Cloudflare.
-{
-	servers {
-		# Take the visitor's address from Cloudflare, and only from Cloudflare.
-		# Current ranges: https://www.cloudflare.com/ips/
-		trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
-		client_ip_headers CF-Connecting-IP
-	}
-}
-
-audition.example.com {
-	tls /etc/caddy/cloudflare-origin.pem /etc/caddy/cloudflare-origin-key.pem
+# Audition's Caddy site file (docs/RELEASE.md). deploy/install.sh renders it
+# (domain, port and TLS lines filled in) into the folder your main Caddyfile already
+# imports, so no shared Caddy setting changes. There is no global options
+# block here on purpose: it would change every site on the server.
+#
+# TLS: with no certificate files given, Caddy gets a certificate for the domain itself. With
+# --tls-cert/--tls-key (for example a Cloudflare origin certificate), it uses
+# those files instead.
+__DOMAIN__ {
+	__TLS__
 	encode gzip zstd
 
-	# The app lives at /api/custom/app/ (TECH-SPEC Q2); send the bare domain there.
-	redir / /api/custom/app/ 302
+	# Requests that come through Cloudflare carry the visitor's address in
+	# CF-Connecting-IP. Only trust it from Cloudflare's own addresses
+	# (https://www.cloudflare.com/ips/), so nobody can fake it by connecting
+	# to the server directly.
+	@cloudflare remote_ip 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
 
 	# The Vaultbase admin (/_/) is not public: reach it through an SSH tunnel.
 	# /_/ready stays open for health checks.
@@ -24,11 +22,16 @@ audition.example.com {
 		path /_/*
 		not path /_/ready
 	}
-	respond @admin 404
 
-	reverse_proxy 127.0.0.1:8091 {
-		header_up X-Forwarded-For {client_ip}
-		header_up X-Forwarded-Proto {scheme}
+	route {
+		# The app lives at /api/custom/app/ (TECH-SPEC Q2).
+		redir / /api/custom/app/ 302
+		respond @admin 404
+		reverse_proxy @cloudflare 127.0.0.1:__PORT__ {
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		}
+		# Everyone else: Caddy sends the connecting address itself.
+		reverse_proxy 127.0.0.1:__PORT__
 	}
 
 	log {

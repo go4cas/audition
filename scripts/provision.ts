@@ -10,6 +10,11 @@
 //   AUDITION_ADMIN_PASSWORD
 //   AUDITION_OWNER_EMAIL       the person who uses Audition
 //   AUDITION_OWNER_PASSWORD    only used when the owner is created
+//   AUDITION_APP_URL           optional, e.g. https://audition.example.com: sets
+//                              Vaultbase's App URL, so links in emails open the app
+//
+// deploy/install.sh runs it compiled (bin/audition-setup in the release
+// bundle, scripts/bundle.ts), so the server needs no Bun.
 import { SETTINGS, adminLogin, applySettings, call, ensureOwner, refuseProviderKeys } from "./lib/vaultbase.ts";
 import { seedReference } from "../seed/reference.ts";
 
@@ -29,6 +34,7 @@ export interface ProvisionOpts {
   url: string;
   admin: { email: string; password: string };
   owner: { email: string; password: string };
+  appUrl?: string;
 }
 
 export async function provision(o: ProvisionOpts) {
@@ -36,6 +42,10 @@ export async function provision(o: ProvisionOpts) {
   await applySettings(o.url, token);
   const r = await call(o.url, "PATCH", "/api/v1/admin/settings", { token, body: BACKUP_SETTINGS });
   if (r.status !== 200) throw new Error(`backup settings failed: ${r.status} ${JSON.stringify(r.body)}`);
+  if (o.appUrl) {
+    const u = await call(o.url, "PATCH", "/api/v1/admin/settings", { token, body: { "app.url": o.appUrl } });
+    if (u.status !== 200) throw new Error(`app.url failed: ${u.status} ${JSON.stringify(u.body)}`);
+  }
   await ensureOwner(o.url, token, o.owner.email, o.owner.password, "Owner");
   const seed = await seedReference(o.url, token);
   const backups = await call(o.url, "GET", "/api/v1/admin/backups", { token });
@@ -53,7 +63,9 @@ if (import.meta.main) {
     url: (process.env["AUDITION_URL"] ?? "http://127.0.0.1:8091").replace(/\/$/, ""),
     admin: { email: need("AUDITION_ADMIN_EMAIL"), password: need("AUDITION_ADMIN_PASSWORD") },
     owner: { email: need("AUDITION_OWNER_EMAIL"), password: need("AUDITION_OWNER_PASSWORD") },
+    appUrl: process.env["AUDITION_APP_URL"] || undefined,
   });
+  if (process.env["AUDITION_APP_URL"]) console.log(`App URL: ${process.env["AUDITION_APP_URL"]}`);
   console.log(`Settings applied: ${Object.keys({ ...SETTINGS, ...BACKUP_SETTINGS }).join(", ")}`);
   console.log(`Seed: ${out.seed.created.length} created, ${out.seed.existing} already there.`);
   const s = out.backupStatus;
