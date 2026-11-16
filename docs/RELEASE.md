@@ -21,7 +21,7 @@ The install is contained, so it can share a server with other apps (docs/VPS-INS
 | `/etc/systemd/system/audition.service` | The service ([deploy/audition.service](../deploy/audition.service)): hardened, with memory and CPU caps | root |
 | One proxy site file | `audition.caddy` in the folder your Caddyfile imports, or `sites-available/audition.conf` for nginx | root |
 
-The installer installs no packages, edits no shared config file, and doesn't touch the firewall. Vaultbase listens on 127.0.0.1 only, on 8091 or the next free port. The app is at `https://<your domain>/` (the proxy sends `/` to `/api/custom/app/`). The Vaultbase admin (`/_/`) is not public: you reach it through an SSH tunnel (see [The Vaultbase admin](#the-vaultbase-admin)).
+The installer installs no packages, edits no shared config file, and doesn't touch the firewall. Vaultbase listens on 127.0.0.1 only, on 8091 or the next free port. The app is at `https://<your domain>/` (the proxy, or a Cloudflare redirect rule behind a tunnel, sends `/` to `/api/custom/app/`). The Vaultbase admin (`/_/`) is not public: you reach it through an SSH tunnel (see [The Vaultbase admin](#the-vaultbase-admin)).
 
 ## Install
 
@@ -60,9 +60,10 @@ Options, to skip the questions or change a default: `--domain`, `--email`, `--po
 
 - **Caddy:** it adds `audition.caddy` to the folder an `import <folder>/*` line in `/etc/caddy/Caddyfile` already pulls in. Without such a line it doesn't edit the Caddyfile: it leaves the site file in `/etc/audition/audition.caddy` and prints the one `import` line to add. Caddy gets the certificate itself, unless you pass `--tls-cert/--tls-key`.
 - **nginx:** it adds `sites-available/audition.conf` (with its `sites-enabled` link), or `conf.d/audition.conf`. Without `--tls-cert/--tls-key` it serves port 80 only, which is enough behind Cloudflare's Flexible mode; for Full (strict), add a [Cloudflare origin certificate](https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/) with `sudo bash install.sh proxy --tls-cert origin.pem --tls-key origin-key.pem`.
-- **A Cloudflare Tunnel** (`cloudflared` running, nothing on 80/443): nothing goes on the server, and no port or firewall rule is opened. The installer prints two steps for the Cloudflare dashboard:
-  1. Zero Trust, Networks, Tunnels, your tunnel, **Public hostname**, Add: the domain, service type HTTP, URL `127.0.0.1:<port>`. Cloudflare adds the DNS record and serves HTTPS.
-  2. Your domain, Security, WAF, **Custom rules**, Create, action **Block**, expression `(starts_with(http.request.uri.path, "/_/") and http.request.uri.path ne "/_/ready")`. With no local proxy this rule is what keeps the Vaultbase admin off the internet.
+- **A Cloudflare Tunnel** (`cloudflared` running, nothing on 80/443): nothing goes on the server, and no port or firewall rule is opened. The installer prints three steps for the Cloudflare dashboard:
+  1. Zero Trust, Networks, Tunnels, your tunnel, Routes, **Add route**, **Published application** (older dashboards: **Public hostname**, Add): the domain, service URL `http://127.0.0.1:<port>`. Cloudflare adds the DNS record and serves HTTPS.
+  2. Your domain, Security, **Security rules** (older dashboards: WAF, Custom rules), Create rule, **Custom rule**, action **Block**, expression `(http.host eq "<your domain>" and starts_with(http.request.uri.path, "/_/") and http.request.uri.path ne "/_/ready")`. With no local proxy this rule is what keeps the Vaultbase admin off the internet. The `http.host` part keeps it from touching other sites on the same zone.
+  3. Your domain, Rules, Create rule, **Redirect rule**, expression `(http.host eq "<your domain>" and http.request.uri.path eq "/")`, Static, URL `https://<your domain>/api/custom/app/`, status 302. Caddy and nginx do this redirect in their site file; behind a tunnel nothing else does, and `https://<your domain>/` answers 404 without it.
 
   `cloudflared` connects from 127.0.0.1, which `audition.env` trusts, and Cloudflare passes the visitor's address on in `X-Forwarded-For`, so Vaultbase's rate limits should see it. Check on the first install: sign-ins in the admin's logs should show your own address, not 127.0.0.1.
 - **Anything else** (Traefik, a container): it sets up no proxy and prints where to point it (`http://127.0.0.1:<port>`); the bundle's `deploy/Caddyfile` and `deploy/nginx.conf` are ready-made site files.
@@ -171,6 +172,8 @@ Owner uploads still go through Audition's own route (`POST /api/custom/files/:co
 ```sh
 sudo bash install.sh --version v0.3.0      # the release tag
 ```
+
+While the repository is private, copy the new bundle up and run `sudo bash install.sh --bundle audition-<tag>-linux-x64.tar.gz` instead (see [Install](#install)).
 
 Running the installer again on a server that has Audition upgrades it. It downloads and checks the new bundle (and the new Vaultbase binary, when the pin changed), stops the service, takes a **cold copy of the whole data folder** into `/var/lib/audition-rollback` (the database, the files and both keys), switches `/opt/audition/current` and the binary symlink, and starts the service. Vaultbase upgrades its data folder when it starts and can't downgrade, so that copy is the rollback, not a Vaultbase backup. Then run the smoke test. Hook files only change while the service is stopped.
 
