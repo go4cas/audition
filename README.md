@@ -39,3 +39,4 @@ Audition never reads provider keys from the environment. You add a key to a conn
 - [docs/RELEASE.md](docs/RELEASE.md): installing it on a server, backups, restores and upgrades.
 - [docs/NOTES.md](docs/NOTES.md): decisions and findings from each build step.
 - [docs/design/](docs/design/): the visual design.
+- [site/](site/): the public website, published to GitHub Pages.

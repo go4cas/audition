@@ -10,7 +10,9 @@
     "seed": "bun scripts/seed.ts",
     "provision": "bun scripts/provision.ts",
     "build:ui": "bun scripts/build-ui.ts",
-    "bundle": "bun scripts/bundle.ts"
+    "bundle": "bun scripts/bundle.ts",
+    "site": "bun scripts/site.ts --serve",
+    "build:site": "bun scripts/site.ts"
   },
   "dependencies": {
     "@arrow-js/core": "1.0.6",
