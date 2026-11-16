@@ -319,13 +319,17 @@ setup_proxy() {
       # A Cloudflare Tunnel run from the dashboard (a token) keeps its routes
       # in Cloudflare, not on this server: nothing to write here.
       ok "Cloudflare Tunnel found: no proxy file needed on this server"
-      printf '\n%sTwo steps in the Cloudflare dashboard%s (nothing on this server):\n' "$B" "$N"
-      note "1. Zero Trust > Networks > Tunnels > your tunnel > Public hostname > Add:"
-      note "     hostname $DOMAIN, service type HTTP, URL 127.0.0.1:$PORT"
+      printf '\n%sThree steps in the Cloudflare dashboard%s (nothing on this server):\n' "$B" "$N"
+      note "1. Zero Trust > Networks > Tunnels > your tunnel > Routes > Add route > Published application"
+      note "   (older dashboards: Public hostname > Add): hostname $DOMAIN, service URL http://127.0.0.1:$PORT"
       note "   Cloudflare adds the DNS record and serves HTTPS."
-      note "2. Your domain > Security > WAF > Custom rules > Create, action Block, expression:"
-      note "     (starts_with(http.request.uri.path, \"/_/\") and http.request.uri.path ne \"/_/ready\")"
+      note "2. Your domain > Security > Security rules (or WAF) > Create rule > Custom rule, action Block, expression:"
+      note "     (http.host eq \"$DOMAIN\" and starts_with(http.request.uri.path, \"/_/\") and http.request.uri.path ne \"/_/ready\")"
       note "   This keeps the Vaultbase admin off the internet (reach it through an SSH tunnel)."
+      note "3. Your domain > Rules > Create rule > Redirect rule, expression:"
+      note "     (http.host eq \"$DOMAIN\" and http.request.uri.path eq \"/\")"
+      note "   Static, URL https://$DOMAIN/api/custom/app/, status 302. Without it https://$DOMAIN/ answers 404;"
+      note "   the app itself is at https://$DOMAIN/api/custom/app/."
       PROXY_DONE="tunnel"
       ;;
     none)
@@ -493,7 +497,7 @@ cmd_install() {
   printf '%sSave these two files somewhere safe, away from this server%s (a password manager is fine).\n' "$B" "$N"
   printf 'Backups do not hold them, and without the first one stored API keys can never be read again:\n'
   printf '    sudo cat %s/.encryption-key %s/.secret\n\n' "$DATA" "$DATA"
-  printf 'Upgrade later:  sudo bash install.sh --version <tag>\nRemove:         sudo bash install.sh uninstall\n'
+  printf 'Upgrade later:  sudo bash install.sh --version <tag>   (or --bundle FILE while the repository is private)\nRemove:         sudo bash install.sh uninstall\n'
 }
 
 cmd_upgrade() {
