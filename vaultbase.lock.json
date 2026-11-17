@@ -1,14 +1,14 @@
 {
-  "version": "0.44.0",
-  "tag_commit": "97efba2fab4d1e4f9f1344aaa087d5838f2bd68a",
-  "release_url": "https://github.com/vaultbase-sh/vaultbase/releases/tag/v0.44.0",
-  "download_base": "https://github.com/vaultbase-sh/vaultbase/releases/download/v0.44.0/",
+  "version": "0.46.0",
+  "tag_commit": "141fbb17a499c0f4895fe8db0bfa60806dba0b7e",
+  "release_url": "https://github.com/vaultbase-sh/vaultbase/releases/tag/v0.46.0",
+  "download_base": "https://github.com/vaultbase-sh/vaultbase/releases/download/v0.46.0/",
   "sha256": {
-    "vaultbase-linux-x64": "a69c8f49097fedcfe11d7c3ce2044e2e0bfb0b6b9e21f6a74df339d8f38e00a3",
-    "vaultbase-linux-x64-musl": "e1d334b287cdae2dba3ca5817a87abea4f1fc0f7696a107e4a18e8ee0dd6306b",
-    "vaultbase-linux-arm64": "a18fb917daa1d46d6b7c82b370c74c596e92f79df216ef857a99349e218cc74f",
-    "vaultbase-macos-arm64": "85f314e005ea72ef5ea04034a89360a047071434c2b4e0beaed268556f4297bc",
-    "vaultbase-macos-x64": "be7f125766308d256e0e838b4245a0550e09b4d40e3e157f53716a4a95e7ffe5",
-    "vaultbase-windows-x64.exe": "ae61701d4a58e85fef08c08aeb2bcf00920ec01021829635252ff833ab7edf20"
+    "vaultbase-linux-arm64": "f8aec25f025efed2355f84bc400524f78d6a97762bcecf176a46f45212026cd2",
+    "vaultbase-linux-x64-musl": "a1e8614510e9e8429432da9a22998c75f9176495020491cc71bae3c2bb387fcd",
+    "vaultbase-linux-x64": "7deb7ecc4e852d9df048dc0dffcf0b9f4ac6a6268ac6630ef9d1d87d0733fc14",
+    "vaultbase-macos-arm64": "e0652a3deab38a026f1832280e4d880132e4554822c4355fda255b84321c2450",
+    "vaultbase-macos-x64": "038301df1784b0afe3efde33cbac81fe6c7dae0b517339f3139698758d0c2b3b",
+    "vaultbase-windows-x64.exe": "25d39c079ca6f665cea9727d6249064e9c6d18af47e5ca05b6a8e8149e2558ff"
   }
 }

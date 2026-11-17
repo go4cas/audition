@@ -6,7 +6,7 @@ Nothing here has been deployed yet. Every step on the server is yours to run, wh
 
 ## What runs where
 
-Audition in production is one Vaultbase 0.44.0 process on 127.0.0.1, behind the reverse proxy the server already has (Caddy or nginx), usually with Cloudflare in front. Vaultbase does the backend work: the database, sign-ins, files, the hooks and routes Audition adds, encrypted API keys, and its own scheduled backups. The server needs no Bun, git or build step: each GitHub release carries a ready-made bundle.
+Audition in production is one Vaultbase 0.46.0 process on 127.0.0.1, behind the reverse proxy the server already has (Caddy or nginx), usually with Cloudflare in front. Vaultbase does the backend work: the database, sign-ins, files, the hooks and routes Audition adds, encrypted API keys, and its own scheduled backups. The server needs no Bun, git or build step: each GitHub release carries a ready-made bundle.
 
 The install is contained, so it can share a server with other apps (docs/VPS-INSTALL.md). Everything it adds is named `audition`:
 
@@ -159,13 +159,15 @@ There are two kinds, and they follow the same steps on the server: a new Auditio
 
 Vaultbase upgrades follow TECH-SPEC §1, "Upgrade policy":
 
-1. Once a month, a short "Vaultbase upgrade" thread reads the changelog from the pinned version (0.44.0) to the newest release, quoting every **Security** and **Upgrade notes** item that touches what Audition uses (auth, rules, files, hooks, the egress guard, backups, the records API). A security fix there means upgrading that week. `vaultbase update` prints whether a newer release exists.
+1. Once a month, a short "Vaultbase upgrade" thread reads the changelog from the pinned version (0.46.0) to the newest release, quoting every **Security** and **Upgrade notes** item that touches what Audition uses (auth, rules, files, hooks, the egress guard, backups, the records API). A security fix there means upgrading that week. `vaultbase update` prints whether a newer release exists.
 2. You approve the version. The thread runs `bun run vb:bump <version>`, then `bun test`, including the upgrade test from the old binary to the new one (`AUDITION_UPGRADE_FROM` set to the old lock file) and the PR quotes the changelog sections it read.
 3. You merge the PR and tag a release.
 
-Owner uploads still go through Audition's own route (`POST /api/custom/files/:collection/:id/:field`, from T2). Vaultbase fixed its own upload endpoint (F9) in 0.41.1, and `test/files.test.ts` checks that it works, but it can't take Markdown, CSV or zip files (NOTES W1). Server writes go through the records API since part B of `docs/PLATFORM-UPGRADES.md`, which needs Vaultbase 0.43 or later: deploy it only on 0.44.0.
+Owner uploads still go through Audition's own route (`POST /api/custom/files/:collection/:id/:field`, from T2). Vaultbase fixed its own upload endpoint (F9) in 0.41.1, and `test/files.test.ts` checks that it works, but it can't take Markdown, CSV or zip files (NOTES W1). Server writes go through the records API since part B of `docs/PLATFORM-UPGRADES.md`, which needs Vaultbase 0.43 or later: deploy it only on the pinned version (0.46.0).
 
 **0.40.2 to 0.44.0** (the first Vaultbase upgrade, after v0.1.0) needs nothing beyond the steps below: no setting, schema or env change. `deploy/audition.service` uses only options 0.44.0 still accepts (0.42.0 refuses unknown ones). The upgrade test opened 0.40.2 data with 0.44.0 and found every record, file, key and sign-in.
+
+**0.44.0 to 0.46.0** (Nov 17, 2026) also needs nothing beyond the steps below: no setting, schema, env or service change. The installer's upgrade fetches the Vaultbase binary named in the release's `vaultbase.lock.json`, so a new Audition release carries the new Vaultbase with it, and `rollback` goes back to the old binary too. The upgrade test opened 0.44.0 data with 0.46.0 and found every record, file, key and sign-in.
 
 ### On the server
 
@@ -207,7 +209,7 @@ It stops the service, moves the current data aside to `/var/lib/audition.failed-
 
 ## How this was checked
 
-`test/release.test.ts` runs the release on a fresh Vaultbase 0.44.0, laid out like production (the real `vb_hooks/` only, read-only, its own data folder), on every `bun test`:
+`test/release.test.ts` runs the release on a fresh Vaultbase 0.46.0, laid out like production (the real `vb_hooks/` only, read-only, its own data folder), on every `bun test`:
 
 - `provision` applies the settings and the backup schedule, creates the owner, seeds, and changes nothing on a second run; the app answers at `/api/custom/app/`.
 - A Vaultbase backup keeps the uploaded files, and restoring it undoes a change made after it.

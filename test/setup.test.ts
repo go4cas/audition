@@ -111,9 +111,9 @@ test("vb:bump refuses a version with no SHA256SUMS", async () => {
   expect(existsSync(out)).toBe(false);
 });
 
-test("the lock pins 0.44.0 with the published checksums", async () => {
+test("the lock pins 0.46.0 with the published checksums", async () => {
   const lock = await readLock();
-  expect(lock.version).toBe("0.44.0");
-  expect(lock.sha256["vaultbase-linux-x64"]).toBe("a69c8f49097fedcfe11d7c3ce2044e2e0bfb0b6b9e21f6a74df339d8f38e00a3");
+  expect(lock.version).toBe("0.46.0");
+  expect(lock.sha256["vaultbase-linux-x64"]).toBe("7deb7ecc4e852d9df048dc0dffcf0b9f4ac6a6268ac6630ef9d1d87d0733fc14");
   expect(Object.keys(lock.sha256).length).toBe(6);
 });
