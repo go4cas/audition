@@ -416,6 +416,14 @@ Cas wants Audition on their existing Hostinger VPS (next to Market Jury, openGym
 - **IN7. Cas's VPS runs a Cloudflare Tunnel, not a web proxy** (pre-flight, Nov 13 2026): nothing on 80/443, `cloudflared` with a dashboard token, ufw allowing SSH only, Market Jury on Bun 1.3.14 in `/usr/local/bin` (which the old install steps would have replaced), openGym in Docker on 127.0.0.1:8080. The installer recognises a running `cloudflared` (`--proxy tunnel`) and writes nothing for it: the route is a public hostname in the dashboard (`127.0.0.1:<port>`, not `localhost`, which can resolve to `::1` where Vaultbase doesn't listen). With no local proxy, a Cloudflare WAF rule blocks `/_/` except `/_/ready`; Vaultbase 0.44 has no setting to restrict its admin by address.
 - **IN8. First real install, v0.3.0 on the VPS (Nov 16 2026).** Installed cleanly in tunnel mode on Ubuntu 24.04 (`status` ready, `vaultbase doctor` clean, seed 41, backups scheduled). Three gaps, fixed in the tunnel steps the installer prints and in RELEASE.md: (1) behind a tunnel nothing redirects `/` to `/api/custom/app/` (Caddy and nginx do it in the site file), so the bare domain answered Vaultbase's 404; a Cloudflare redirect rule does it now. (2) The WAF rule had no `http.host` condition, so on a shared zone it would also block `/_/` on other sites. (3) The closing "Upgrade later: --version" hint can't work while the repository is private; it now mentions `--bundle`. Cloudflare's dashboard also renamed "Public hostname" to a "Published application" route and "WAF, Custom rules" to "Security rules".
 
+## Website (Nov 16, 2026)
+
+Cas asked for a landing page on Nov 13, 2026 and settled the content on Nov 16: the headline "Find the best AI for every role.", the audience first with a clear Vaultbase section, GitHub Pages, a folder that can grow into docs, and a roadmap strip, with a modern look, micro-interactions and animation. `site/` holds the page and a docs hub; `scripts/site.ts` copies the app's tokens, fonts, icon sprite and logo in, and `.github/workflows/pages.yml` publishes it.
+
+- **WS1. The repository is private, so Pages can't publish yet.** GitHub Pages from a private repository needs a paid plan, and the page's GitHub links and the server install command (`releases/latest/download/install.sh`) only work for visitors once the repository is public.
+- **WS2. Mock text doesn't sell.** The walkthrough's screenshots show "Mock Erratic" and "[[mock-quality:3]]", so the site's screenshots swap those for sample names and answers in the page before each shot. The app itself is unchanged.
+- **WS3. The "Try it" demo is the page's own code**, not the app: two fixed answers, the Trip researcher rubric and its weights, and a reveal.
+
 ## Live site links (Nov 17, 2026)
 
 Cas reported on the live v0.3.0 site that the top-bar "Contenders" button opened `/contenders` (404) and "Waiting for you" only opened Home.
