@@ -497,7 +497,7 @@ cmd_install() {
   printf '%sSave these two files somewhere safe, away from this server%s (a password manager is fine).\n' "$B" "$N"
   printf 'Backups do not hold them, and without the first one stored API keys can never be read again:\n'
   printf '    sudo cat %s/.encryption-key %s/.secret\n\n' "$DATA" "$DATA"
-  printf 'Upgrade later:  sudo bash install.sh --version <tag>   (or --bundle FILE while the repository is private)\nRemove:         sudo bash install.sh uninstall\n'
+  printf 'Upgrade later:  sudo bash install.sh --version <tag>   (or --bundle FILE on a server without GitHub access)\nRemove:         sudo bash install.sh uninstall\n'
 }
 
 cmd_upgrade() {
