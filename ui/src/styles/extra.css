@@ -92,6 +92,7 @@ tr.group-row td { background: var(--surface-2); padding-block: 6px; }
 :root[data-theme="dark"] .dot-count { color: #160b33; }
 .alert-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
 .alert-item__link { display: grid; grid-template-columns: auto 1fr auto; gap: var(--s3); align-items: start; padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); color: var(--text); text-decoration: none; transition: border-color var(--t-fast); }
+button.alert-item__link { width: 100%; font: inherit; text-align: left; cursor: pointer; }
 .alert-item__link:hover { border-color: var(--waiting-line); }
 .alert-item__text { display: grid; gap: 2px; min-width: 0; }
 .alert-item__icon { color: var(--text-muted); padding-top: 2px; }
