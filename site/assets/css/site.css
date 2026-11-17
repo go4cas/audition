@@ -439,6 +439,7 @@ button { font: inherit; color: inherit; }
 .foot nav { display: flex; gap: 1.2rem; flex-wrap: wrap; }
 .foot a { text-decoration: none; }
 .foot a:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.foot__ver { font-variant-numeric: tabular-nums; }
 
 /* ---------- Scroll reveal ---------- */
 /* Only blocks below the first screen wait to animate in (site.js marks them),

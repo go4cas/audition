@@ -12,6 +12,8 @@ import { icon } from "../lib/ui.js";
 import { inbox } from "../state/inbox.js";
 import { alerts } from "../state/alerts.js";
 import { APP, WAITING, href } from "../lib/nav.js";
+import { theme, toggleTheme } from "../lib/theme.js";
+import { APP_VERSION, loadVaultbaseVersion, versions } from "../lib/version.js";
 
 const shell = reactive({ bare: true, section: "/" });
 
@@ -37,7 +39,10 @@ export function mountShell(root, nav = []) {
     shell.bare = !!meta.bare;
     const path = route.path();
     shell.section = path === "/alerts" ? "/alerts" : sectionOf(path, nav);
+    // Versions are for signed-in people only (the chrome is hidden on sign-in).
+    if (!shell.bare) loadVaultbaseVersion();
   });
+  const themeLabel = () => (theme.dark ? "Switch to light mode" : "Switch to dark mode");
   html`
     <header class="topbar" hidden="${() => shell.bare}">
       <div class="topbar__inner">
@@ -48,11 +53,15 @@ export function mountShell(root, nav = []) {
         <div class="topbar__end">
           <a class="inbox-btn hide-phone" href="${href(WAITING.path, WAITING.query)}" data-waiting-link>${icon("inbox")}Waiting for you ${() => countBadge()}</a>
           <a class="icon-btn bell-btn" href="${APP + "/alerts"}" data-alerts aria-current="${() => (shell.section === "/alerts" ? "page" : false)}" data-tip="Alerts" data-tip-side="bottom" aria-label="${() => (alerts.unread ? `Alerts, ${alerts.unread} unread` : "Alerts")}">${icon("bell")}${() => (alerts.unread ? html`<span class="dot-count" data-alerts-count>${() => alerts.unread}</span>` : "")}</a>
+          <button class="icon-btn theme-btn" type="button" data-theme-toggle data-tip="${themeLabel}" data-tip-side="bottom" aria-label="${themeLabel}" @click="${() => toggleTheme()}">${() => icon(theme.dark ? "sun" : "moon")}</button>
           <button class="icon-btn" type="button" data-tip="Sign out" data-tip-side="bottom" aria-label="Sign out" @click="${() => signOut()}">${icon("sign-in")}</button>
         </div>
       </div>
     </header>
     <main id="main"></main>
+    <footer class="app-foot" hidden="${() => shell.bare}" data-versions>
+      <a href="${"https://github.com/go4cas/audition/releases/tag/" + encodeURIComponent(APP_VERSION)}" target="_blank" rel="noopener">Audition ${APP_VERSION}</a>${() => (versions.vaultbase ? html`<span aria-hidden="true">·</span><a href="https://github.com/vaultbase-sh/vaultbase" target="_blank" rel="noopener">Vaultbase ${() => versions.vaultbase}</a>` : "")}
+    </footer>
     <nav class="bottom-nav" aria-label="Main" hidden="${() => shell.bare}">
       ${nav.slice(0, 1).map((n) => link(n))}
       <a href="${href(WAITING.path, WAITING.query)}" data-waiting-link>${icon("inbox")}Waiting${() => countBadge()}</a>

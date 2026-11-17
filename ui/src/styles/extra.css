@@ -104,3 +104,19 @@ tr.group-row td { background: var(--surface-2); padding-block: 6px; }
 .push-device__label { display: inline-flex; align-items: center; gap: 6px; }
 /* "Waiting for you" scrolls here: clear the sticky top bar. */
 #up-next { scroll-margin-top: 5rem; }
+
+/* Light and dark toggle in the top bar (lib/theme.js) */
+.theme-btn .i { transition: transform var(--t-slow) var(--ease-spring); }
+.theme-btn:hover .i { transform: rotate(40deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dot-count { color: #160b33; } }
+@media (prefers-reduced-motion: reduce) { .theme-btn .i { transition: none; } }
+
+/* Versions footer, signed in only (components/shell.js) */
+.app-foot { max-width: var(--content-max); margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) var(--s5) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-wrap: wrap; gap: 6px; font-size: var(--fs-xs); color: var(--text-muted); }
+.app-foot[hidden] { display: none; }
+.app-foot a { color: inherit; text-decoration: none; font-variant-numeric: tabular-nums; }
+.app-foot a:hover { color: var(--text); text-decoration: underline; }
+@media (max-width: 40rem) {
+  /* Sit in the room the page keeps free above the phone nav. */
+  .app-foot { margin-top: -64px; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); justify-content: center; }
+}

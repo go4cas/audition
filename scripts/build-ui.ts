@@ -5,6 +5,8 @@
 // Quiver's Bun plugin builds the `quiver:app` module from ui/src (pages/,
 // middleware/, views/). Pages are loaded lazily, so `splitting` gives a small
 // first-load bundle (main.js and the chunks it imports) plus one chunk per page.
+// The app shows its version (lib/version.js): AUDITION_VERSION when set (the
+// release bundle sets it to the tag), otherwise `git describe`, otherwise "dev".
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 import quiver from "@go4cas/quiver/bun";
@@ -25,9 +27,20 @@ const copy = (dir: string, out: string) => {
 };
 copy(src, dist);
 
+export async function uiVersion(): Promise<string> {
+  const env = process.env["AUDITION_VERSION"];
+  if (env) return env;
+  try {
+    const p = Bun.spawn(["git", "describe", "--tags", "--always", "--dirty"], { cwd: ROOT, stdout: "pipe", stderr: "ignore" });
+    const v = (await new Response(p.stdout).text()).trim();
+    if ((await p.exited) === 0 && v) return v;
+  } catch {}
+  return "dev";
+}
+
 const entry = join(src, "main.js");
 if (existsSync(entry)) {
-  const r = await Bun.build({ entrypoints: [entry], outdir: dist, target: "browser", format: "esm", minify: true, sourcemap: "linked", splitting: true, plugins: [quiver({ srcDir: src })], naming: { entry: "[name].[ext]", chunk: "chunks/[hash].[ext]" } });
+  const r = await Bun.build({ entrypoints: [entry], outdir: dist, target: "browser", format: "esm", minify: true, sourcemap: "linked", splitting: true, plugins: [quiver({ srcDir: src })], naming: { entry: "[name].[ext]", chunk: "chunks/[hash].[ext]" }, define: { "AUDITION_VERSION": JSON.stringify(await uiVersion()) } });
   if (!r.success) { for (const l of r.logs) console.error(l); process.exit(1); }
 }
 console.log(`UI built into ${dist}`);
