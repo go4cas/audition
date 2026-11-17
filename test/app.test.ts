@@ -48,7 +48,15 @@ describe("on a running instance", () => {
     const html = await r.text();
     expect(html).toContain("<title>Audition</title>");
     // Absolute asset URLs: the app uses real paths (…/app/runs/123), so relative ones would break.
-    expect(html).toContain('<script type="module" src="/api/custom/app/main.js"></script>');
+    // Cache busting: main.js and the stylesheets carry a content hash, so an upgrade reaches browsers at once.
+    const main = /<script type="module" src="\/api\/custom\/app\/main\.js\?v=([0-9a-f]{10})"><\/script>/.exec(html);
+    expect(main).not.toBeNull();
+    expect(html).toMatch(/href="\/api\/custom\/app\/styles\/app\.css\?v=[0-9a-f]{10}"/);
+    const js = await fetch(`${h.url}/api/custom/app/main.js?v=${main![1]}`);
+    expect(js.status).toBe(200);
+    expect(js.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
+    const bytes = new Uint8Array(await js.arrayBuffer());
+    expect(new Bun.CryptoHasher("sha256").update(bytes).digest("hex").slice(0, 10)).toBe(main![1]);
     expect(html).not.toMatch(/(href|src)="(?!\/api\/custom\/app\/)[^"]*"/);
   });
 

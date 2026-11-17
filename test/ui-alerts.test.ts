@@ -75,6 +75,19 @@ test("a new alert shows on the bell live, opens its page and is marked read", as
   expect(rows.filter((n: any) => n.read_at).map((n: any) => n.title)).toEqual(["Researcher run finished"]);
 }, 60_000);
 
+test("an alert with no page (the admin's Send test) is only marked read on tap", async () => {
+  const r = await h.api("admin", "POST", "/api/v1/admin/notifications/test", { userId: owner, title: "Vaultbase test", body: "Test sent" });
+  expect(r.status).toBe(200);
+  const { p, close } = await open("/alerts");
+  const item = p.locator("[data-alert-list] .alert-item", { hasText: "Vaultbase test" });
+  await item.locator("button[data-alert-read]").waitFor();
+  expect(await item.locator("a").count()).toBe(0);
+  await item.click();
+  await p.waitForFunction(() => ![...document.querySelectorAll(".alert-item.is-unread")].some((e) => e.textContent?.includes("Vaultbase test")));
+  expect(p.url()).toMatch(/\/alerts$/);
+  await close();
+}, 60_000);
+
 test("Mark all read clears the bell, on a phone too", async () => {
   const { p, close } = await open("/alerts", 375);
   await p.getByRole("button", { name: "Mark all read" }).waitFor();

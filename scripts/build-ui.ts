@@ -5,9 +5,10 @@
 // Quiver's Bun plugin builds the `quiver:app` module from ui/src (pages/,
 // middleware/, views/). Pages are loaded lazily, so `splitting` gives a small
 // first-load bundle (main.js and the chunks it imports) plus one chunk per page.
+// index.html loads main.js and the stylesheets with ?v=<content hash> (cache busting).
 // The app shows its version (lib/version.js): AUDITION_VERSION when set (the
 // release bundle sets it to the tag), otherwise `git describe`, otherwise "dev".
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import quiver from "@go4cas/quiver/bun";
 import { ROOT } from "./lib/vaultbase.ts";
@@ -42,5 +43,20 @@ const entry = join(src, "main.js");
 if (existsSync(entry)) {
   const r = await Bun.build({ entrypoints: [entry], outdir: dist, target: "browser", format: "esm", minify: true, sourcemap: "linked", splitting: true, plugins: [quiver({ srcDir: src })], naming: { entry: "[name].[ext]", chunk: "chunks/[hash].[ext]" }, define: { "AUDITION_VERSION": JSON.stringify(await uiVersion()) } });
   if (!r.success) { for (const l of r.logs) console.error(l); process.exit(1); }
+}
+// Cache busting: main.js and the stylesheets keep their names, so index.html
+// (served no-cache) loads them as `?v=<content hash>`. A browser or Cloudflare
+// holding an old copy (Cloudflare's browser cache TTL can be hours) gets the
+// new file the first time the page loads after an upgrade. Chunks are already
+// named by hash.
+const indexPath = join(dist, "index.html");
+if (existsSync(indexPath)) {
+  const html = readFileSync(indexPath, "utf8").replace(/(href|src)="(\/api\/custom\/app\/)((?:main\.js)|(?:styles\/[\w.-]+\.css))"/g, (m, attr, base, file) => {
+    const p = join(dist, file);
+    if (!existsSync(p)) return m;
+    const v = new Bun.CryptoHasher("sha256").update(readFileSync(p)).digest("hex").slice(0, 10);
+    return `${attr}="${base}${file}?v=${v}"`;
+  });
+  writeFileSync(indexPath, html);
 }
 console.log(`UI built into ${dist}`);

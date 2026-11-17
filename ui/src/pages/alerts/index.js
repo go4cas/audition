@@ -34,13 +34,15 @@ export default function alertsPage() {
 
 function row(n) {
   const open = (e) => { e.preventDefault(); markRead(n); go(alertPage(n)); };
-  return html`<li class="${() => "alert-item" + (n.read_at ? "" : " is-unread")}" data-alert="${n.id}">
-    <a class="alert-item__link" href="${APP + alertPage(n)}" @click="${open}">
-      <span class="alert-item__icon">${icon(ICON[n.type] || "bell")}</span>
+  const inner = html`<span class="alert-item__icon">${icon(ICON[n.type] || "bell")}</span>
       <span class="alert-item__text"><strong>${n.title}</strong>${n.body ? html`<span class="small muted">${n.body}</span>` : ""}</span>
-      <span class="small muted alert-item__when">${ago(n.created || n.created_at)}</span>
-    </a>
-  </li>`;
+      <span class="small muted alert-item__when">${ago(n.created || n.created_at)}</span>`;
+  // An alert with no page (such as the admin's "Vaultbase test") has nowhere
+  // to go: a tap only marks it read, instead of reloading this page.
+  const target = alertPage(n) === "/alerts"
+    ? html`<button class="alert-item__link" type="button" data-alert-read @click="${() => markRead(n)}">${inner}</button>`
+    : html`<a class="alert-item__link" href="${APP + alertPage(n)}" @click="${open}">${inner}</a>`;
+  return html`<li class="${() => "alert-item" + (n.read_at ? "" : " is-unread")}" data-alert="${n.id}">${target}</li>`;
 }
 
 /**
