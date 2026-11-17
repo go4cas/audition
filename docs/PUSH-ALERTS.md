@@ -39,7 +39,7 @@ See docs/OPERATIONS.md, "Push alerts".
 - Vaultbase sends each push to OneSignal with the owner's user id as OneSignal's `external_id`. The app's SDK logs in with the same id (`OneSignal.login`), so every device you turn on gets your alerts. Vaultbase never sees device tokens.
 - `GET /api/custom/push` (owner only) returns `{ provider: "onesignal", app_id }` when OneSignal is on, else `{ provider: null }`. The App ID is public by design; the API key stays in Vaultbase.
 - OneSignal's service worker must come from Audition's own origin. The app route serves `/api/custom/app/OneSignalSDKWorker.js` (one `importScripts` line) while OneSignal is on, and the SDK registers it with the scope `/api/custom/app/`.
-- **CSP**: while OneSignal is on, the app's CSP also allows `https://cdn.onesignal.com` (script, style, image), `https://onesignal.com`, `https://api.onesignal.com` (connect) and `https://img.onesignal.com` (image). With OneSignal off the CSP stays `'self'` only.
+- **CSP**: while OneSignal is on, the app's CSP also allows `https://cdn.onesignal.com` (script, style, image), `https://onesignal.com` and `https://api.onesignal.com` (script and connect: the SDK reads the app's config by JSONP from `api.onesignal.com/sync/<app id>/web`, and its init times out without it) and `https://img.onesignal.com` (image). With OneSignal off the CSP stays `'self'` only.
 - Clicking a push while the app is open goes to the alert's page. With the app closed, OneSignal opens the Site URL set in its dashboard, which should be the app's home page.
 
 ## Tests

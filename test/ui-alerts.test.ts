@@ -130,7 +130,7 @@ test("with OneSignal on, the owner turns alerts on for this device and off again
   p.on("response", (r) => { if (r.url().endsWith(`${APP}/alerts`)) csp.push(r.headers()["content-security-policy"] ?? ""); });
   await p.goto(`${h.url}${APP}/alerts`);
   await p.locator('[data-push-action="on"]').waitFor();
-  expect(csp[0]).toContain("script-src 'self' https://cdn.onesignal.com");
+  expect(csp[0]).toContain("script-src 'self' https://cdn.onesignal.com https://api.onesignal.com https://onesignal.com;"); // the SDK loads its config by JSONP
   expect(await p.evaluate(() => (window as any).__os)).toBeUndefined(); // no SDK until asked
   if (SHOTS) { await p.waitForTimeout(800); await p.screenshot({ path: join(SHOTS, "alerts-device-1280.png") }); }
 
