@@ -1,6 +1,8 @@
 # Publish the public website (site/) to GitHub Pages.
 # scripts/site.ts copies the app's brand files (tokens, fonts, icons, logo)
-# into _site/, so the site always matches the app.
+# into _site/, so the site always matches the app. It also fills in the
+# latest release and the pinned Vaultbase version; release.yml starts it
+# again (on main) once a release is published.
 name: Website
 
 on:
@@ -14,6 +16,7 @@ on:
       - ui/src/fonts/**
       - ui/src/sprite.svg
       - docs/design/logo/**
+      - vaultbase.lock.json
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -31,6 +34,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Tags too, so scripts/site.ts can name the latest release.
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4

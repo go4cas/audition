@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   bundle:
@@ -33,3 +34,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" release-dist/* --clobber
+      # The website shows the latest release: rebuild it from main (the
+      # github-pages environment only deploys from main, not from a tag).
+      - name: Refresh the website
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main -R "$GITHUB_REPOSITORY"

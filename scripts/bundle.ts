@@ -41,7 +41,7 @@ mkdirSync(out, { recursive: true });
 
 // The UI is the same for every architecture: build it once.
 {
-  const p = Bun.spawn(["bun", "scripts/build-ui.ts"], { cwd: ROOT, stdout: "inherit", stderr: "inherit" });
+  const p = Bun.spawn(["bun", "scripts/build-ui.ts"], { cwd: ROOT, stdout: "inherit", stderr: "inherit", env: { ...process.env, AUDITION_VERSION: version } });
   if ((await p.exited) !== 0) throw new Error("build:ui failed");
 }
 

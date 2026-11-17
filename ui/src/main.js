@@ -13,6 +13,10 @@ import { installPopovers, placeThumbs } from "./lib/ui.js";
 import { BASE, fromHashLink, go } from "./lib/nav.js";
 import { refreshInbox } from "./state/inbox.js";
 import { followAlerts } from "./state/alerts.js";
+import { initTheme } from "./lib/theme.js";
+
+// Saved light/dark choice first, so the app paints in it.
+initTheme();
 
 const root = document.getElementById("root");
 

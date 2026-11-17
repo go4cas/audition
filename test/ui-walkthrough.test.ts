@@ -3,7 +3,7 @@
 //
 // Set UI_SCREENS=<folder> to also save screenshots at 1280 and 375 px wide.
 import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
@@ -12,6 +12,8 @@ import { ROOT } from "../scripts/lib/vaultbase.ts";
 import { seedReference } from "../seed/reference.ts";
 
 const SCREENS = process.env["UI_SCREENS"];
+// UI_THEMES=both saves each screen in light and dark (<name>-light-1280.png, …).
+const THEMES: ("light" | "dark" | null)[] = process.env["UI_THEMES"] === "both" ? ["light", "dark"] : [null];
 const T = 30_000;
 let h: Harness, browser: Browser, ctx: BrowserContext, p: Page;
 const files = mkdtempSync(join(tmpdir(), "audition-ui-files-"));
@@ -65,15 +67,19 @@ async function shot(name: string) {
   if (!SCREENS) return;
   mkdirSync(SCREENS, { recursive: true });
   await p.evaluate(() => { document.getElementById("toaster")!.style.visibility = "hidden"; });
-  for (const w of [1280, 375]) {
-    // Grow the window to the page's height, so fixed bars sit at the end.
-    await p.setViewportSize({ width: w, height: 800 });
-    await p.waitForTimeout(200);
-    const height = await p.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
-    await p.setViewportSize({ width: w, height: Math.min(height, 4000) });
-    await p.waitForTimeout(150);
-    await p.screenshot({ path: join(SCREENS, `${name}-${w}.png`) });
+  for (const theme of THEMES) {
+    if (theme) { await p.emulateMedia({ colorScheme: theme }); await p.waitForTimeout(100); }
+    for (const w of [1280, 375]) {
+      // Grow the window to the page's height, so fixed bars sit at the end.
+      await p.setViewportSize({ width: w, height: 800 });
+      await p.waitForTimeout(200);
+      const height = await p.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
+      await p.setViewportSize({ width: w, height: Math.min(height, 4000) });
+      await p.waitForTimeout(150);
+      await p.screenshot({ path: join(SCREENS, `${name}${theme ? "-" + theme : ""}-${w}.png`) });
+    }
   }
+  if (THEMES[0]) await p.emulateMedia({ colorScheme: "light" });
   await p.setViewportSize({ width: 1280, height: 900 });
   await p.evaluate(() => { document.getElementById("toaster")!.style.visibility = ""; });
 }
@@ -134,6 +140,29 @@ test("sign in", async () => {
   await settle();
   for (const w of ["Software Factory", "Marketing Pipeline", "Stock Review", "Travel Research"]) await p.getByText(w).first().waitFor();
   await shot("home");
+}, 60_000);
+
+test("versions footer and the light/dark toggle", async () => {
+  const lock = JSON.parse(readFileSync(join(ROOT, "vaultbase.lock.json"), "utf8"));
+  const foot = p.locator("[data-versions]");
+  await foot.getByText(`Vaultbase ${lock.version}`).waitFor();
+  expect(await foot.textContent()).toMatch(/Audition \S+/);
+  await p.emulateMedia({ colorScheme: "light" });
+  const btn = p.locator("[data-theme-toggle]");
+  expect(await btn.getAttribute("aria-label")).toBe("Switch to dark mode");
+  await btn.click();
+  await p.waitForFunction(() => document.documentElement.dataset.theme === "dark");
+  expect(await p.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(17, 17, 17)");
+  expect(await btn.getAttribute("aria-label")).toBe("Switch to light mode");
+  // Remembered on this device.
+  await p.reload();
+  await settle();
+  expect(await p.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
+  await p.locator("[data-theme-toggle]").click();
+  await p.waitForFunction(() => document.documentElement.dataset.theme === "light");
+  // Back to following the system for the rest of the walkthrough.
+  await p.evaluate(() => { localStorage.removeItem("audition-theme"); delete document.documentElement.dataset.theme; });
+  await p.emulateMedia({ colorScheme: null });
 }, 60_000);
 
 test("Software Factory: edit the workspace, a stage, a role's rubric and a task", async () => {
