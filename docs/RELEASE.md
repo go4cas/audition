@@ -35,7 +35,7 @@ On a Linux server with systemd (Ubuntu, Debian and the like; x86_64 or arm64), a
    sudo bash install.sh
    ```
 
-   **While the repository is private** the server can't download from GitHub. Download `install.sh` and `audition-<tag>-linux-x64.tar.gz` from the release page on your own computer (or `gh release download <tag> -R go4cas/audition -p 'install.sh' -p '*linux-x64.tar.gz'`), copy them up, and point the installer at the bundle. The Vaultbase binary still comes from Vaultbase's public release.
+   **On a server that can't reach GitHub** (or while the repository was private, before Nov 17, 2026), download `install.sh` and `audition-<tag>-linux-x64.tar.gz` from the release page on your own computer (or `gh release download <tag> -R go4cas/audition -p 'install.sh' -p '*linux-x64.tar.gz'`), copy them up, and point the installer at the bundle. The Vaultbase binary still comes from Vaultbase's public release.
 
    ```sh
    scp install.sh audition-<tag>-linux-x64.tar.gz you@your-vps:
@@ -170,10 +170,11 @@ Owner uploads still go through Audition's own route (`POST /api/custom/files/:co
 ### On the server
 
 ```sh
-sudo bash install.sh --version v0.3.0      # the release tag
+curl -fsSLO https://github.com/go4cas/audition/releases/latest/download/install.sh
+sudo bash install.sh --version v0.3.1      # the release tag
 ```
 
-While the repository is private, copy the new bundle up and run `sudo bash install.sh --bundle audition-<tag>-linux-x64.tar.gz` instead (see [Install](#install)).
+Fetch the new `install.sh` first, so the upgrade runs the release's own installer. On a server that can't reach GitHub, copy the new bundle up and run `sudo bash install.sh --bundle audition-<tag>-linux-x64.tar.gz` instead (see [Install](#install)).
 
 Running the installer again on a server that has Audition upgrades it. It downloads and checks the new bundle (and the new Vaultbase binary, when the pin changed), stops the service, takes a **cold copy of the whole data folder** into `/var/lib/audition-rollback` (the database, the files and both keys), switches `/opt/audition/current` and the binary symlink, and starts the service. Vaultbase upgrades its data folder when it starts and can't downgrade, so that copy is the rollback, not a Vaultbase backup. Then run the smoke test. Hook files only change while the service is stopped.
 
