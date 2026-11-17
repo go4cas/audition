@@ -11,7 +11,7 @@ import { signOut } from "../api.js";
 import { icon } from "../lib/ui.js";
 import { inbox } from "../state/inbox.js";
 import { alerts } from "../state/alerts.js";
-import { APP, href } from "../lib/nav.js";
+import { APP, WAITING, href } from "../lib/nav.js";
 
 const shell = reactive({ bare: true, section: "/" });
 
@@ -46,7 +46,7 @@ export function mountShell(root, nav = []) {
           ${nav.map((n) => link(n))}
         </nav>
         <div class="topbar__end">
-          <a class="inbox-btn hide-phone" href="${APP + "/"}">${icon("inbox")}Waiting for you ${() => countBadge()}</a>
+          <a class="inbox-btn hide-phone" href="${href(WAITING.path, WAITING.query)}" data-waiting-link>${icon("inbox")}Waiting for you ${() => countBadge()}</a>
           <a class="icon-btn bell-btn" href="${APP + "/alerts"}" data-alerts aria-current="${() => (shell.section === "/alerts" ? "page" : false)}" data-tip="Alerts" data-tip-side="bottom" aria-label="${() => (alerts.unread ? `Alerts, ${alerts.unread} unread` : "Alerts")}">${icon("bell")}${() => (alerts.unread ? html`<span class="dot-count" data-alerts-count>${() => alerts.unread}</span>` : "")}</a>
           <button class="icon-btn" type="button" data-tip="Sign out" data-tip-side="bottom" aria-label="Sign out" @click="${() => signOut()}">${icon("sign-in")}</button>
         </div>
@@ -55,7 +55,7 @@ export function mountShell(root, nav = []) {
     <main id="main"></main>
     <nav class="bottom-nav" aria-label="Main" hidden="${() => shell.bare}">
       ${nav.slice(0, 1).map((n) => link(n))}
-      <a href="${APP + "/?waiting=1"}">${icon("inbox")}Waiting${() => countBadge()}</a>
+      <a href="${href(WAITING.path, WAITING.query)}" data-waiting-link>${icon("inbox")}Waiting${() => countBadge()}</a>
       ${nav.slice(1).map((n) => link(n))}
     </nav>
     <dialog class="lightbox" id="lightbox" aria-label="Large image" @click="${(e) => { if (e.target === e.currentTarget || e.target.closest("[data-close]")) e.currentTarget.close(); }}">

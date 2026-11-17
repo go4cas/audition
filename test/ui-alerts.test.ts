@@ -150,3 +150,26 @@ test("with OneSignal on, the owner turns alerts on for this device and off again
   expect(await w.text()).toContain('importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js")');
   expect(errors).toEqual([]);
 }, 60_000);
+
+// Live-site bug (Nov 17 2026): the shell rendered its nav before quiver knew the
+// base, so "Contenders" linked to /contenders (404). Every top-bar and phone-nav
+// link must carry the app base, and "Waiting for you" opens Home's "Up next".
+test("nav links carry the app base, and Waiting for you opens Home at Up next", async () => {
+  for (const width of [1280, 375]) {
+    const { p, close } = await open("/contenders", width);
+    await p.locator("[data-screen=contenders]").waitFor();
+    const hrefs = await p.locator(width === 1280 ? ".topbar a" : ".bottom-nav a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+    expect(hrefs.length).toBeGreaterThan(2);
+    for (const href of hrefs) expect(href!.startsWith(APP + "/")).toBe(true);
+    await p.locator("[data-waiting-link]:visible").click();
+    await p.waitForURL(/\/api\/custom\/app\/\?waiting=1$/);
+    await p.locator("#up-next").waitFor();
+    if (width === 1280) {
+      await p.locator(".topbar nav").getByText("Contenders").click();
+      await p.waitForURL(new RegExp(APP + "/contenders$"));
+      await p.locator("[data-screen=contenders]").waitFor();
+    }
+    await close();
+  }
+  expect(errors).toEqual([]);
+}, 60_000);

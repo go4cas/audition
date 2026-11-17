@@ -2,7 +2,7 @@
 // The app lives under one fixed base path, served by vb_hooks/routes/app.ts.
 // Pages pass base-relative paths ("/runs/123") with an optional query object;
 // APP is the base without its trailing slash, for building link hrefs.
-import { go as quiverGo, url, useRoute } from "@go4cas/quiver";
+import { go as quiverGo, useRoute } from "@go4cas/quiver";
 
 export const BASE = "/api/custom/app/";
 export const APP = BASE.slice(0, -1);
@@ -12,8 +12,16 @@ const withQuery = (path, query) => {
   return path + (qs ? "?" + qs : "");
 };
 
-/** A link href for a base-relative path: href("/runs/new", { role }) → "/api/custom/app/runs/new?role=…". */
-export const href = (path, query) => url(withQuery(path, query));
+/**
+ * A link href for a base-relative path: href("/runs/new", { role }) → "/api/custom/app/runs/new?role=…".
+ * Built from BASE, not quiver's url(): url() only knows the base once
+ * createApp() has run, and the shell renders its nav links before that, so
+ * they came out as "/contenders" (a 404 on the live site).
+ */
+export const href = (path, query) => BASE + withQuery(path, query).replace(/^\//, "");
+
+/** The "Waiting for you" link: Home, scrolled to its "Up next" list. */
+export const WAITING = { path: "/", query: { waiting: 1 } };
 
 /** Navigate in the app (after a save, sign-in, sign-out). Links use plain hrefs. */
 export const go = (path, query) => quiverGo(withQuery(path, query));

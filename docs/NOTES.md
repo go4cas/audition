@@ -424,3 +424,9 @@ Cas asked for a landing page on Nov 13, 2026 and settled the content on Nov 16: 
 - **WS2. Mock text doesn't sell.** The walkthrough's screenshots show "Mock Erratic" and "[[mock-quality:3]]", so the site's screenshots swap those for sample names and answers in the page before each shot. The app itself is unchanged.
 - **WS3. The "Try it" demo is the page's own code**, not the app: two fixed answers, the Trip researcher rubric and its weights, and a reveal.
 
+## Live site links (Nov 17, 2026)
+
+Cas reported on the live v0.3.0 site that the top-bar "Contenders" button opened `/contenders` (404) and "Waiting for you" only opened Home.
+
+- **L1. Nav links without the base.** `components/shell.js` renders the top bar and phone nav once, in `mountShell()`, before `main.js` calls `createApp(app, { base: BASE })`. The nav links used `href()`, which called quiver's `url()`, and `url()` reads the router's base, which is `/` until `createApp()` runs (`src/base.js` in quiver 3.2.1). So the links were `/` and `/contenders`, outside the app: quiver did not intercept them, the browser loaded `/contenders` and Vaultbase answered 404 (`/` only worked because of the Cloudflare redirect rule). Since part D (PR #24). The walkthrough opens pages by URL and never clicked the nav, so no test saw it. Fix: `href()` builds from `BASE` directly; `test/ui-alerts.test.ts` checks every top-bar and phone-nav href and clicks Contenders (fails before the fix).
+- **L2. "Waiting for you" opens Home by design** (docs/design README: Home is the main way into handoffs and judging), but on a long Home page it looked like nothing happened. Both "Waiting for you" links now go to `/?waiting=1`, and Home scrolls to its "Up next" list (`#up-next`). The phone nav already linked `?waiting=1`, but nothing read it.

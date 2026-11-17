@@ -102,3 +102,5 @@ tr.group-row td { background: var(--surface-2); padding-block: 6px; }
 .push-device__body { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--s4); }
 .push-device__text { display: grid; gap: 2px; flex: 1 1 16rem; min-width: 0; }
 .push-device__label { display: inline-flex; align-items: center; gap: 6px; }
+/* "Waiting for you" scrolls here: clear the sticky top bar. */
+#up-next { scroll-margin-top: 5rem; }

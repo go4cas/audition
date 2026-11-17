@@ -5,7 +5,7 @@ import { page, empty } from "../components/page.js";
 import { ago, avatar, chip, date, hue as hueOf, icon, initials as initialsOf, plural } from "../lib/ui.js";
 import { championOf, leaderboards, load, runLabel, sortRoles } from "../state/data.js";
 import { inbox, itemHref, itemKind, itemTitle } from "../state/inbox.js";
-import { APP } from "../lib/nav.js";
+import { APP, currentQuery } from "../lib/nav.js";
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; };
 const today = () => new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
@@ -29,6 +29,8 @@ export default function home() {
       const active = d.runs.filter((r) => r.status !== "done");
       const pct = roles.length ? Math.round((champions.length / roles.length) * 100) : 0;
       const name = ownerName();
+      // "Waiting for you" (top bar, phone nav) opens Home at its "Up next" list.
+      if (currentQuery().waiting) requestAnimationFrame(() => document.getElementById("up-next")?.scrollIntoView({ block: "start" }));
       return html`
         <div class="home-hero">
           <div class="stack hero-copy">
@@ -76,9 +78,9 @@ export default function home() {
 
 
 function upNext() {
-  if (!inbox.items.length) return html`<div class="stack-sm"><div class="section-head"><h2>Up next</h2></div>${empty("inbox-duo", "Nothing waiting for you", "Start a run and the replies to paste and outputs to judge show up here.")}</div>`;
+  if (!inbox.items.length) return html`<div class="stack-sm" id="up-next"><div class="section-head"><h2>Up next</h2></div>${empty("inbox-duo", "Nothing waiting for you", "Start a run and the replies to paste and outputs to judge show up here.")}</div>`;
   const [first, ...rest] = inbox.items;
-  return html`<div class="stack-sm">
+  return html`<div class="stack-sm" id="up-next">
       <div class="section-head"><h2>Up next</h2><span class="small muted">1 of ${inbox.items.length} waiting</span></div>
       <div class="up-next">
         ${first.kind === "paste" ? avatar(first.names[0], "") : html`<span class="letter-tile">A–Z</span>`}
