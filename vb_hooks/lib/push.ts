@@ -30,12 +30,14 @@ export async function pushConfig(sql: Sql): Promise<PushConfig> {
 
 /**
  * The app's CSP with OneSignal's origins added: its SDK and service worker
- * load from cdn.onesignal.com and talk to onesignal.com. Only used while
+ * load from cdn.onesignal.com and talk to onesignal.com. The SDK reads the
+ * app's config by JSONP (a <script> from api.onesignal.com/sync/<app id>/web),
+ * so OneSignal's API hosts are script sources too; without them init times out. Only used while
  * OneSignal is on; otherwise the app keeps the strict 'self' policy.
  */
 export function withOneSignal(csp: string): string {
   const add = (dir: string, extra: string) => csp = csp.replace(new RegExp(`(^|; )${dir} ([^;]*)`), (_m, pre, v) => `${pre}${dir} ${v} ${extra}`);
-  add("script-src", "https://cdn.onesignal.com");
+  add("script-src", "https://cdn.onesignal.com https://api.onesignal.com https://onesignal.com");
   add("style-src", "https://cdn.onesignal.com");
   add("connect-src", "https://cdn.onesignal.com https://onesignal.com https://api.onesignal.com");
   add("img-src", "https://cdn.onesignal.com https://img.onesignal.com");
