@@ -9,6 +9,12 @@ import { custom, me } from "../api.js";
 import { BASE, go } from "./nav.js";
 
 const SDK = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
+const LOAD_MS = 20_000; // OneSignal's script, init and each call
+const ASK_MS = 120_000; // the browser's permission prompt waits for you
+
+/** Reject when p takes longer than ms, so the panel never waits forever. */
+const timeout = (p, ms, msg) => Promise.race([p, new Promise((_, reject) => setTimeout(() => reject(new Error(msg)), ms))]);
+const NO_ONESIGNAL = "OneSignal didn't answer. Check that its Web configuration is saved with this site's address, then try again.";
 const FLAG = "audition.push";
 
 /** state: "checking" | "off-server" (OneSignal not on) | "unsupported" | "blocked" | "off" | "on" | "busy" */
@@ -18,30 +24,46 @@ const supported = () => typeof window !== "undefined" && "serviceWorker" in navi
 const flag = (v) => { try { if (v === undefined) return localStorage.getItem(FLAG) === "1"; v ? localStorage.setItem(FLAG, "1") : localStorage.removeItem(FLAG); } catch { return false; } };
 
 let sdk = null;
-/** Load OneSignal's SDK once and init it for this app; resolves to OneSignal. */
+let scriptAdded = false;
+let inited = false;
+/**
+ * Load OneSignal's SDK once and init it once for this app; resolves to
+ * OneSignal. A failed or timed-out try can be tried again: the script is never
+ * added twice, and an init that already ran (OneSignal's "SDK already
+ * initialized") counts as done, since OneSignal refuses a second one.
+ */
 function oneSignal(appId) {
   if (sdk) return sdk;
   sdk = new Promise((resolve, reject) => {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async (OneSignal) => {
       try {
-        await OneSignal.init({
-          appId,
-          serviceWorkerPath: BASE.slice(1) + "OneSignalSDKWorker.js",
-          serviceWorkerParam: { scope: BASE },
-          allowLocalhostAsSecureOrigin: location.hostname === "localhost",
-        });
-        OneSignal.Notifications.addEventListener("click", (e) => {
-          const page = e?.notification?.additionalData?.page;
-          if (typeof page === "string" && page.startsWith("/")) go(page);
-        });
+        if (!inited) {
+          try {
+            await OneSignal.init({
+              appId,
+              serviceWorkerPath: BASE.slice(1) + "OneSignalSDKWorker.js",
+              serviceWorkerParam: { scope: BASE },
+              allowLocalhostAsSecureOrigin: location.hostname === "localhost",
+            });
+          } catch (err) {
+            if (!/already initiali[sz]ed/i.test(String(err?.message || err))) throw err;
+          }
+          inited = true;
+          OneSignal.Notifications.addEventListener("click", (e) => {
+            const page = e?.notification?.additionalData?.page;
+            if (typeof page === "string" && page.startsWith("/")) go(page);
+          });
+        }
         resolve(OneSignal);
       } catch (err) { reject(err); }
     });
+    if (scriptAdded) return;
+    scriptAdded = true;
     const s = document.createElement("script");
     s.src = SDK;
     s.defer = true;
-    s.onerror = () => reject(new Error("Couldn't load OneSignal. Check the connection and try again."));
+    s.onerror = () => { scriptAdded = false; s.remove(); reject(new Error("Couldn't load OneSignal. Check the connection and try again.")); };
     document.head.appendChild(s);
   });
   sdk.catch(() => { sdk = null; });
@@ -61,9 +83,9 @@ export async function checkPush() {
   if (Notification.permission === "denied") { push.state = "blocked"; return; }
   if (!flag()) { push.state = "off"; return; }
   try {
-    const OneSignal = await oneSignal(config.app_id);
+    const OneSignal = await timeout(oneSignal(config.app_id), LOAD_MS, NO_ONESIGNAL);
     const id = me()?.id;
-    if (id) await OneSignal.login(id);
+    if (id) await timeout(OneSignal.login(id), LOAD_MS, NO_ONESIGNAL);
     push.state = stateOf(OneSignal);
   } catch (err) { push.state = "off"; push.error = err?.message || String(err); }
 }
@@ -71,13 +93,17 @@ export async function checkPush() {
 /** Ask this browser for permission and subscribe it to the owner's alerts. */
 export async function turnOnPush() {
   if (!config?.app_id) return;
+  // Ask first, straight from the tap: iPhone and iPad Safari show the prompt
+  // only during the tap itself, not after the SDK has loaded over the network.
+  const asked = Notification.permission === "default" ? Notification.requestPermission() : Promise.resolve(Notification.permission);
   push.state = "busy"; push.error = "";
   try {
-    const OneSignal = await oneSignal(config.app_id);
+    const perm = await timeout(asked, ASK_MS, "The browser didn't ask for permission. Try again.");
+    if (perm !== "granted") { push.state = perm === "denied" ? "blocked" : "off"; return; }
+    const OneSignal = await timeout(oneSignal(config.app_id), LOAD_MS, NO_ONESIGNAL);
     const id = me()?.id;
-    if (id) await OneSignal.login(id);
-    await OneSignal.Notifications.requestPermission();
-    if (Notification.permission === "granted") await OneSignal.User.PushSubscription.optIn();
+    if (id) await timeout(OneSignal.login(id), LOAD_MS, NO_ONESIGNAL);
+    await timeout(OneSignal.User.PushSubscription.optIn(), LOAD_MS, NO_ONESIGNAL);
     push.state = stateOf(OneSignal);
     flag(push.state === "on");
   } catch (err) { push.state = "off"; push.error = err?.message || String(err); }
@@ -88,8 +114,8 @@ export async function turnOffPush() {
   if (!config?.app_id) return;
   push.state = "busy"; push.error = "";
   try {
-    const OneSignal = await oneSignal(config.app_id);
-    await OneSignal.User.PushSubscription.optOut();
+    const OneSignal = await timeout(oneSignal(config.app_id), LOAD_MS, NO_ONESIGNAL);
+    await timeout(OneSignal.User.PushSubscription.optOut(), LOAD_MS, NO_ONESIGNAL);
     flag(false);
     push.state = stateOf(OneSignal);
   } catch (err) { push.state = "on"; push.error = err?.message || String(err); }

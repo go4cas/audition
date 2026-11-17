@@ -31,9 +31,9 @@ A run's **Repeat** panel makes a Vaultbase cron job named `repeat-<run id>`; the
 
 Audition also sends its alerts (the same moments as the emails, plus outcome checks due) through Vaultbase's notifications: an inbox in the app (the bell) and a push to your devices. See docs/PUSH-ALERTS.md.
 
-1. Make a free account at onesignal.com and add a **Web** app. Use Audition's address (with HTTPS) as the **Site URL**, for example `https://audition.example.com/api/custom/app/`. If OneSignal asks where the service worker lives, give the path `/api/custom/app/`, the file name `OneSignalSDKWorker.js` and the scope `/api/custom/app/`.
-2. From the OneSignal app's **Settings → Keys & IDs**, copy the **App ID** and the **API key**.
-3. In the Vaultbase admin, open **Settings → Notifications → OneSignal**, paste both, and turn it on. The first time, Vaultbase creates its `notifications` and `device_tokens` collections. **Test connection** checks the keys.
+1. Make a free account at onesignal.com and add a **Web** app with **Custom code**. Use Audition's address as the **Site URL**: just `https://` and the domain, for example `https://audition.example.com`, with no path. OneSignal refuses to start on any other address. Skip OneSignal's "upload service worker file" and "add code to site" steps: Audition serves `OneSignalSDKWorker.js` itself and loads OneSignal itself. Leave **Token Identity Verification** off.
+2. From the OneSignal app's **Settings → API keys and IDs**, copy the **App ID**, and add an API key (no IP allowlist) and copy it; OneSignal shows it once.
+3. In the Vaultbase admin (through the SSH tunnel, docs/RELEASE.md), open **Settings → Notifications → OneSignal**, paste both, turn **Enabled** on and press **Save**. The first save with Enabled on creates Vaultbase's `notifications` and `device_tokens` collections (the toast says so); until then the app says "Alerts are off". Don't rely on **Test connection** here: it reads the app's details (`GET /apps/<id>`), which OneSignal allows only with an Organization key, so with an App key it fails with 401 although sending works.
 4. In Audition, open the bell, then **Turn on alerts here** on each phone or computer that should get alerts, and allow notifications when the browser asks. On an iPhone or iPad, first add Audition to the Home Screen (Share, Add to Home Screen) and open it from there.
 5. To check it end to end, send yourself a test from the admin (**Notifications → Send test**, to the owner account), or start a short run.
 

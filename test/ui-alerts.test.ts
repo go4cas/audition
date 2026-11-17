@@ -119,6 +119,7 @@ test("with OneSignal on, the owner turns alerts on for this device and off again
     Object.defineProperty(Notification, "permission", { get: () => perm });
     if (localStorage.getItem("fake.optedIn") === "1") perm = "granted";
     (window as any).__grant = () => { perm = "granted"; };
+    Notification.requestPermission = async () => { perm = "granted"; (window as any).__asked = true; return "granted"; };
   });
   await ctx.addInitScript((t) => localStorage.setItem("audition.token", t), h.ownerToken);
   await ctx.route("https://cdn.onesignal.com/**", (r) => r.fulfill({ contentType: "text/javascript", body: FAKE_SDK }));
@@ -135,7 +136,8 @@ test("with OneSignal on, the owner turns alerts on for this device and off again
 
   await p.locator('[data-push-action="on"]').click();
   await p.locator('[data-push-action="off"]').waitFor();
-  expect(await p.evaluate(() => (window as any).__os)).toEqual(["init:test-app:api/custom/app/OneSignalSDKWorker.js:/api/custom/app/", `login:${owner}`, "permission", "optIn"]);
+  expect(await p.evaluate(() => (window as any).__os)).toEqual(["init:test-app:api/custom/app/OneSignalSDKWorker.js:/api/custom/app/", `login:${owner}`, "optIn"]);
+  expect(await p.evaluate(() => (window as any).__asked)).toBe(true); // asked during the tap, before the SDK
 
   // A later visit from this device starts the SDK again on its own.
   await p.reload();
@@ -171,5 +173,56 @@ test("nav links carry the app base, and Waiting for you opens Home at Up next", 
     }
     await close();
   }
+  expect(errors).toEqual([]);
+}, 60_000);
+
+test("when OneSignal never answers, the panel stops waiting and says why", async () => {
+  await h.api("admin", "PATCH", "/api/v1/admin/notifications/providers/onesignal", { enabled: true, app_id: "test-app", api_key: "test-key" });
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  await ctx.addInitScript(() => {
+    let perm = "default";
+    Object.defineProperty(Notification, "permission", { get: () => perm });
+    Notification.requestPermission = async () => { perm = "granted"; return "granted"; };
+  });
+  await ctx.addInitScript((t) => localStorage.setItem("audition.token", t), h.ownerToken);
+  // A script that loads but never starts OneSignal, like a site address OneSignal refuses.
+  await ctx.route("https://cdn.onesignal.com/**", (r) => r.fulfill({ contentType: "text/javascript", body: "/* silent */" }));
+  const p = await ctx.newPage();
+  p.on("pageerror", (e) => errors.push(String(e)));
+  await p.goto(`${h.url}${APP}/alerts`);
+  await p.locator('[data-push-action="on"]').click();
+  await p.locator('[data-push="busy"]').waitFor();
+  await p.locator("[data-push-error]").getByText("OneSignal didn't answer").waitFor({ timeout: 30_000 });
+  expect(await p.locator('[data-push-action="on"]').isVisible()).toBe(true); // can try again
+  if (SHOTS) await p.screenshot({ path: join(SHOTS, "alerts-timeout-375.png") });
+  await ctx.close();
+  expect(errors).toEqual([]);
+}, 60_000);
+
+test("a second try after a failed OneSignal start works (OneSignal refuses a second init)", async () => {
+  await h.api("admin", "PATCH", "/api/v1/admin/notifications/providers/onesignal", { enabled: true, app_id: "test-app", api_key: "test-key" });
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  await ctx.addInitScript(() => {
+    let perm = "default";
+    Object.defineProperty(Notification, "permission", { get: () => perm });
+    Notification.requestPermission = async () => { perm = "granted"; return "granted"; };
+  });
+  await ctx.addInitScript((t) => localStorage.setItem("audition.token", t), h.ownerToken);
+  // Like OneSignal: the first init fails after marking itself started, every later one says so.
+  const flaky = FAKE_SDK.replace(
+    'async init(o) {',
+    'async init(o) { if (window.__initTries = (window.__initTries || 0) + 1, window.__initTries === 1) throw new Error("Can only be used on: https://elsewhere.example"); if (window.__initTries > 1) throw new Error("SDK already initialized");',
+  );
+  let loads = 0;
+  await ctx.route("https://cdn.onesignal.com/**", (r) => { loads++; return r.fulfill({ contentType: "text/javascript", body: flaky }); });
+  const p = await ctx.newPage();
+  p.on("pageerror", (e) => errors.push(String(e)));
+  await p.goto(`${h.url}${APP}/alerts`);
+  await p.locator('[data-push-action="on"]').click();
+  await p.locator("[data-push-error]").getByText("Can only be used on").waitFor();
+  await p.locator('[data-push-action="on"]').click();
+  await p.locator('[data-push-action="off"]').waitFor();
+  expect(loads).toBe(1); // the script is added once
+  await ctx.close();
   expect(errors).toEqual([]);
 }, 60_000);
