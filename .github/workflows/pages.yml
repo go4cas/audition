@@ -1,0 +1,51 @@
+# Publish the public website (site/) to GitHub Pages.
+# scripts/site.ts copies the app's brand files (tokens, fonts, icons, logo)
+# into _site/, so the site always matches the app.
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - site/**
+      - scripts/site.ts
+      - ui/src/styles/tokens.css
+      - ui/src/styles/fonts.css
+      - ui/src/fonts/**
+      - ui/src/sprite.svg
+      - docs/design/logo/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun scripts/site.ts
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

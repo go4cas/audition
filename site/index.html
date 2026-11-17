@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audition · Find the best AI for every role</title>
+  <meta name="description" content="Audition is a self-hosted app that puts models, agent harnesses and apps through the same task, judges them blind, and crowns a champion for each role in your workflow. Built on Vaultbase.">
+  <meta name="theme-color" content="#f5f5f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)">
+  <meta property="og:title" content="Audition · Find the best AI for every role">
+  <meta property="og:description" content="Same task, every contender, judged blind. Crown a champion for each role in your workflow.">
+  <meta property="og:image" content="assets/img/screens/home-dark.webp">
+  <link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/brand/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
+  <link rel="preload" href="assets/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/site.css">
+  <script>try { const t = localStorage.getItem("audition-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
+  <script src="assets/js/site.js" defer></script>
+</head>
+<body>
+<a class="sr-only" href="#main">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="wrap nav__in">
+    <a class="brand" href="./" aria-label="Audition home"><img src="assets/brand/audition-icon.svg" alt="">Audition</a>
+    <nav class="nav__links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#vaultbase">Vaultbase</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#install">Install</a>
+    </nav>
+    <div class="nav__actions">
+      <button class="btn btn--icon theme-btn" id="theme" type="button" aria-label="Switch light or dark">
+        <svg class="icon only-light"><use href="assets/icons.svg#i-moon"/></svg>
+        <svg class="icon only-dark"><use href="assets/icons.svg#i-sun"/></svg>
+      </button>
+      <a class="btn btn--sm btn--primary nav__gh" href="https://github.com/go4cas/audition">
+        <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>GitHub</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ============ Hero ============ -->
+<section class="hero" id="hero">
+  <div class="hero__spot" aria-hidden="true"></div>
+  <div class="hero__grain" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="hero__copy">
+      <a class="pill reveal" href="https://github.com/go4cas/audition/releases/latest">
+        <span><b>v0.3.0</b><span class="pill__long"> · scheduled repeats, outcome checks and alerts</span></span>
+        <span class="pill__tag"><i class="pill__dot"></i>New</span>
+      </a>
+      <h1 class="reveal" style="--i:1">
+        <span class="line">Find the best AI</span>
+        <span class="line">for every <span class="rotator" id="rotator" aria-live="off"><span class="rotator__word">role.</span></span></span>
+      </h1>
+      <p class="hero__lede reveal" style="--i:2">Give models, agent harnesses and apps the same task. Judge their work blind, with simple star ratings. Crown a champion for each role in your workflow, on your own server.</p>
+      <div class="hero__cta reveal" style="--i:3">
+        <a class="btn btn--primary" href="#install">Install Audition <svg class="icon icon--nudge"><use href="assets/icons.svg#i-arrow-right"/></svg></a>
+        <a class="btn btn--ghost" href="#try"><svg class="icon"><use href="assets/icons.svg#i-star"/></svg> Try blind judging</a>
+      </div>
+      <div class="hero__note reveal" style="--i:4">
+        <span><svg class="icon"><use href="assets/icons.svg#i-done"/></svg>Self-hosted</span>
+        <span><svg class="icon"><use href="assets/icons.svg#i-done"/></svg>No code needed to use it</span>
+        <span><svg class="icon"><use href="assets/icons.svg#i-done"/></svg>Built on Vaultbase</span>
+      </div>
+    </div>
+
+    <div class="showcase reveal" style="--i:4" id="showcase">
+      <div class="frame" id="heroFrame">
+        <div class="frame__bar"><i></i><i></i><i></i><span class="frame__url">audition.your-domain.com</span></div>
+        <img class="only-light" src="assets/img/screens/home-light.webp" width="2048" height="1280" alt="Audition's Home screen: a greeting, the next thing waiting for you, and which contender plays each role." fetchpriority="high">
+        <img class="only-dark" src="assets/img/screens/home-dark.webp" width="2048" height="1280" alt="Audition's Home screen: a greeting, the next thing waiting for you, and which contender plays each role.">
+      </div>
+      <div class="float float--champ" data-depth="1.4">
+        <span class="float__crown"><svg class="icon"><use href="assets/icons.svg#i-champion"/></svg></span>
+        <span>Opus · deep research<small>Champion, Trip researcher</small></span>
+      </div>
+      <div class="float float--stars" data-depth="1">
+        <span>Practical and realistic<small class="stars" id="heroStars">
+          <svg class="icon"><use href="assets/icons.svg#i-star"/></svg><svg class="icon"><use href="assets/icons.svg#i-star"/></svg><svg class="icon"><use href="assets/icons.svg#i-star"/></svg><svg class="icon"><use href="assets/icons.svg#i-star"/></svg><svg class="icon"><use href="assets/icons.svg#i-star"/></svg>
+        </small></span>
+      </div>
+      <div class="float float--wait" data-depth="1.8">
+        <span class="chip-wait"><i></i>Waiting for you</span><span class="count">4</span>
+      </div>
+      <div class="float float--blind" data-depth=".8">
+        <svg class="icon"><use href="assets/icons.svg#i-blind"/></svg>
+        <span>Names hidden<small>Order shuffled</small></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="marquee" aria-label="Anything can audition">
+    <div class="marquee__label">A contender is a model, an agent or an app, plus its settings</div>
+    <div class="marquee__track">
+      <div class="marquee__row">
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-api"/></svg>Claude Opus <em>via API</em></span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-api"/></svg>Claude Sonnet <em>via API</em></span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-paste"/></svg>Claude Code <em>copy and paste</em></span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-code"/></svg>Your own agent harness</span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-paste"/></svg>Any chat app <em>copy and paste</em></span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-image"/></svg>Image tools <em>upload the result</em></span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-sliders"/></svg>Same model, different prompt</span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-file"/></svg>Outputs with files</span>
+      </div>
+      <div class="marquee__row" aria-hidden="true">
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-api"/></svg>Claude Opus <em>via API</em></span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-api"/></svg>Claude Sonnet <em>via API</em></span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-paste"/></svg>Claude Code <em>copy and paste</em></span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-code"/></svg>Your own agent harness</span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-paste"/></svg>Any chat app <em>copy and paste</em></span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-image"/></svg>Image tools <em>upload the result</em></span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-sliders"/></svg>Same model, different prompt</span>
+        <span class="tag"><svg class="icon"><use href="assets/icons.svg#i-file"/></svg>Outputs with files</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ How it works ============ -->
+<section class="section" id="how">
+  <div class="wrap">
+    <div class="section__head reveal">
+      <span class="eyebrow">How it works</span>
+      <h2 class="h2">Four steps from<br>"which one?" to "this one."</h2>
+      <p class="lede">You set the stage once. After that, every run makes the answer clearer.</p>
+    </div>
+    <div class="story">
+      <div class="steps" id="steps">
+        <span class="steps__fill" aria-hidden="true"></span>
+        <ol class="steps__list">
+        <li class="step is-on" data-shot="0">
+          <span class="step__n">1</span>
+          <h3>Cast your roles</h3>
+          <p>Make a workspace for a workflow, like a software team or a marketing pipeline. Add its roles, a few real tasks for each, and what "good" means as a short star rubric.</p>
+          <div class="step__meta"><span><svg class="icon"><use href="assets/icons.svg#i-workspaces"/></svg>Workspaces</span><span><svg class="icon"><use href="assets/icons.svg#i-rubric"/></svg>Rubrics</span></div>
+          <div class="step__shot"><img class="only-light" src="assets/img/screens/start-run-light.webp" loading="lazy" alt="Starting a run: pick tasks and contenders for a role."><img class="only-dark" src="assets/img/screens/start-run-dark.webp" loading="lazy" alt="Starting a run: pick tasks and contenders for a role."></div>
+        </li>
+        <li class="step" data-shot="1">
+          <span class="step__n">2</span>
+          <h3>Run the audition</h3>
+          <p>Pick the contenders and press Start. API contenders answer on their own. For an agent or an app, Audition hands you the prompt to paste in, and you paste the reply back.</p>
+          <div class="step__meta"><span><svg class="icon"><use href="assets/icons.svg#i-play"/></svg>Live progress</span><span><svg class="icon"><use href="assets/icons.svg#i-paste"/></svg>Copy and paste</span></div>
+          <div class="step__shot"><img class="only-light" src="assets/img/screens/run-light.webp" loading="lazy" alt="A finished run with every output judged."><img class="only-dark" src="assets/img/screens/run-dark.webp" loading="lazy" alt="A finished run with every output judged."></div>
+        </li>
+        <li class="step" data-shot="2">
+          <span class="step__n">3</span>
+          <h3>Judge blind</h3>
+          <p>Names are hidden and the order is shuffled, so you judge the work, not the brand. Rate each line of the rubric yourself, or let an AI judge do it and change any score you disagree with.</p>
+          <div class="step__meta"><span><svg class="icon"><use href="assets/icons.svg#i-blind"/></svg>Blind</span><span><svg class="icon"><use href="assets/icons.svg#i-ai"/></svg>AI judge</span></div>
+          <div class="step__shot"><img class="only-light" src="assets/img/screens/judge-light.webp" loading="lazy" alt="Blind judging: two answers labelled A and B with star ratings."><img class="only-dark" src="assets/img/screens/judge-dark.webp" loading="lazy" alt="Blind judging: two answers labelled A and B with star ratings."></div>
+        </li>
+        <li class="step" data-shot="3">
+          <span class="step__n">4</span>
+          <h3>Crown a champion</h3>
+          <p>The leaderboard weighs stars against tokens, time and cost. When a contender has earned it, make it the champion, and everyone knows which one to use for that role.</p>
+          <div class="step__meta"><span><svg class="icon"><use href="assets/icons.svg#i-leaderboard"/></svg>Leaderboard</span><span><svg class="icon"><use href="assets/icons.svg#i-champion"/></svg>Champion</span></div>
+          <div class="step__shot"><img class="only-light" src="assets/img/screens/champion-light.webp" loading="lazy" alt="The leaderboard with a confirmed champion."><img class="only-dark" src="assets/img/screens/champion-dark.webp" loading="lazy" alt="The leaderboard with a confirmed champion."></div>
+        </li>
+      </ol>
+      </div>
+      <div class="story__stage" aria-hidden="true">
+        <div class="story__frame">
+          <div class="frame">
+            <div class="frame__bar"><i></i><i></i><i></i><span class="frame__url" id="storyUrl">/start-run</span></div>
+            <div class="story__shots" id="storyShots">
+              <div class="shot is-on" data-url="/start-run"><img class="only-light" src="assets/img/screens/start-run-light.webp" alt=""><img class="only-dark" src="assets/img/screens/start-run-dark.webp" alt=""></div>
+              <div class="shot" data-url="/run/researcher"><img class="only-light" src="assets/img/screens/run-light.webp" loading="lazy" alt=""><img class="only-dark" src="assets/img/screens/run-dark.webp" loading="lazy" alt=""></div>
+              <div class="shot" data-url="/judge"><img class="only-light" src="assets/img/screens/judge-light.webp" loading="lazy" alt=""><img class="only-dark" src="assets/img/screens/judge-dark.webp" loading="lazy" alt=""></div>
+              <div class="shot" data-url="/leaderboard/trip-researcher"><img class="only-light" src="assets/img/screens/champion-light.webp" loading="lazy" alt=""><img class="only-dark" src="assets/img/screens/champion-dark.webp" loading="lazy" alt=""></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Try blind judging ============ -->
+<section class="section try" id="try">
+  <div class="wrap">
+    <div class="section__head section__head--center reveal">
+      <span class="eyebrow">Try it here</span>
+      <h2 class="h2">You be the judge.</h2>
+      <p class="lede">Two contenders answered the same task. You can't see who wrote which. Rate them, then reveal who's who.</p>
+    </div>
+    <div class="reveal">
+      <div class="task-card">
+        <svg class="icon"><use href="assets/icons.svg#i-text"/></svg>
+        <div><b>Find the best way to get from Paris to Amsterdam with a bike, and what it costs</b><small>Travel Research · Trip researcher</small></div>
+      </div>
+      <div class="blindbar" id="blindbar"><svg class="icon"><use href="assets/icons.svg#i-blind"/></svg><span>Names are hidden and the order is shuffled.</span></div>
+      <div class="duel" id="duel">
+        <div class="card3d" data-card="A" data-who="Opus · deep research" data-kind="Claude Opus via API, research prompt">
+          <div class="face">
+            <div class="face__head"><span class="letter">A</span><span class="best"><svg class="icon"><use href="assets/icons.svg#i-trophy"/></svg>Best so far</span><span class="face__score"><svg class="icon"><use href="assets/icons.svg#i-star"/></svg><span data-score>–</span></span></div>
+            <div class="face__body">
+              <p>TGV from Paris Nord to Brussels with the bike bagged (€49), then the IC train to Amsterdam Centraal with a €7.50 bike ticket. About 5 h 10 min door to door, €95 in total.</p>
+              <p>Book the TGV bike space 30 days ahead. The Dutch leg needs no booking outside rush hour.</p>
+            </div>
+            <div class="rate" data-rate></div>
+          </div>
+        </div>
+        <div class="card3d" data-card="B" data-who="Sonnet · quick brief" data-kind="Claude Sonnet via API, short prompt">
+          <div class="face">
+            <div class="face__head"><span class="letter">B</span><span class="best"><svg class="icon"><use href="assets/icons.svg#i-trophy"/></svg>Best so far</span><span class="face__score"><svg class="icon"><use href="assets/icons.svg#i-star"/></svg><span data-score>–</span></span></div>
+            <div class="face__body">
+              <p>The direct high-speed train takes 3 h 20 min, but only takes bikes folded in a bag under 120 × 90 cm. About €70 one way.</p>
+              <p>Cheaper option: a coach with a bike rack, around €40, 7 hours.</p>
+            </div>
+            <div class="rate" data-rate></div>
+          </div>
+        </div>
+      </div>
+      <div class="duel__foot">
+        <span class="duel__hint" id="duelHint">Rate at least one line on each answer.</span>
+        <button class="btn btn--primary" id="reveal" type="button" disabled><svg class="icon"><use href="assets/icons.svg#i-confirmed"/></svg><span>Reveal who's who</span></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Features ============ -->
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="section__head reveal">
+      <span class="eyebrow">What you get</span>
+      <h2 class="h2">Fair tests, plain words,<br>no spreadsheets.</h2>
+      <p class="lede">Audition is made for the people who actually use the tools, not only the people who build them.</p>
+    </div>
+    <div class="bento">
+      <article class="tile tile--wide reveal" data-glow>
+        <div class="tile__icon"><svg class="icon"><use href="assets/icons.svg#i-blind-duo"/></svg></div>
+        <h3>Blind star judging</h3>
+        <p>Each role has its own rubric with weights, like "Practical and realistic, 35%". Outputs show as A, B, C in a shuffled order, so the stars reflect the work alone.</p>
+        <div class="tile__shot"><img class="only-light" src="assets/img/screens/judge-light.webp" loading="lazy" alt="The blind judging screen."><img class="only-dark" src="assets/img/screens/judge-dark.webp" loading="lazy" alt="The blind judging screen."></div>
+      </article>
+      <article class="tile tile--tall tile--phone reveal" style="--i:1" data-glow>
+        <div class="tile__icon"><svg class="icon"><use href="assets/icons.svg#i-inbox-duo"/></svg></div>
+        <h3>Always knows what's next</h3>
+        <p>"Waiting for you" lists everything that needs you: a reply to paste, a run to judge, an outcome to check. It works on your phone too.</p>
+        <div class="phone"><img class="only-light" src="assets/img/screens/phone-home-light.webp" loading="lazy" alt="Audition's Home screen on a phone."><img class="only-dark" src="assets/img/screens/phone-home-dark.webp" loading="lazy" alt="Audition's Home screen on a phone."></div>
+      </article>
+      <article class="tile tile--half reveal" data-glow>
+        <div class="tile__icon"><svg class="icon"><use href="assets/icons.svg#i-ai"/></svg></div>
+        <h3>An AI judge you can overrule</h3>
+        <p>Let an AI score each output against the rubric, images included. You always have the final say.</p>
+      </article>
+      <article class="tile tile--half reveal" style="--i:1" data-glow>
+        <div class="tile__icon"><svg class="icon"><use href="assets/icons.svg#i-paste-duo"/></svg></div>
+        <h3>Works with any tool</h3>
+        <p>No API? Copy the prompt into any agent or app and paste the reply back, with files.</p>
+      </article>
+      <article class="tile tile--3 reveal" data-glow>
+        <div class="tile__icon"><svg class="icon"><use href="assets/icons.svg#i-leaderboard"/></svg></div>
+        <h3>Quality, weighed against cost</h3>
+        <p>Every leaderboard balances stars with tokens, time and cost into one fitness score.</p>
+        <div class="mini-bars" aria-hidden="true">
+          <div><span>Opus · deep</span><i style="--w:100%"></i><b>1.00</b></div>
+          <div><span>Sonnet · quick</span><i style="--w:75%"></i><b>0.75</b></div>
+          <div><span>Claude Code</span><i style="--w:62%"></i><b>0.62</b></div>
+        </div>
+      </article>
+      <article class="tile tile--3 reveal" style="--i:1" data-glow>
+        <div class="tile__icon"><svg class="icon"><use href="assets/icons.svg#i-again"/></svg></div>
+        <h3>Keeps checking over time</h3>
+        <p>Repeat a run every day, week or month. For calls that only prove out later, Audition asks you, weeks on, "Was the call right?"</p>
+        <div class="mini-wait" aria-hidden="true">
+          <div><span>Repeat: every Monday, 09:00</span><span class="chip-wait" style="color:var(--done);border-color:var(--done-line)"><i style="background:var(--done)"></i>On</span></div>
+          <div><span>Was the call right? Northwind Foods</span><span class="chip-wait"><i></i>Check</span></div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Vaultbase ============ -->
+<section class="section vb" id="vaultbase">
+  <div class="wrap vb__grid">
+    <div class="reveal">
+      <span class="eyebrow">Built on Vaultbase</span>
+      <h2 class="h2">One binary.<br>No other backend.</h2>
+      <p class="lede">Audition runs entirely on <a href="https://github.com/vaultbase-sh/vaultbase">Vaultbase</a>, a self-hosted backend in a single file. It's also a working tour of what Vaultbase can do: almost every feature in Audition is a Vaultbase feature, used the way it was meant to be used.</p>
+      <div class="vb__stats">
+        <div><span data-count="1">1</span><small>binary to run</small></div>
+        <div><span data-count="0">0</span><small>other services</small></div>
+        <div><span data-count="12">12</span><small>Vaultbase features in use</small></div>
+      </div>
+      <a class="btn btn--light" href="https://github.com/vaultbase-sh/vaultbase">Meet Vaultbase <svg class="icon icon--nudge"><use href="assets/icons.svg#i-arrow-right"/></svg></a>
+    </div>
+    <ul class="vb__list">
+      <li class="reveal"><svg class="icon"><use href="assets/icons.svg#i-commit"/></svg><code>Records API</code><span>Every write goes through it, so rules, hooks and history always apply.</span></li>
+      <li class="reveal"><svg class="icon"><use href="assets/icons.svg#i-history"/></svg><code>Record history</code><span>Runs, verdicts and champions keep who changed what, and when.</span></li>
+      <li class="reveal"><svg class="icon"><use href="assets/icons.svg#i-play"/></svg><code>Realtime</code><span>The run page updates live as outputs arrive.</span></li>
+      <li class="reveal"><svg class="icon"><use href="assets/icons.svg#i-key"/></svg><code>Encrypted fields</code><span>Provider API keys are write-only. No screen or response ever shows them.</span></li>
+      <li class="reveal"><svg class="icon"><use href="assets/icons.svg#i-branch"/></svg><code>Hooks and queues</code><span>Starting a run fans out into one job per task and contender.</span></li>
+      <li class="reveal"><svg class="icon"><use href="assets/icons.svg#i-image"/></svg><code>Files and thumbnails</code><span>Uploads are checked by type and size; the judge grid loads thumbnails.</span></li>
+      <li class="reveal"><svg class="icon"><use href="assets/icons.svg#i-time"/></svg><code>Cron</code><span>Scheduled repeats, outcome checks and the stuck-output sweep.</span></li>
+      <li class="reveal"><svg class="icon"><use href="assets/icons.svg#i-bell"/></svg><code>Email and push</code><span>Alerts when a run finishes, a champion changes or a check is due.</span></li>
+      <li class="reveal"><svg class="icon"><use href="assets/icons.svg#i-leaderboard"/></svg><code>View collections</code><span>The leaderboard is a view with aggregations, not hand-written SQL.</span></li>
+      <li class="reveal"><svg class="icon"><use href="assets/icons.svg#i-mfa"/></svg><code>Auth, MFA and audit log</code><span>Sign-in with MFA and rate limits; file downloads land in the audit log.</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ Roadmap ============ -->
+<section class="section" id="roadmap">
+  <div class="wrap road">
+    <div class="section__head reveal">
+      <span class="eyebrow">Roadmap</span>
+      <h2 class="h2">Where it's been,<br>and where it's going.</h2>
+    </div>
+    <div class="road__track reveal">
+            <article class="mile mile--done">
+        <div class="mile__when">Nov 2026<span class="mile__state">Shipped</span></div>
+        <h3>The core loop</h3>
+        <p>Workspaces, roles and tasks, API and copy-and-paste contenders, blind star judging, leaderboard and champions.</p>
+      </article>
+      <article class="mile mile--done" style="--i:1">
+        <div class="mile__when">v0.2.0<span class="mile__state">Shipped</span></div>
+        <h3>Live run page</h3>
+        <p>Runs update in real time, and every server write goes through Vaultbase's records API with history.</p>
+      </article>
+      <article class="mile mile--now">
+        <div class="mile__when">v0.3.0<span class="mile__state">Latest</span></div>
+        <h3>Living arena</h3>
+        <p>Scheduled repeats, "Was the call right?" outcome checks, email and push alerts, thumbnails, and a one-command server install.</p>
+      </article>
+      <article class="mile">
+        <div class="mile__when">Next<span class="mile__state">Ideas</span></div>
+        <h3>Judge together</h3>
+        <ul><li>Side-by-side judging</li><li>Guest voters</li><li>Image model APIs</li></ul>
+      </article>
+      <article class="mile">
+        <div class="mile__when">Next<span class="mile__state">Ideas</span></div>
+        <h3>Let agents ask</h3>
+        <ul><li>Read-only MCP access to champions</li><li>Match new tasks to roles</li><li>A Composer role</li></ul>
+      </article>
+      <article class="mile">
+        <div class="mile__when">Later<span class="mile__state">Planned</span></div>
+        <h3>Automated runners</h3>
+        <p>Agent harnesses run tasks on their own, in sandboxes, with no copy and paste.</p>
+      </article>
+    </div>
+    <p class="road__note">Ideas are picked one at a time; dates aren't promised.</p>
+  </div>
+</section>
+
+<!-- ============ Install ============ -->
+<section class="section" id="install">
+  <div class="wrap install">
+    <div class="reveal">
+      <span class="eyebrow">Install</span>
+      <h2 class="h2">On stage in<br>a few minutes.</h2>
+      <p class="lede">Try it on your own computer first, with four example workspaces ready to run. When you like it, put it on a small server with one command.</p>
+      <ul class="checks">
+        <li><svg class="icon"><use href="assets/icons.svg#i-done"/></svg><span>Linux or macOS. On a computer you need <a href="https://bun.sh">Bun</a> 1.4 or later.</span></li>
+        <li><svg class="icon"><use href="assets/icons.svg#i-done"/></svg><span>The server installer sets up Caddy, nginx or a Cloudflare Tunnel, plus nightly backups.</span></li>
+        <li><svg class="icon"><use href="assets/icons.svg#i-done"/></svg><span>Your API keys stay on your server, encrypted.</span></li>
+      </ul>
+    </div>
+    <div class="reveal" style="--i:1">
+      <div class="tabs" role="tablist" id="tabs">
+        <span class="tabs__pill" aria-hidden="true"></span>
+        <button role="tab" aria-selected="true" aria-controls="p-local" id="t-local" type="button"><svg class="icon"><use href="assets/icons.svg#i-code"/></svg>On your computer</button>
+        <button role="tab" aria-selected="false" aria-controls="p-server" id="t-server" type="button" tabindex="-1"><svg class="icon"><use href="assets/icons.svg#i-connection"/></svg>On a server</button>
+      </div>
+      <div class="panel" role="tabpanel" id="p-local" aria-labelledby="t-local">
+        <div class="term">
+          <div class="term__bar"><i></i><i></i><i></i><span>Terminal</span><button class="copy" type="button" data-copy="git clone https://github.com/go4cas/audition.git&#10;cd audition&#10;bun install&#10;bun run dev"><svg class="icon"><use href="assets/icons.svg#i-copy"/></svg><span>Copy</span></button></div>
+<pre><span class="typed" data-type><span class="p">$ </span>git clone https://github.com/go4cas/audition.git
+<span class="p">$ </span>cd audition
+<span class="p">$ </span>bun install
+<span class="p">$ </span>bun run dev
+<span class="c"># Open the address it prints, and sign in.</span></span></pre>
+        </div>
+      </div>
+      <div class="panel" role="tabpanel" id="p-server" aria-labelledby="t-server" hidden>
+        <div class="term">
+          <div class="term__bar"><i></i><i></i><i></i><span>your-server</span><button class="copy" type="button" data-copy="curl -fsSLO https://github.com/go4cas/audition/releases/latest/download/install.sh&#10;sudo bash install.sh"><svg class="icon"><use href="assets/icons.svg#i-copy"/></svg><span>Copy</span></button></div>
+<pre><span class="typed"><span class="p">$ </span>curl -fsSLO https://github.com/go4cas/audition/releases/latest/download/install.sh
+<span class="p">$ </span>sudo bash install.sh
+<span class="c"># It asks for your domain, email and password.</span>
+<span class="c"># Later: install.sh upgrade, status or rollback.</span></span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap reveal">
+    <img src="assets/brand/audition-icon.svg" alt="">
+    <h2 class="h2">Your next audition is ready.</h2>
+    <p class="lede" style="margin:0 auto 2rem">Stop guessing which AI to use. Let them try out for the part.</p>
+    <div class="hero__cta">
+      <a class="btn btn--primary" href="#install">Install Audition <svg class="icon icon--nudge"><use href="assets/icons.svg#i-arrow-right"/></svg></a>
+      <a class="btn btn--ghost" href="docs/">Read the docs</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__in">
+    <a class="brand" href="./"><img src="assets/brand/audition-icon.svg" alt="">Audition</a>
+    <nav aria-label="Footer">
+      <a href="docs/">Docs</a>
+      <a href="https://github.com/go4cas/audition">GitHub</a>
+      <a href="https://github.com/go4cas/audition/releases">Releases</a>
+      <a href="https://github.com/vaultbase-sh/vaultbase">Vaultbase</a>
+    </nav>
+    <span>Self-hosted. Your data stays yours.</span>
+  </div>
+</footer>
+</body>
+</html>
