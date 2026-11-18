@@ -97,6 +97,10 @@ function guardLocked(ctx: Ctx): void {
 export async function taskBeforeWrite(ctx: Ctx): Promise<void> {
   guardLocked(ctx);
   const { record: r } = ctx;
+  // tasks.compose is the Composer's status, written only by Audition (§9a).
+  if (!trusted(ctx) && has(r, "compose") && JSON.stringify(parseJson(r["compose"]) ?? null) !== JSON.stringify(parseJson(ctx.existing?.["compose"]) ?? null)) {
+    ctx.helpers.abort("The Composer's status is set by Audition. Use Compose on the task instead.");
+  }
   const m = merged(ctx);
   if (!ctx.existing && empty(r["output_type"])) {
     const role = await ctx.helpers.find("roles", String(m["role"] ?? ""));

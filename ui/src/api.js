@@ -108,6 +108,7 @@ export const custom = {
   judging: async (runId, taskId) => data(await request("GET", C(`/judging/${runId}/${taskId}`))),
   leaderboard: async (roleId) => data(await request("GET", C(`/leaderboard/${roleId}`))),
   cast: async (body) => data(await request("POST", C("/castings"), body)),
+  compose: async (taskId) => data(await request("POST", C(`/tasks/${taskId}/compose`))),
   removeKey: (connectionId) => request("DELETE", C(`/connections/${connectionId}/key`)),
 };
 

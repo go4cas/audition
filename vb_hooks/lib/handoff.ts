@@ -177,12 +177,17 @@ export async function genericTemplate(sql: Sql): Promise<{ body: string; return_
 }
 
 /**
- * Load a task, its role, the generic template and the attachments' names, and
- * render the prompt. T1's POST /runs calls this once per task.
+ * The prompt for a task. T1's POST /runs calls this once per task. A task
+ * with a composed prompt (the Composer's draft, as the owner left it, §9a)
+ * sends that text as it is; otherwise load the task, its role, the generic
+ * template and the attachments' names, and render the generic prompt.
+ * `generic: true` always renders the generic one (the Composer's input).
  */
-export async function promptForTask(helpers: LoadHelpers, taskId: string): Promise<string> {
+export async function promptForTask(helpers: LoadHelpers, taskId: string, opts: { generic?: boolean } = {}): Promise<string> {
   const task = await helpers.find("tasks", taskId);
   if (!task) throw new HandoffError(`Task ${taskId} does not exist.`, 404);
+  const composed = typeof task["composed_prompt"] === "string" ? task["composed_prompt"].trim() : "";
+  if (composed && !opts.generic) return composed;
   const role = await helpers.find("roles", String(task["role"] ?? ""));
   if (!role) throw new HandoffError(`The role of task ${taskId} does not exist.`, 404);
   const template = await genericTemplate(helpers.sql);

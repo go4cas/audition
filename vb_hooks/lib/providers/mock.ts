@@ -83,10 +83,29 @@ function answer(prompt: string, quality: number): string {
 
 const tokensIn = (input: GenerateInput) => Math.ceil(((input.system ?? "").length + input.prompt.length) / 4);
 
+/**
+ * The Composer's reply (TECH-SPEC §9a), from any mock that isn't failing: the
+ * plain prompt with a fixed "how to do well" block before its last line, so
+ * tests can tell a composed prompt from the generic one.
+ */
+function composed(input: GenerateInput): string {
+  const plain = (/THE PLAIN PROMPT:\n([\s\S]*?)\n\nRewrite it as described\./.exec(input.prompt)?.[1] ?? input.prompt).trim();
+  const lines = plain.split("\n");
+  const last = lines.pop() ?? "";
+  const body = lines.join("\n").trimEnd();
+  return JSON.stringify({
+    prompt: `${body}\n\nHOW TO DO WELL (composed by the mock Composer):\n- Read the whole task before you start.\n- Cover every rubric criterion explicitly.\n- Check your answer against the rubric before you reply.\n\n${last}`,
+  });
+}
+
 export async function generate(input: GenerateInput): Promise<GenerateResult> {
   const behaviour = input.config.mock?.behaviour ?? "steady";
   const seed = input.seed;
   const durationMs = pick(seed, 0, 200, 2000);
+  const composing = !!(input.outputSchema as { properties?: Record<string, unknown> } | undefined)?.properties?.["prompt"];
+  if (composing && behaviour !== "fail" && !(behaviour === "flaky" && (input.tryNumber ?? 1) <= 1)) {
+    return { text: composed(input), files: [], tokensIn: tokensIn(input), tokensOut: 120, finishReason: "end_turn", durationMs };
+  }
   switch (behaviour) {
     case "steady":
       return { text: answer(input.prompt, 4), files: [], tokensIn: tokensIn(input), tokensOut: 300, finishReason: "end_turn", durationMs };

@@ -43,6 +43,9 @@ export function isOwner(auth: { type?: string; collection?: string } | null | un
   return auth?.type === "user" && auth.collection === "users";
 }
 
+/** tasks.compose's status (lib/composer.ts keeps the rest; read here to avoid an import cycle). */
+const composeStatus = (t: Rec): string | null => (parseJson(t["compose"]) as { status?: string } | null)?.status ?? null;
+
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const quote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 
@@ -103,6 +106,7 @@ export async function loadPlan(deps: Deps, body: RunBody, judgeContenderId?: str
     const t = await deps.find("tasks", id);
     if (!t) throw new RunError(404, "A chosen task does not exist.", { task: id });
     if (t["role"] !== role["id"]) throw new RunError(422, `The task "${t["title"]}" belongs to another role.`, { task: id });
+    if (composeStatus(t) === "composing") throw new RunError(409, `The Composer is still writing the prompt for "${t["title"]}". Start the run when it's done.`, { task: id });
     tasks.push(t);
   }
 

@@ -454,6 +454,10 @@
         {
           "name": "composed_prompt",
           "type": "text"
+        },
+        {
+          "name": "compose",
+          "type": "json"
         }
       ],
       "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",

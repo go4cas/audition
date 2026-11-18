@@ -235,7 +235,7 @@ Rules: list `id = @request.auth.id` · view `id = @request.auth.id` · create `"
 | default_method | select `rate`, `compare` | default `rate`. Which judging method "Start a run" preselects (§10a, Nov 18, 2026). |
 | min_outputs | number, min 1 | default 5 |
 | fitness_weights | json | `{ "quality": 100, "tokens": 0, "time": 0 }`, percentages summing to 100 (hook) |
-| composer_contender | rel → contenders, setNull | *later* |
+| composer_contender | rel → contenders, setNull | The Composer (§9a). Optional. Must be an enabled `api` contender (checked when composing). |
 
 Rules: all five are `OWNER`.
 
@@ -276,7 +276,8 @@ Rules: all `OWNER`, except delete: `OWNER`, and the hook refuses when the role h
 | base_ref | json | `{ "repo": "github.com/go4cas/audition-factory-demo", "commit": "…" }`, or null |
 | locked | bool | Set by the start-run route |
 | previous_version | rel → tasks, setNull | |
-| composed_prompt | text | *later* |
+| composed_prompt | text | The Composer's draft as the owner left it (§9a). When not empty, `promptForTask` returns it instead of the generic prompt. The owner may edit it while the task is unlocked. |
+| compose | json | Set only by Audition (the hook refuses an owner write that changes it): `{ status: composing \| done \| failed, contender, asked_at, error?, tokens_in?, tokens_out?, cost?, duration_ms?, done_at? }`. Cas approved the field on Nov 18, 2026. |
 
 Rules: list, view and create `OWNER` · update `OWNER && locked = false` · delete `OWNER && locked = false`. The `beforeUpdate` hook also refuses any write that changes `locked` (only server code sets it), and refuses attachment uploads on locked tasks through the update rule.
 
@@ -469,12 +470,13 @@ All routes need the owner (`requireAuth: true`, plus a check that the caller is 
 | `GET /judging/:runId/:taskId` | T3 | The blind payload (§10) |
 | `GET /leaderboard/:roleId` | T3 | `{ terms_used: ["quality", "tokens"], dropped: [{ term: "time", reason: "Codex (manual) has no time data" }], rows: [{ contender, name, group, n, mean_score, ci_low, ci_high, mean_tokens, mean_time_ms, mean_cost, fitness, n_outcome, mean_outcome, qualifies, enough_data }], suggested: contenderId \| null, casting: { contender, since } \| null }` |
 | `POST /castings` | T3 | `{ role, contender, rationale? }`. Refuses unless the contender qualifies (§11). Creates a confirmed casting with `suggested_by` set to `system` if it was the suggestion, otherwise `human`. |
+| `POST /tasks/:id/compose` | Composer | Checks the task is unlocked and not already composing and that the workspace's Composer is an enabled `api` contender, sets `tasks.compose` to `composing`, enqueues `compose` with `{ task }`, and returns `{ task }` at once (§9a). |
 | `DELETE /connections/:id/key` | T1 | Removes the stored key (F2) |
 | `POST /files/:collection/:id/:field` | T2 | The owner's upload path, built while Vaultbase's own was broken (NOTES.md F9, fixed in 0.41.1; F15, O6). Kept until part B of `docs/PLATFORM-UPGRADES.md`. Multipart, parts named `file`. Only `attempts/output_files` (handoff, waiting) and `tasks/attachments` (unlocked). 25 MB per file, Phase 1 types, all or nothing. Returns `{ data: record }`. |
 
 ## 8. Workers and the run lifecycle
 
-There are two queues. Each queue has one worker file.
+The run queues are below (the Composer's `compose` queue too; `email` and `repeat` are Phase 2a). Each queue has one worker file.
 
 **`generate`** (`vb_hooks/workers/generate.ts`, concurrency 4, retries 1). The worker's own retry is off for provider errors, because `helpers.http` already retried.
 
@@ -486,6 +488,8 @@ There are two queues. Each queue has one worker file.
 6. If the run's judge is `ai`, enqueue `judge` with `{ attempt }`. Then refresh the run's status.
 
 **`judge`** (`vb_hooks/workers/judge.ts`, concurrency 2). On a Compare run the payload is `{ attempt, opponent }`, one job per pair, and the worker runs `judgePair` instead (§10a). Otherwise this worker calls the run's `judge_contender` through the same adapters, with the judge prompt and output schema (§10). It stores an `ai` verdict with `status = active`, unless a human verdict already exists, and sets the attempt to `judged`. If the reply doesn't match the schema, it retries once. After that it leaves the attempt `submitted`, writes "AI judging failed: …" to `attempt.error`, and the owner judges it by hand.
+
+**`compose`** (`vb_hooks/workers/compose.ts`, concurrency 2, retries 1). One job per Compose press; `lib/composer.ts`, `runCompose`, does the work and never throws (§9a).
 
 **Run status.** `lib/runs.ts`, `refreshRunStatus`, recomputes the status after every attempt change:
 
@@ -530,6 +534,19 @@ You will be judged on:
 - **code:** "WHEN DONE, reply with: a short summary of what you built; the branch name or diff; build, test and lint results (pass or fail, with counts); any screenshots, as files."
 
 The task prompt is stored as editor HTML. `lib/handoff.ts` converts it to plain text with line breaks before rendering, so the copied block holds no tags.
+
+## 9a. The Composer
+
+Added Nov 18, 2026. The code is `lib/composer.ts`, the route `routes/tasks-compose.ts` and the worker `workers/compose.ts`.
+
+- **Why a queue.** A route has 30 seconds (F5, `routes.timeout_ms`) and a Claude call with thinking can take minutes, so composing is a `compose` job like generating and judging. The task's `compose` field carries the status, and the task page follows it over realtime (`tasks/<id>`), polling every 2 seconds while realtime is down.
+- **The call.** `runCompose` renders the task's generic prompt (`promptForTask(…, { generic: true })`, so an earlier composed prompt is ignored) and sends it in one call to the Composer contender, through the same adapters and key lookup as the generate worker (`callable`, `callProvider`), with the contender's own model, config and max output tokens. System prompt `COMPOSER_SYSTEM` (keep the scope, add the goal, steps, output format and what great looks like per rubric line, keep file names and the WHEN DONE line, plain text). Output schema `{ prompt: string }`; a reply that ignores the schema is used as plain text. No attachments are sent: the Composer sees their names in the plain prompt.
+- **Writes.** Both go through `helpers.records` (`store.ts`): the draft and `compose = { status: done, tokens_in, tokens_out, cost, duration_ms, done_at }`, or `compose = { status: failed, error }` with the old prompt untouched. If the task was locked meanwhile (a run started), or the owner composed again (`asked_at` changed), the result is dropped.
+- **Which prompt a run sends.** `promptForTask` returns `composed_prompt` when it isn't empty, else the generic prompt (§9). That one change covers `POST /runs`, Run again and scheduled repeats, API and handoff alike, and `prompt_sent` keeps the exact text. `loadPlan` refuses (409) a task whose `compose.status` is `composing`.
+- **Guards.** `taskBeforeWrite` refuses an owner write that changes `compose`. The update rule's `locked = false` and `guardLocked` keep a used task's composed prompt fixed, like the rest of the task.
+- **Mock.** Any mock contender except Fail (and Flaky on its first try) answers a Composer call: it returns the plain prompt with a fixed "HOW TO DO WELL" block before the last line, so tests can tell a composed prompt from the generic one.
+- **UI.** Workspace settings has a "Composer" panel (an API contender or "No Composer"). The task page has a "Prompt the contenders get" panel: Plain / Composing / Composed chip, the **Compose with <name>** (later **Compose again**) button, the editable draft saved with the task, "Use the plain prompt", the error when it failed, and "Written by … · tokens · cost". Compose saves the task's visible edits first, so the Composer reads what the owner sees. Start a run marks tasks with "Composed prompt".
+- **Tests.** `test/composer.test.ts` (server, 13) and `test/ui-composer.test.ts` (browser, 7).
 
 ## 10. Judging
 
