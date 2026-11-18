@@ -150,7 +150,7 @@ It asks for the Account ID (or the bucket's S3 API URL), the bucket name, the Ac
 
 - `sudo bash install.sh offsite --off` stops the copy. What's in the bucket stays.
 - **Save the R2 keys with `.encryption-key` and `.secret`** (the password manager entry from "Save the keys"). A new server needs all four, plus the Account ID and bucket name.
-- The `offsite` and `restore-offsite` commands come with the first release made after this change (v0.4.1 and older don't have them). On an older release, turn the same copy on in the admin instead: Settings, **Backup & restore**, **Copy to S3**: endpoint `https://<account-id>.r2.cloudflarestorage.com`, the bucket, region `auto`, the two keys, prefix `audition/`; then **Back up now** and check the page shows no error.
+- The `offsite` and `restore-offsite` commands come with v0.5.0 (Nov 18, 2026); v0.4.1 and older don't have them. On an older release, turn the same copy on in the admin instead: Settings, **Backup & restore**, **Copy to S3**: endpoint `https://<account-id>.r2.cloudflarestorage.com`, the bucket, region `auto`, the two keys, prefix `audition/`; then **Back up now** and check the page shows no error.
 - If a copy fails (R2 down, a key revoked), the backup on the server is still made, and the admin's Backup & restore page shows the error until a later backup succeeds. Check it now and then, with the smoke test.
 
 ### Restore a backup
@@ -202,12 +202,12 @@ Owner uploads still go through Audition's own route (`POST /api/custom/files/:co
 
 ```sh
 curl -fsSLO https://github.com/go4cas/audition/releases/latest/download/install.sh
-sudo bash install.sh --version v0.3.1      # the release tag
+sudo bash install.sh --version v0.5.0      # the release tag
 ```
 
 Fetch the new `install.sh` first, so the upgrade runs the release's own installer. On a server that can't reach GitHub, copy the new bundle up and run `sudo bash install.sh --bundle audition-<tag>-linux-x64.tar.gz` instead (see [Install](#install)).
 
-Running the installer again on a server that has Audition upgrades it. It downloads and checks the new bundle (and the new Vaultbase binary, when the pin changed), stops the service, takes a **cold copy of the whole data folder** into `/var/lib/audition-rollback` (the database, the files and both keys), switches `/opt/audition/current` and the binary symlink, starts the service, and applies Audition's Vaultbase settings again (signed in as the admin from `/etc/audition/admin-credentials`), so a setting a release adds takes effect (guest voters, Nov 18, 2026: anonymous sessions and rate limits). Vaultbase upgrades its data folder when it starts and can't downgrade, so that copy is the rollback, not a Vaultbase backup. Then run the smoke test. Hook files only change while the service is stopped.
+Running the installer again on a server that has Audition upgrades it. It downloads and checks the new bundle (and the new Vaultbase binary, when the pin changed), stops the service, takes a **cold copy of the whole data folder** into `/var/lib/audition-rollback` (the database, the files and both keys), switches `/opt/audition/current` and the binary symlink, starts the service, and applies Audition's Vaultbase settings again (signed in as the admin from `/etc/audition/admin-credentials`), so a setting a release adds takes effect (guest voters, v0.5.0: anonymous sessions and rate limits). Vaultbase upgrades its data folder when it starts and can't downgrade, so that copy is the rollback, not a Vaultbase backup. Then run the smoke test. Hook files only change while the service is stopped.
 
 ### Rollback
 
