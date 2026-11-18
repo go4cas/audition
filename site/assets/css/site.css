@@ -135,9 +135,13 @@ button { font: inherit; color: inherit; }
 }
 .hero h1 .line { display: block; }
 @media (min-width: 900px) { .hero h1 .line { white-space: nowrap; } }
-.rotator { display: inline-grid; vertical-align: bottom; position: relative; }
+/* The rotating role sits in a slot as wide as the longest role (site.js adds
+   hidden copies of every role to size it), so "for every" never moves. On narrow
+   screens the role gets a line of its own instead. */
+.rotator { display: inline-grid; vertical-align: bottom; justify-items: start; text-align: left; }
+.rotator__sizer { grid-area: 1 / 1; white-space: nowrap; visibility: hidden; }
 .rotator__word {
-  grid-area: 1 / 1; white-space: nowrap;
+  grid-area: 1 / 1; white-space: nowrap; position: relative;
   background: linear-gradient(100deg, var(--text) 10%, var(--gold) 50%, var(--text) 90%);
   background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: shine 6s linear infinite;
@@ -147,9 +151,13 @@ button { font: inherit; color: inherit; }
 @keyframes shine { to { background-position: -250% 0; } }
 @keyframes wordIn { from { opacity: 0; transform: translateY(.45em) rotateX(-70deg); filter: blur(6px); } }
 @keyframes wordOut { to { opacity: 0; transform: translateY(-.45em) rotateX(70deg); filter: blur(6px); } }
-.rotator::after {
+.rotator__word::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: .02em; height: .09em; border-radius: 99px;
   background: var(--gold); transform-origin: left; animation: underline 1.1s .5s var(--ease-out) both;
+}
+.rotator__word.is-in::after { animation-delay: .25s; }
+@media (max-width: 899px) {
+  .rotator { display: grid; justify-items: center; text-align: center; }
 }
 @keyframes underline { from { transform: scaleX(0); } }
 .hero__lede { font-size: clamp(1.05rem, 2vw, 1.25rem); color: var(--text-2); max-width: 40rem; margin: 0 auto; text-wrap: pretty; }
@@ -253,8 +261,11 @@ button { font: inherit; color: inherit; }
 .story__frame { width: 100%; }
 .story__frame .frame { --tilt: 0deg; --tscale: 1; }
 .story__shots { position: relative; aspect-ratio: 16 / 10; }
-.story__shots picture, .story__shots .shot { position: absolute; inset: 0; opacity: 0; transform: scale(1.03); transition: opacity .55s var(--ease-out), transform .8s var(--ease-out); }
-.story__shots .is-on { opacity: 1; transform: none; }
+/* Crossfade: the new screen fades in on top while the old one stays put
+   underneath, and only then drops away, so the page never shows through. */
+.story__shots picture, .story__shots .shot { position: absolute; inset: 0; opacity: 0; z-index: 0; transition: opacity .2s linear .7s; }
+.story__shots .is-on { opacity: 1; z-index: 2; transition: opacity .7s var(--ease-out); }
+.story__shots .was-on { z-index: 1; }
 .story__shots img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
 @media (max-width: 900px) {
   .story { grid-template-columns: 1fr; }
@@ -338,6 +349,21 @@ button { font: inherit; color: inherit; }
 .tile__shot img { width: 100%; aspect-ratio: 2 / 1; object-fit: cover; object-position: top left; transition: transform 1.2s var(--ease-out); }
 .tile:hover .tile__shot img { transform: scale(1.03); }
 .tile--phone { display: flex; flex-direction: column; }
+/* A small "Waiting for you" queue, styled like the app's Also waiting list. */
+.queue-mini { margin-top: 1.2rem; display: grid; gap: .45rem; }
+.queue-mini__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .15rem; }
+.queue-mini__row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .65rem; align-items: center; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); font-size: .85rem; }
+.queue-mini__row:first-of-type { border-color: var(--waiting-line); box-shadow: 0 0 0 3px color-mix(in srgb, var(--waiting-bg) 70%, transparent); }
+.queue-mini__row b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-mini__row small { display: block; color: var(--text-muted); font-size: .76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-mini__ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--waiting-bg); color: var(--waiting); }
+.queue-mini__ic .icon { width: 16px; height: 16px; }
+.queue-mini__tag { color: var(--waiting); border: 1px solid var(--waiting-line); border-radius: 7px; padding: .1rem .45rem; font-size: .75rem; }
+.queue-mini__row { opacity: 0; transform: translateX(-10px); transition: opacity .6s var(--ease-out), transform .6s var(--ease-out); }
+.queue-mini__row:nth-of-type(3) { transition-delay: .12s; } .queue-mini__row:nth-of-type(4) { transition-delay: .24s; }
+.is-in .queue-mini__row, .reveal:not(.is-pending) .queue-mini__row { opacity: 1; transform: none; }
+.tile--phone .phone { margin-top: auto; padding-top: 0; }
+.tile--phone .queue-mini { margin-bottom: 1.4rem; }
 .phone { margin: 1.4rem auto -1.5rem; width: min(220px, 80%); border-radius: 26px 26px 0 0; border: 6px solid var(--text); border-bottom: 0; overflow: hidden; height: 300px; box-shadow: var(--shadow-pop); transition: transform var(--t-slow) var(--ease-out); }
 .tile:hover .phone { transform: translateY(-8px); }
 .phone img { width: 100%; }
@@ -452,6 +478,7 @@ button { font: inherit; color: inherit; }
   .reveal.is-pending { opacity: 1; transform: none; }
   .frame { --tilt: 0deg !important; --tscale: 1 !important; }
   .marquee__row { animation: none; }
+  .story__shots .shot { transition-delay: 0s !important; }
 }
 
 /* ---------- Docs (site/docs/) ---------- */

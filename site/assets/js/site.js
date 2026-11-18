@@ -36,6 +36,9 @@
   // ---- Hero: rotating role ----
   const roles = ["role.", "researcher.", "copywriter.", "image maker.", "stock analyst.", "trip planner.", "code reviewer."];
   const rot = $("#rotator");
+  // Hidden copies of every role give the slot the width of the longest one,
+  // so "for every" stays put while the role changes.
+  if (rot) rot.insertAdjacentHTML("afterbegin", roles.map((r) => `<span class="rotator__sizer" aria-hidden="true">${r}</span>`).join(""));
   if (rot && !reduce) {
     let i = 0;
     setInterval(() => {
@@ -93,9 +96,11 @@
   let current = 0;
   const show = (n) => {
     if (n === current) return;
+    const prev = current;
     current = n;
     steps.forEach((s, k) => s.classList.toggle("is-on", k === n));
-    shots.forEach((s, k) => s.classList.toggle("is-on", k === n));
+    // The screen we leave stays just under the new one while it fades in.
+    shots.forEach((s, k) => { s.classList.toggle("is-on", k === n); s.classList.toggle("was-on", k === prev); });
     if (url && shots[n]) url.textContent = shots[n].dataset.url;
   };
   const onScrollSteps = () => {
