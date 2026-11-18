@@ -14,9 +14,11 @@
 //                              Vaultbase's App URL, so links in emails open the app
 //
 // deploy/install.sh runs it compiled (bin/audition-setup in the release
-// bundle, scripts/bundle.ts), so the server needs no Bun.
+// bundle, scripts/bundle.ts), so the server needs no Bun. The same tool's
+// `offsite` command (scripts/offsite.ts) turns on the off-server R2 copy.
 import { SETTINGS, adminLogin, applySettings, call, ensureOwner, refuseProviderKeys } from "./lib/vaultbase.ts";
 import { seedReference } from "../seed/reference.ts";
+import { offsiteMain } from "./offsite.ts";
 
 /**
  * Vaultbase's own scheduled backups (Settings, Backups in the admin): a
@@ -50,6 +52,11 @@ export async function provision(o: ProvisionOpts) {
   const seed = await seedReference(o.url, token);
   const backups = await call(o.url, "GET", "/api/v1/admin/backups", { token });
   return { token, seed, backupStatus: backups.body?.data?.status };
+}
+
+if (import.meta.main && process.argv[2] === "offsite") {
+  // The off-server backup copy (scripts/offsite.ts), in the same compiled tool.
+  process.exit(await offsiteMain(process.argv.slice(3)));
 }
 
 if (import.meta.main) {

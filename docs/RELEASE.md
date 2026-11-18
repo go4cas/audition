@@ -129,11 +129,28 @@ Each backup is a consistent snapshot of the database (SQLite `VACUUM INTO`, safe
 
 **What a backup doesn't hold:** `.encryption-key` and `.secret`. You copied both after installing ("Save the keys"), and they never change. Without the encryption key a restored database starts, but the API keys in it can't be read.
 
-### Off the server
+### Off-server copy (Cloudflare R2)
 
-A backup in `/var/lib/audition/backups` doesn't survive losing the server. Vaultbase can also copy every backup to S3-compatible storage, with the same pruning: on the Backup & restore page, turn on the S3 copy and fill in the endpoint, bucket, keys and prefix (settings `backups.s3.*`). Cloudflare R2 fits, since the domain is on Cloudflare already. Use a **private bucket of its own**: a backup holds every password hash. This needs a bucket and its keys from you, so it isn't switched on by `provision`.
+A backup in `/var/lib/audition/backups` doesn't survive losing the server. Vaultbase copies each backup to S3-compatible storage itself: with its `backups.s3.*` settings on, every backup (the 03:00 one and every **Back up now**) is also uploaded to the bucket, with the uploaded files, and the bucket is pruned to the same 14. Audition only switches that on and checks it works; nothing of Audition's runs on a schedule for it. The bucket is Cloudflare R2, since the domain is on Cloudflare already. At Audition's size (about 1 MB a backup) it stays well inside R2's free allowance.
 
-Until that's on, copy the backups folder off the server yourself now and then, for example `rsync -a you@your-vps:/var/lib/audition/backups/ ./audition-backups/` (run as a user that can read it).
+**1. In the Cloudflare dashboard** (names can shift a little between dashboard versions):
+
+1. **R2 Object Storage**, **Create bucket**. Name it `audition-backups`, location Automatic. Keep it **private**: don't connect a custom domain or turn on public access. A backup holds every password hash and the encrypted API keys.
+2. Back on the R2 overview, copy the **Account ID** (on the right).
+3. **Manage API tokens** (R2 overview, under API), **Create Account API token** (a User API token works too). Permissions **Object Read & Write**, **Apply to specific buckets only**: `audition-backups`. TTL Forever. Create it, then copy the **Access Key ID** and the **Secret Access Key**. The secret is shown only once.
+
+**2. On the server:**
+
+```sh
+sudo bash install.sh offsite
+```
+
+It asks for the Account ID (or the bucket's S3 API URL), the bucket name, the Access Key ID and the Secret (hidden). It writes, reads back and deletes a test file in the bucket, so a wrong key or bucket name stops here with a plain message and nothing saved. Then it saves the settings in Vaultbase (the secret is stored encrypted, and shown as `********` in the admin), takes a backup now, and checks it reached the bucket. The backups land under `audition/` in the bucket: `vaultbase-<date>.db`, its `.files.json` manifest, and `files/` (each uploaded file stored once).
+
+- `sudo bash install.sh offsite --off` stops the copy. What's in the bucket stays.
+- **Save the R2 keys with `.encryption-key` and `.secret`** (the password manager entry from "Save the keys"). A new server needs all four, plus the Account ID and bucket name.
+- The `offsite` and `restore-offsite` commands come with the first release made after this change (v0.4.1 and older don't have them). On an older release, turn the same copy on in the admin instead: Settings, **Backup & restore**, **Copy to S3**: endpoint `https://<account-id>.r2.cloudflarestorage.com`, the bucket, region `auto`, the two keys, prefix `audition/`; then **Back up now** and check the page shows no error.
+- If a copy fails (R2 down, a key revoked), the backup on the server is still made, and the admin's Backup & restore page shows the error until a later backup succeeds. Check it now and then, with the smoke test.
 
 ### Restore a backup
 
@@ -146,10 +163,21 @@ In the admin, under Settings, **Backup & restore**, pick the backup and restore 
 
 ### Restore onto a new server
 
-1. Run the installer with the same release tag (`--version`). It makes a fresh instance with its own admin.
-2. `sudo systemctl stop audition`, then put the saved `.encryption-key` and `.secret` into `/var/lib/audition` (owner `audition`, mode 0600), replacing the new ones.
-3. Copy the backups (the whole `backups/` folder, or the R2 prefix) into `/var/lib/audition/backups/`, owned by `audition`.
-4. `sudo systemctl start audition`, restore the newest backup from the admin, then run the smoke test. The settings, your account and the seed all come from the backup. The admin is the backup's too: sign in with the old admin password from then on.
+When the server is lost, with the off-server copy on:
+
+1. Install Audition on the new server (see [Install](#install)) with the same release tag (`--version`) or a newer one, and set up the domain as before. It makes a fresh instance with its own Vaultbase admin.
+2. Straight after, before changing anything in it:
+
+   ```sh
+   sudo bash install.sh restore-offsite
+   ```
+
+   It asks for the R2 details (as `offsite` does), then for the saved `.encryption-key` and `.secret`: paste them as you saved them (one after the other, or run together the way `sudo cat` printed them). It downloads the bucket's backups into `/var/lib/audition/backups`, stops Audition, puts the saved keys in place (keeping the new server's own in `/var/lib/audition/keys-before-restore`), starts it, restores the newest backup through Vaultbase's restore, resets the Vaultbase admin to the one in the new `/etc/audition/admin-credentials`, and restarts.
+3. Run the smoke test. Your account, password, workspaces, runs and files are as they were at the last backup. The off-server copy settings come back with the backup, so the new server goes on copying to the same bucket.
+
+On the same server (the data folder damaged, the keys unchanged), leave the keys answer empty. Without the off-server copy, copy the old `backups/` folder into `/var/lib/audition/backups/` (owned by `audition`) by hand instead, put the saved keys in place with Audition stopped, start it, and restore the newest backup from the admin.
+
+If Audition doesn't start with the saved keys, the command puts the new server's own keys back and stops before restoring. That happens when a setting with a secret (an SMTP password, the R2 keys) was saved on the new server before the restore; reinstall with `uninstall --purge` and run `restore-offsite` first.
 
 ## Upgrades
 
@@ -197,6 +225,8 @@ It stops the service, moves the current data aside to `/var/lib/audition.failed-
 | Restart | `sudo systemctl restart audition` |
 | Health | `vb doctor` (alias above) |
 | Back up now | Admin, Settings, Backup & restore |
+| Off-server copy on or off | `sudo bash install.sh offsite` / `sudo bash install.sh offsite --off` |
+| Bring the newest off-server backup back | `sudo bash install.sh restore-offsite` |
 | A one-off database copy | `vb backup --to /var/lib/audition/manual-$(date +%F).db` (database only, no files or keys) |
 | Is there a newer Vaultbase? | `vb update` |
 | Redo the proxy site file | `sudo bash install.sh proxy [--tls-cert FILE --tls-key FILE]` |
@@ -215,6 +245,15 @@ It stops the service, moves the current data aside to `/var/lib/audition.failed-
 - A Vaultbase backup keeps the uploaded files, and restoring it undoes a change made after it.
 - A cold copy of the data folder starts on its own, with every record, both keys, and the owner's sign-in.
 - Wrong passwords hit Vaultbase's auth rate limit (`429`) within 20 tries (review finding R6).
+
+`test/offsite.test.ts` checks the off-server copy against a local S3-compatible stand-in for R2 (`test/fake-s3.ts`):
+
+- Wrong keys or a wrong bucket stop before anything is saved, with a plain message.
+- Turning it on saves Vaultbase's `backups.s3.*` settings (the secret masked), and the first backup reaches the bucket with its manifest and every uploaded file.
+- Later backups are copied too, and the bucket is pruned to the same `backups.keep` as the server.
+- A new server with only the saved keys and the bucket gets every record, the owner's sign-in and the uploaded files back, starts again on the restored data, and goes on copying.
+
+`install.sh offsite` and `restore-offsite` were run in a scratch Linux container against the same stand-in, with `systemctl` stubbed (no systemd there): install, `offsite`, a change, a full `uninstall --purge`, a fresh install, `restore-offsite` with the pasted keys; the change, the owner's old password and the admin from the new credentials file all worked afterwards (NOTES "Off-server backups"). Not checked here: real R2 and real systemd.
 
 `test/install.test.ts` builds a release bundle and runs the installer's steps from the bundle alone: the admin through Vaultbase's setup key (refused without it), then the compiled setup tool, then the owner's sign-in, the four workspaces and the UI.
 

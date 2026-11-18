@@ -7,6 +7,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { startFakeS3 } from "./fake-s3.ts";
 import { ROOT, call, ensureBinary, ownerLogin, sha256File, startInstance, type Instance } from "../scripts/lib/vaultbase.ts";
 
 const root = mkdtempSync(join(tmpdir(), "audition-install-"));
@@ -106,4 +107,20 @@ test("install steps: admin through the setup key, then the compiled setup tool",
   expect(ws.body.totalItems).toBe(4);
   const ui = await fetch(`${inst.url}/api/custom/app/`);
   expect(ui.status).toBe(200);
+
+  // install.sh offsite: the same compiled tool turns on Vaultbase's copy to
+  // R2 (here a local stand-in), and the first backup reaches the bucket.
+  const s3 = startFakeS3({ accessKeyId: "r2-key-id", buckets: ["audition-backups"] });
+  try {
+    const off = await run([join(app, "bin", "audition-setup"), "offsite", "on"], {
+      AUDITION_URL: inst.url, AUDITION_ADMIN_EMAIL: email, AUDITION_ADMIN_PASSWORD: adminPw,
+      R2_ACCOUNT_ID: s3.endpoint, R2_BUCKET: "audition-backups", R2_ACCESS_KEY_ID: "r2-key-id", R2_SECRET_ACCESS_KEY: "r2-secret",
+      HTTP_PROXY: "", HTTPS_PROXY: "", http_proxy: "", https_proxy: "",
+    });
+    expect(off.code).toBe(0);
+    expect(off.out).toContain("copied to r2://audition-backups/audition/");
+    expect(s3.keys("audition-backups").some((k) => /^audition\/vaultbase-[\d-]+\.db$/.test(k))).toBe(true);
+  } finally {
+    s3.stop();
+  }
 }, 120_000);
