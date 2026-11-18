@@ -114,6 +114,16 @@ Uploads accept text, images, PDFs and zip files, up to 25 MB per file.
 
 **Run again.** A finished run has a "Run again" button. It creates a new run with the same role, tasks, contenders and judge, linked to the original. The leaderboard averages every scored output across runs.
 
+### Image models
+
+Added Nov 18, 2026 (fourth roadmap item, no schema change).
+
+- **What it is.** A contender on an OpenAI-compatible connection can make images instead of text. On the contender form, "What does it make?" is **Text** or **Images**; Images adds size, quality, images per output (1 to 4), file type and "Ask for base64".
+- **How it runs.** Audition calls the provider's Images API (`/images/generations`). When the task has image attachments, it calls `/images/edits` instead and sends those images along, so "restyle this logo" tasks work. Other attachments are named in the prompt. The contender's system prompt goes before the task prompt, because the Images API has no system message.
+- **What you get.** Every returned picture is stored on the output as a file, with thumbnails, exactly like an uploaded image. The judging screens, the AI judge (which sees images) and Compare all work unchanged. Tokens and cost are measured when the provider reports usage (gpt-image does).
+- **Guards.** An image maker can't be the AI judge or the Composer. The run preview warns when an image maker gets a task that asks for text, or a text model gets a task that asks for an image.
+- **Which providers.** OpenAI (gpt-image, DALL·E) and any server that copies the OpenAI Images API. Replicate (Flux, Stable Diffusion and others) waits on Vaultbase: Replicate answers with links, and `helpers.http` reads every reply as text, which breaks image bytes (NOTES I1).
+
 ### The Composer
 
 Added Nov 18, 2026 (Cas approved it as the third roadmap item, and the one new field `tasks.compose`).
@@ -230,7 +240,7 @@ Approved by Cas on Nov 11, 2026. Each step is its own thread and PR, in this ord
 | --- | --- | --- | --- |
 | 1 — Wrap-up | Realtime run page (part B3 of `docs/PLATFORM-UPGRADES.md`), with polling kept as the fallback when the connection drops. One combined request to the Vaultbase author: text/markdown, zip and csv on the upload allowlist (NOTES W1), a server-side file helper (Q2) and an "only if" condition on `helpers.records.update` (Q3). Tag v0.2.0 and deploy it by `docs/RELEASE.md`; Cas runs the server steps and the real Anthropic check. | Realtime | The run page updates without polling, and v0.2.0 runs on Cas's server |
 | 2 — Phase 2a, living arena lite | Scheduled runs of a role, using the existing `runs.schedule` field. A stale-attempt sweep. Outcome verdicts that come due on a set date, starting with Stock Review ("was the call right four weeks later?"), using the existing `verdicts.due_at` field. An email to the owner when a run finishes or a role's champion changes. | Cron, email | The Phase 2 Done-when: a scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
-| Later, phase not set | MCP read-only access to castings; the Composer utility role (built Nov 18, 2026, see "The Composer"); guest voters; vector match of new tasks to roles; pairwise judging (done Nov 18, 2026: Compare (A vs B), see Judging); API adapters for image models; push alerts (built, docs/PUSH-ALERTS.md); contender rollout by feature flags; Levare reading castings. (Outline chips: done Nov 13 2026. Off-server R2 copy of backups: built Nov 18 2026, Vaultbase's own S3 backup copy, docs/RELEASE.md "Off-server copy".) Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, feature flags | Each is picked and scoped with Cas before its thread starts |
+| Later, phase not set | MCP read-only access to castings; the Composer utility role (built Nov 18, 2026, see "The Composer"); guest voters; vector match of new tasks to roles; pairwise judging (done Nov 18, 2026: Compare (A vs B), see Judging); API adapters for image models (OpenAI-compatible Images API built Nov 18, 2026, see "Image models"; Replicate waits on Vaultbase); push alerts (built, docs/PUSH-ALERTS.md); contender rollout by feature flags; Levare reading castings. (Outline chips: done Nov 13 2026. Off-server R2 copy of backups: built Nov 18 2026, Vaultbase's own S3 backup copy, docs/RELEASE.md "Off-server copy".) Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, feature flags | Each is picked and scoped with Cas before its thread starts |
 
 ## Phase 1 thread plan
 

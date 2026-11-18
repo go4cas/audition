@@ -30,7 +30,7 @@ export default function workspaceSettings({ params }) {
     },
     body: (s) => {
       const f = s.f;
-      const judges = s.d.contenders.filter((c) => c.mode === "api" && c.enabled !== false).map((c) => ({ value: c.id, label: c.name, avatar: c.name, desc: contenderMeta(s.d, c) }));
+      const judges = s.d.contenders.filter((c) => c.mode === "api" && c.enabled !== false && !c.config?.image).map((c) => ({ value: c.id, label: c.name, avatar: c.name, desc: contenderMeta(s.d, c) }));
       // The Composer is optional: "No Composer" keeps every task on the generic prompt.
       const composers = [{ value: "", label: "No Composer", icon: "close", desc: "Every task uses the plain prompt" }, ...judges];
       const weights = () => [f.q, f.t, f.dt];

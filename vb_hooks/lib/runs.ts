@@ -8,7 +8,7 @@ import { callProvider, ProviderError, type ApiProvider, type FileOut, type HttpL
 import { mockSeed } from "./providers/mock.ts";
 import { methodOf, pairCount, queueJudging, settleCompareRun, type Method } from "./pairwise.ts";
 import { insertRecord, updateRecord, type Records, type Sql, type Store } from "./store.ts";
-import { listOf, parseJson } from "./validation.ts";
+import { listOf, makesImages, parseJson } from "./validation.ts";
 
 type Rec = Record<string, any>;
 
@@ -131,6 +131,7 @@ export async function loadPlan(deps: Deps, body: RunBody, judgeContenderId?: str
     judgeContender = await contenderWithConnection(deps, jid);
     if (!judgeContender) throw new RunError(422, "The workspace's AI judge no longer exists.");
     if (judgeContender.contender["mode"] !== "api") throw new RunError(422, "The AI judge must be a contender Audition can call (not copy and paste).");
+    if (makesImages(judgeContender.contender)) throw new RunError(422, "The AI judge makes images, so it can't judge. Choose a text model in the workspace settings.");
   }
   const bothOrders = body.both_orders === true && method === "compare" && judge === "ai";
   return { role, workspace, tasks, contenders, judge, method, bothOrders, judgeContender };
@@ -168,8 +169,27 @@ export function previewOf(plan: Plan): Preview {
     handoff_outputs: n * handoff,
     judge_calls: judgeCalls,
     total_provider_calls: n * api + (judgeIsMock ? 0 : judgeCalls),
-    warnings: plan.judgeContender ? sameProviderWarnings(plan.judgeContender, plan.contenders) : [],
+    warnings: [...(plan.judgeContender ? sameProviderWarnings(plan.judgeContender, plan.contenders) : []), ...imageMismatchWarnings(plan)],
   };
+}
+
+/**
+ * An image maker on a task that asks for text (or the other way round) still
+ * runs, but the owner is told before starting (§12a).
+ */
+export function imageMismatchWarnings(plan: Pick<Plan, "tasks" | "contenders">): string[] {
+  const out: string[] = [];
+  const wantsImage = plan.tasks.filter((t) => t["output_type"] === "image");
+  const wantsOther = plan.tasks.filter((t) => t["output_type"] !== "image");
+  for (const c of plan.contenders) {
+    if (c.contender["mode"] !== "api") continue;
+    if (makesImages(c.contender) && wantsOther.length) {
+      out.push(`${c.contender["name"]} makes images, but ${wantsOther.length === 1 ? `"${wantsOther[0]!["title"]}" asks` : `${wantsOther.length} tasks ask`} for something else.`);
+    } else if (!makesImages(c.contender) && c.connection["provider"] === "openai-compatible" && wantsImage.length) {
+      out.push(`${c.contender["name"]} answers in text, but ${wantsImage.length === 1 ? `"${wantsImage[0]!["title"]}" asks` : `${wantsImage.length} tasks ask`} for an image.`);
+    }
+  }
+  return out;
 }
 
 const PROVIDER_LABEL: Record<string, string> = { anthropic: "Anthropic", "openai-compatible": "OpenAI", mock: "Mock" };

@@ -10,7 +10,7 @@ export interface FileOut { name: string; mime: string; bytes: Uint8Array }
 
 export interface GenerateInput {
   model: string;
-  config: { system_prompt?: string; effort?: string; temperature?: number; mock?: { behaviour: MockBehaviour } };
+  config: { system_prompt?: string; effort?: string; temperature?: number; mock?: { behaviour: MockBehaviour }; image?: Record<string, unknown> };
   maxOutputTokens: number;
   system?: string;
   prompt: string;

@@ -11,6 +11,10 @@ export const DEFAULT_MAX_OUTPUT_TOKENS = 16000;
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 export const MOCK_BEHAVIOURS = ["steady", "erratic", "fail", "flaky", "image", "judge"] as const;
 export const OUTPUT_TYPES = ["text", "image", "file", "code"] as const;
+export const IMAGE_QUALITIES = ["auto", "low", "medium", "high", "standard", "hd"] as const;
+export const IMAGE_FORMATS = ["png", "jpeg", "webp"] as const;
+export const IMAGE_BACKGROUNDS = ["auto", "transparent", "opaque"] as const;
+export const MAX_IMAGES_PER_OUTPUT = 4;
 
 /** JSON fields can arrive as a string (form posts) or a value. */
 export function parseJson(v: unknown): unknown {
@@ -90,10 +94,39 @@ export function normaliseContenderConfig(raw: unknown, provider: Provider): { co
     const t = config["temperature"];
     if (typeof t !== "number" || t < 0 || t > 2) return { error: "Temperature must be a number from 0 to 2." };
   }
+  if (config["image"] === null) delete config["image"];
+  if (config["image"] !== undefined) {
+    if (provider !== "openai-compatible") return { error: "Only an OpenAI-compatible connection makes images through the Images API." };
+    const err = imageOptionsError(config["image"]);
+    if (err) return { error: err };
+    delete config["temperature"];
+  }
   if (config["mock"] !== undefined && config["mock"] !== null) {
     if (provider !== "mock") return { error: "Only a mock connection takes a mock config." };
     const b = (config["mock"] as { behaviour?: unknown }).behaviour;
     if (!(MOCK_BEHAVIOURS as readonly string[]).includes(String(b))) return { error: `Mock behaviour must be one of ${MOCK_BEHAVIOURS.join(", ")}.` };
   }
   return { config };
+}
+
+/** A contender's config makes images (OpenAI-compatible Images API, TECH-SPEC §12a). */
+export function makesImages(contender: { config?: unknown } | null | undefined): boolean {
+  const img = (parseJson(contender?.config) as { image?: unknown } | null)?.image;
+  return !!img && typeof img === "object" && !Array.isArray(img);
+}
+
+/** config.image: size, quality, n, format, background, ask_b64; all optional. Returns an error or null. */
+export function imageOptionsError(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "The image options must be an object.";
+  const o = raw as Record<string, unknown>;
+  const extra = Object.keys(o).filter((k) => !["size", "quality", "n", "format", "background", "ask_b64"].includes(k));
+  if (extra.length) return `Unknown image option: ${extra.join(", ")}.`;
+  const set = (k: string) => o[k] !== undefined && o[k] !== null;
+  if (set("size") && !(typeof o["size"] === "string" && /^(auto|\d{2,5}x\d{2,5})$/.test(o["size"]))) return 'The image size is "auto" or width x height, like 1024x1024.';
+  if (set("quality") && !(IMAGE_QUALITIES as readonly string[]).includes(String(o["quality"]))) return `Image quality must be one of ${IMAGE_QUALITIES.join(", ")}.`;
+  if (set("n") && !(isWhole(o["n"]) && o["n"] >= 1 && o["n"] <= MAX_IMAGES_PER_OUTPUT)) return `Images per output must be a whole number from 1 to ${MAX_IMAGES_PER_OUTPUT}.`;
+  if (set("format") && !(IMAGE_FORMATS as readonly string[]).includes(String(o["format"]))) return `Image format must be one of ${IMAGE_FORMATS.join(", ")}.`;
+  if (set("background") && !(IMAGE_BACKGROUNDS as readonly string[]).includes(String(o["background"]))) return `Image background must be one of ${IMAGE_BACKGROUNDS.join(", ")}.`;
+  if (set("ask_b64") && typeof o["ask_b64"] !== "boolean") return "Ask for base64 is on or off.";
+  return null;
 }

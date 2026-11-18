@@ -474,3 +474,14 @@ Cas approved the Composer as roadmap item 3 on Nov 18, 2026, and the one new fie
 - **C3. The composed prompt locks with the task.** It is part of the task, so a task used in a run keeps it, and every score stays tied to the exact text. Duplicate and edit copies it into the next version, where it can be edited or composed again.
 - **C4. Writes stay on the records API** (`helpers.records`); no new SQL write. The realtime event from that write is what updates the task page.
 - **C5. Not done (ideas):** sending attachments' contents to the Composer (it sees their names only); a stale-prompt warning when the task text changes after composing (the page says to compose again instead); a per-run "use the plain prompt" switch.
+
+## Image-model adapters (Nov 18, 2026)
+
+Roadmap item 4 (Cas's order of Nov 18, 2026). Design in TECH-SPEC §12a, behaviour in SPEC "Image models". No schema change.
+
+- **I1. Vaultbase's `helpers.http` can't download a file.** In 0.46.0 it always reads the reply with `await res.text()` (and parses JSON when the content type says so); there is no bytes or base64 option. An image fetched from a link is therefore corrupted. That rules out Replicate today: its predictions answer with `https://replicate.delivery/…` links (its sync-mode data URLs were rolled back on Oct 29, 2024, Replicate blog). Cas chose on Nov 18, 2026 to **wait for Vaultbase** rather than download with plain `fetch` outside Vaultbase's egress denylist. The request (a raw-bytes reply option on `helpers.http`, to go with discussion #11's file save helper) is drafted at `vaultbase-requests/http-bytes-response.md` in the project files.
+- **I2. OpenAI-compatible needs no new provider value.** An `image` block in the contender's `config` (json) is enough to route the call to the Images API, so there is no schema change. A new `connections.provider` value (Replicate, or Google Imagen/Gemini, which answers in inline base64 and would work today) would be one.
+- **I3. Multipart without FormData.** `/images/edits` needs `multipart/form-data`. `helpers.http` sends a `Uint8Array` body unchanged with the caller's content type, so the adapter builds the body by hand (`editsBody()`).
+- **I4. Files reuse T0's path.** The generate worker already stored `GenerateResult.files` through `lib/files.ts` (the mock's `image` behaviour proves it), so thumbnails, download audit, judging, the AI judge and Compare needed no change. The local-disk limit of `lib/files.ts` (Nov 13 note) still applies: keep File storage on local.
+- **I5. Image makers can't judge or compose.** Both need a JSON answer. The check is in three places (the adapter call, `loadPlan`, `composerFor`) and the workspace pickers hide image makers.
+- **I6. Not done (ideas):** a mask for edits; per-image cost when a provider reports no tokens (DALL·E); a "transparent background" switch in the form (the option exists in the config).

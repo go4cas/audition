@@ -1,6 +1,6 @@
 # Audition
 
-Audition is a self-hosted tool for deciding which AI contender is best for each role in a workflow. A contender is a model, an agent harness or an app, plus its settings. You set up workspaces with roles and tasks, run the same task through several contenders, judge the outputs blind with a star rubric or by comparing two at a time (yourself or with an AI judge), and confirm a champion per role from the leaderboard. An optional Composer (any API contender) can first rewrite a task into a sharper prompt that you review, so every contender gets the best version of the task.
+Audition is a self-hosted tool for deciding which AI contender is best for each role in a workflow. A contender is a model, an agent harness or an app, plus its settings. Audition calls Anthropic and OpenAI-compatible models directly, image models such as gpt-image included; anything else works by copy and paste. You set up workspaces with roles and tasks, run the same task through several contenders, judge the outputs blind with a star rubric or by comparing two at a time (yourself or with an AI judge), and confirm a champion per role from the leaderboard. An optional Composer (any API contender) can first rewrite a task into a sharper prompt that you review, so every contender gets the best version of the task.
 
 It runs on [Vaultbase](https://github.com/vaultbase-sh/vaultbase) 0.46.0, pinned and checksum-verified. The source of truth for what it does is [docs/SPEC.md](docs/SPEC.md); how it is built is in [docs/TECH-SPEC.md](docs/TECH-SPEC.md).
 

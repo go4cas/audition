@@ -313,7 +313,7 @@ To replace a key, the UI deletes the old `connection_keys` record and creates a 
 | mode | select `api`, `handoff`, `runner` | `runner` is *later*. The hook requires `handoff` for a manual connection and `api` otherwise. |
 | model | text | Provider model id, for example `claude-opus-5-5`. Empty for handoff. |
 | group | text | For leaderboard grouping; defaults to `model` or `name` |
-| config | json | `{ "system_prompt"?: string, "effort"?: "low"\|"medium"\|"high"\|"xhigh"\|"max", "temperature"?: number, "mock"?: MockConfig }`. The hook drops `temperature` for Anthropic (F8). |
+| config | json | `{ "system_prompt"?: string, "effort"?: "low"\|"medium"\|"high"\|"xhigh"\|"max", "temperature"?: number, "mock"?: MockConfig, "image"?: ImageOptions }`. The hook drops `temperature` for Anthropic (F8) and for an image maker. `image` is allowed on OpenAI-compatible connections only (§12a). |
 | max_output_tokens | number, min 1 | default 16000; required for `api` |
 | price_in_per_mtok | number | optional, USD |
 | price_out_per_mtok | number | optional, USD |
@@ -324,6 +324,8 @@ To replace a key, the UI deletes the old `connection_keys` record and creates a 
 Rules: as for tasks (update and delete need `locked = false`), with the same hook on `locked`.
 
 `MockConfig` is `{ "behaviour": "steady" | "erratic" | "fail" | "flaky" | "image" | "judge" }`.
+
+`ImageOptions` is `{ "size"?: "auto" | "<w>x<h>", "quality"?: "auto"|"low"|"medium"|"high"|"standard"|"hd", "n"?: 1-4, "format"?: "png"|"jpeg"|"webp", "background"?: "auto"|"transparent"|"opaque", "ask_b64"?: boolean }`, checked by `imageOptionsError()` in `lib/validation.ts`. Its presence makes the contender an image maker.
 
 ### handoff_templates
 
@@ -688,6 +690,19 @@ interface GenerateResult {
 3. Add the file name to the record's field column.
 
 T0 must prove this with a test: attach through `lib/files.ts`, then fetch the file through `GET /api/v1/files/<name>` as the owner. If that can't be made to work cleanly, T0 stops and reports. The fallback is to keep mock images in `seed/fixtures` as records on a small `fixtures` collection and reference them, which is a schema change for Cas to approve.
+
+## 12a. Image models (OpenAI-compatible Images API)
+
+Added Nov 18, 2026. `lib/providers/openai-images.ts`. No schema change: a contender's `config.image` (see contenders) turns an OpenAI-compatible contender into an image maker, and `callProvider()` sends it here instead of to `openai-compatible.ts`.
+
+- **Request.** No image attachments: `POST {baseUrl}/images/generations`, JSON `{ model, prompt, n, size?, quality?, output_format?, background?, response_format? }`. With image attachments (PNG, JPEG, GIF, WebP): `POST {baseUrl}/images/edits`, `multipart/form-data` built by hand (`editsBody()`, since `helpers.http` takes a `Uint8Array` body and a content type), the same fields as text parts and each image as `image` (one) or `image[]` (several). `Authorization: Bearer` as for chat. 10-minute timeout, 3 tries, as for the other adapters.
+- **Prompt.** The contender's system prompt, then "Attached files not shown here: …" for non-image attachments, then the rendered task prompt (the same text every contender gets, §9).
+- **Reply.** Each `data[].b64_json` is decoded; the file type is sniffed from its first bytes (PNG, JPEG, WebP, GIF; anything else fails) and named `image-<n>.<ext>`. The output text lists the file names, with `revised_prompt` when the provider sends one. Tokens from `usage.input_tokens` / `usage.output_tokens` (gpt-image), else empty; cost is derived as usual. `finish_reason` is `images`.
+- **Why base64 only.** Vaultbase 0.46's `helpers.http` always reads the reply with `res.text()`, so downloading an image from a link would corrupt it. gpt-image always answers in base64; DALL·E and some compatible servers need `ask_b64` (sends `response_format: "b64_json"`). A reply with links only fails with that hint. The egress guard (F3) is unchanged: only the connection's host is called.
+- **Storing.** The generate worker already stores `GenerateResult.files` with `lib/files.ts attachFile()` on `attempts.output_files` (thumbs and download audit included), so judging, the AI judge and Compare need no change.
+- **Guards.** An image maker can't answer a call with `outputSchema` (judge, Composer): `callProvider()` refuses before any HTTP call, `loadPlan()` refuses it as the AI judge and `composerFor()` as the Composer, and the workspace screen leaves image makers out of both pickers. `previewOf()` adds `imageMismatchWarnings()`: an image maker on a task whose `output_type` isn't `image`, and an OpenAI-compatible text contender on an `image` task.
+- **Not done (needs Vaultbase).** Replicate (Flux, Stable Diffusion, Ideogram, Recraft, …) answers with `replicate.delivery` links, which `helpers.http` can't download as bytes. NOTES I1 has the request. Google Imagen/Gemini (inline base64) would work today but needs a new `connections.provider` value, a schema change for Cas to approve.
+- **Tests.** `test/images.test.ts`: request bodies (JSON and multipart), reply parsing and failures against a fake http; config checks; warnings; and one output end to end on a fresh Vaultbase through the test-only route `test/vb_hooks_test/routes/_test-generate.ts` (`runGenerate` with a fake `helpers.http`), checking the files, thumbnail, tokens and cost.
 
 ## 13. Testing
 

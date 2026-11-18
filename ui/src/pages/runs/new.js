@@ -96,7 +96,7 @@ export default function newRun() {
             </fieldset>
             <fieldset class="stack-sm plain">
               <legend class="eyebrow">${icon("contenders")}Contenders</legend>
-              <div class="check-list">${contenders.map((c) => html`<label class="check"><input type="checkbox" checked="${() => f.contenders.includes(c.id)}" @change="${(e) => toggle(f.contenders, c.id, e.target.checked)}"><span class="check__box">${icon("check")}</span><span class="who">${avatar(c.name, "sm")}<span><strong>${c.name}</strong><br><span class="who__meta">${c.mode === "api" ? html`${icon("api")}API · up to ${num(c.max_output_tokens)} tokens` : html`${icon("paste")}Copy and paste`}</span></span></span></label>`)}</div>
+              <div class="check-list">${contenders.map((c) => html`<label class="check"><input type="checkbox" checked="${() => f.contenders.includes(c.id)}" @change="${(e) => toggle(f.contenders, c.id, e.target.checked)}"><span class="check__box">${icon("check")}</span><span class="who">${avatar(c.name, "sm")}<span><strong>${c.name}</strong><br><span class="who__meta">${c.mode === "api" ? (c.config?.image ? html`${icon("image")}API · makes images` : html`${icon("api")}API · up to ${num(c.max_output_tokens)} tokens`) : html`${icon("paste")}Copy and paste`}</span></span></span></label>`)}</div>
             </fieldset>
             <div class="field">
               <span class="label" id="nr-judge-label">Who judges</span>
@@ -110,7 +110,7 @@ export default function newRun() {
             </div>
             ${() => (f.method === "compare" && f.judge === "ai" ? html`<label class="check self-start"><input type="checkbox" id="nr-both" checked="${() => f.bothOrders}" @change="${(e) => { f.bothOrders = e.target.checked; refreshPreview(); }}"><span class="check__box">${icon("check")}</span><span><strong>Ask the AI judge both ways</strong><br><span class="muted small">Each pair is judged twice, with the sides swapped. If the two answers disagree, it counts as a tie. Fairer, but it doubles the calls to the AI judge.</span></span></label>` : "")}
             ${costNote}
-            ${() => (sum().warnings || []).map((w) => html`<div class="notice" data-state="warning">${icon("warning")}<div><strong>${w}</strong> A judge may favour its own family. You can go ahead, or judge this run yourself.</div></div>`)}
+            ${() => (sum().warnings || []).map((w) => html`<div class="notice" data-state="warning">${icon("warning")}<div><strong>${w}</strong> ${/judge/i.test(w) ? "A judge may favour its own family. You can go ahead, or judge this run yourself." : "It still runs, but its output may not be what the task asks for."}</div></div>`)}
             ${() => (f.previewError ? html`<div class="notice" data-state="error">${icon("error")}<div>${f.previewError}</div></div>` : "")}
           </form>
           <aside class="summary" aria-live="polite">
