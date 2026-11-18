@@ -21,7 +21,7 @@ export default function workspaceSettings({ params }) {
       s.f = reactive({
         name: ws?.name || "", description: ws?.description || "", default_judge: ws?.default_judge || "me",
         default_method: ws?.default_method || "rate",
-        judge_contender: ws?.judge_contender || null, min_outputs: ws?.min_outputs ?? 5,
+        judge_contender: ws?.judge_contender || null, composer_contender: ws?.composer_contender || null, min_outputs: ws?.min_outputs ?? 5,
         q: w.quality, t: w.tokens, dt: w.time,
         stages: (isNew ? [] : s.d.stages.filter((x) => x.workspace === params.id)).map((x) => ({ id: x.id, name: x.name })),
         removed: [],
@@ -31,6 +31,8 @@ export default function workspaceSettings({ params }) {
     body: (s) => {
       const f = s.f;
       const judges = s.d.contenders.filter((c) => c.mode === "api" && c.enabled !== false).map((c) => ({ value: c.id, label: c.name, avatar: c.name, desc: contenderMeta(s.d, c) }));
+      // The Composer is optional: "No Composer" keeps every task on the generic prompt.
+      const composers = [{ value: "", label: "No Composer", icon: "close", desc: "Every task uses the plain prompt" }, ...judges];
       const weights = () => [f.q, f.t, f.dt];
       const move = (i, dir) => { const j = i + dir; if (j < 0 || j >= f.stages.length) return; const a = [...f.stages]; [a[i], a[j]] = [a[j], a[i]]; f.stages = a; };
       const save = (e) => busy(e, async () => {
@@ -40,7 +42,7 @@ export default function workspaceSettings({ params }) {
         if (f.default_judge === "ai" && !f.judge_contender) { toast("Pick an AI judge, or let yourself judge", "error", "warning"); return; }
         const body = {
           name: f.name.trim(), description: f.description.trim(), default_judge: f.default_judge, default_method: f.default_method,
-          judge_contender: f.judge_contender || null, min_outputs: Number(f.min_outputs) || 1,
+          judge_contender: f.judge_contender || null, composer_contender: f.composer_contender || null, min_outputs: Number(f.min_outputs) || 1,
           fitness_weights: { quality: Number(f.q) || 0, tokens: Number(f.t) || 0, time: Number(f.dt) || 0 },
         };
         try {
@@ -97,6 +99,13 @@ export default function workspaceSettings({ params }) {
               <input class="input num input--short" id="ws-min" type="number" min="1" value="${f.min_outputs}" @input="${(e) => { f.min_outputs = e.target.value; }}">
             </div>
             <div class="pop" id="${minPop}" popover><div class="pop__head">${icon("shuffle")}Why a minimum?</div><div class="pop__body"><p>One great answer can be luck. Five or more outputs show whether a contender is good every time. Use <strong>Run again</strong> to collect more without changing anything.</p></div></div>
+          </div></div>
+
+          <div class="panel" data-testid="composer-panel"><div class="panel__head"><h2>${icon("sparkle")}Composer</h2><span class="muted small">Optional</span></div><div class="panel__body">
+            <div class="field"><label for="ws-composer">Composer</label>
+              ${dropdown({ id: "ws-composer", label: "Composer", options: () => composers, value: () => f.composer_contender || "", onChange: (v) => { f.composer_contender = v || null; }, placeholder: "No Composer" })}
+              <span class="hint">Any contender that Audition calls can compose. On a task, it rewrites your text into a sharper prompt: the goal, the steps that matter, the output format and what a great answer looks like for each rubric line. You read and edit it before a run, and every contender then gets that same prompt.</span>
+            </div>
           </div></div>
 
           <div class="panel"><div class="panel__head"><h2>${icon("trophy")}What makes a champion</h2></div><div class="panel__body">

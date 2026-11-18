@@ -49,7 +49,7 @@ How they relate: a workspace holds stages (optional), a stage holds roles, and a
 
 **Connections and contenders are global**, shared across all workspaces. Two settings are two contenders: "Opus 5.5 High 0.6" and "Opus 5.5 Medium 0.2" compete separately. Each contender has a friendly name, and the leaderboard can group rows by model.
 
-**Utility roles** are platform jobs given to ordinary contenders in workspace settings: **Judge** (rates outputs against the rubric) and **Composer** (drafts handoff prompts, later phase).
+**Utility roles** are platform jobs given to ordinary contenders in workspace settings: **Judge** (rates outputs against the rubric) and **Composer** (rewrites a task into a sharper prompt before a run; built Nov 18, 2026, see "The Composer" below).
 
 ## Data model
 
@@ -58,10 +58,10 @@ Thirteen Vaultbase collections plus one view (T0 counted them against the built 
 | Collection | Kind | Key fields |
 | --- | --- | --- |
 | users | auth | The single owner account, with MFA available. No other logins in Phase 1. |
-| workspaces | base | name, description, judge_contender → contenders, default_judge (me / ai), default_method (rate / compare; default rate), min_outputs (default 5), fitness_weights (json: quality, tokens, time; default quality only), composer_contender → contenders (*later*) |
+| workspaces | base | name, description, judge_contender → contenders, default_judge (me / ai), default_method (rate / compare; default rate), min_outputs (default 5), fitness_weights (json: quality, tokens, time; default quality only), composer_contender → contenders (optional; the Composer) |
 | stages | base | workspace, name, order. Optional. |
 | roles | base | workspace, stage (optional), name, description, rubric (json: criteria with name, weight, guidance), pass_mark (stars, 1 to 5), default_output_type |
-| tasks | base | role, title, prompt (editor), output_type (text / image / file / code), attachments (files), base_ref (repo + commit, coding tasks only), locked, previous_version → tasks, composed_prompt (*later*) |
+| tasks | base | role, title, prompt (editor), output_type (text / image / file / code), attachments (files), base_ref (repo + commit, coding tasks only), locked, previous_version → tasks, composed_prompt (the Composer's draft as the owner left it; when set, contenders get it instead of the generic prompt), compose (json: the Composer's status, error, tokens and cost; set only by Audition) |
 | connections | base | name, provider (anthropic / openai-compatible / mock / manual), base_url, has_key, notes |
 | connection_keys | base | connection, api_key (**encrypted**). The owner can write a key but never read it back; only server code reads it. |
 | contenders | base | connection, name, mode (api / handoff; runner *later*), model, group (for leaderboard grouping), config (json: system prompt, effort, temperature for OpenAI-compatible only), max_output_tokens, price_in_per_mtok (optional), price_out_per_mtok (optional), locked, previous_version → contenders, enabled |
@@ -113,6 +113,16 @@ Uploads accept text, images, PDFs and zip files, up to 25 MB per file.
 **Fairness rule:** the prompt is rendered once per task and is identical for every contender. Coding tasks name the same repo and commit for every contender.
 
 **Run again.** A finished run has a "Run again" button. It creates a new run with the same role, tasks, contenders and judge, linked to the original. The leaderboard averages every scored output across runs.
+
+### The Composer
+
+Added Nov 18, 2026 (Cas approved it as the third roadmap item, and the one new field `tasks.compose`).
+
+- **What it is.** A utility role, like the AI judge: any contender Audition can call, picked in the workspace settings ("Composer", optional).
+- **What it does.** On a task, **Compose with <name>** sends the task's plain prompt (the generic template: role, task, files, rubric, how to reply) to the Composer, which rewrites it into one sharper prompt: who the reader is acting as, the goal, the steps or checks that matter, the output format and what a great answer looks like for each rubric line. It must not change the task's scope, and it keeps the "WHEN DONE" line.
+- **You review it once.** The draft lands on the task under **Prompt the contenders get**. Edit it freely and save the task, compose again, or go back to the plain prompt. The Composer's tokens and cost show under it.
+- **Every contender gets the same text.** When a task has a composed prompt, every contender of every run (API and copy-and-paste alike) gets exactly that text instead of the generic prompt. The composed prompt is part of the task, so it locks with the task when a run uses it; "Duplicate and edit" carries it into the next version.
+- **Runs in the background.** The call is a queued job, so a slow model never times out; the page follows it live. A run can't start while the Composer is still writing a task's prompt.
 
 ## Judging, fitness and casting
 
@@ -220,7 +230,7 @@ Approved by Cas on Nov 11, 2026. Each step is its own thread and PR, in this ord
 | --- | --- | --- | --- |
 | 1 — Wrap-up | Realtime run page (part B3 of `docs/PLATFORM-UPGRADES.md`), with polling kept as the fallback when the connection drops. One combined request to the Vaultbase author: text/markdown, zip and csv on the upload allowlist (NOTES W1), a server-side file helper (Q2) and an "only if" condition on `helpers.records.update` (Q3). Tag v0.2.0 and deploy it by `docs/RELEASE.md`; Cas runs the server steps and the real Anthropic check. | Realtime | The run page updates without polling, and v0.2.0 runs on Cas's server |
 | 2 — Phase 2a, living arena lite | Scheduled runs of a role, using the existing `runs.schedule` field. A stale-attempt sweep. Outcome verdicts that come due on a set date, starting with Stock Review ("was the call right four weeks later?"), using the existing `verdicts.due_at` field. An email to the owner when a run finishes or a role's champion changes. | Cron, email | The Phase 2 Done-when: a scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
-| Later, phase not set | MCP read-only access to castings; the Composer utility role; guest voters; vector match of new tasks to roles; pairwise judging (done Nov 18, 2026: Compare (A vs B), see Judging); API adapters for image models; push alerts (built, docs/PUSH-ALERTS.md); contender rollout by feature flags; Levare reading castings. (Outline chips: done Nov 13 2026. Off-server R2 copy of backups: built Nov 18 2026, Vaultbase's own S3 backup copy, docs/RELEASE.md "Off-server copy".) Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, feature flags | Each is picked and scoped with Cas before its thread starts |
+| Later, phase not set | MCP read-only access to castings; the Composer utility role (built Nov 18, 2026, see "The Composer"); guest voters; vector match of new tasks to roles; pairwise judging (done Nov 18, 2026: Compare (A vs B), see Judging); API adapters for image models; push alerts (built, docs/PUSH-ALERTS.md); contender rollout by feature flags; Levare reading castings. (Outline chips: done Nov 13 2026. Off-server R2 copy of backups: built Nov 18 2026, Vaultbase's own S3 backup copy, docs/RELEASE.md "Off-server copy".) Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, feature flags | Each is picked and scoped with Cas before its thread starts |
 
 ## Phase 1 thread plan
 
