@@ -5,7 +5,7 @@ import { create, remove, update } from "../api.js";
 import { APP, go } from "../lib/nav.js";
 import { dropdown, seg, weightBar, weightTotal } from "../components/forms.js";
 import { busy, crumbs, page } from "../components/page.js";
-import { errorToast, icon, popId, toast } from "../lib/ui.js";
+import { METHOD_HINT, METHOD_OPTIONS, errorToast, icon, popId, toast } from "../lib/ui.js";
 import { contenderMeta, load } from "../state/data.js";
 
 export default function workspaceSettings({ params }) {
@@ -20,6 +20,7 @@ export default function workspaceSettings({ params }) {
       const w = ws?.fitness_weights || { quality: 100, tokens: 0, time: 0 };
       s.f = reactive({
         name: ws?.name || "", description: ws?.description || "", default_judge: ws?.default_judge || "me",
+        default_method: ws?.default_method || "rate",
         judge_contender: ws?.judge_contender || null, min_outputs: ws?.min_outputs ?? 5,
         q: w.quality, t: w.tokens, dt: w.time,
         stages: (isNew ? [] : s.d.stages.filter((x) => x.workspace === params.id)).map((x) => ({ id: x.id, name: x.name })),
@@ -38,7 +39,7 @@ export default function workspaceSettings({ params }) {
         if (total !== 100) { toast("Fitness weights need to add up to 100", "error", "warning"); return; }
         if (f.default_judge === "ai" && !f.judge_contender) { toast("Pick an AI judge, or let yourself judge", "error", "warning"); return; }
         const body = {
-          name: f.name.trim(), description: f.description.trim(), default_judge: f.default_judge,
+          name: f.name.trim(), description: f.description.trim(), default_judge: f.default_judge, default_method: f.default_method,
           judge_contender: f.judge_contender || null, min_outputs: Number(f.min_outputs) || 1,
           fitness_weights: { quality: Number(f.q) || 0, tokens: Number(f.t) || 0, time: Number(f.dt) || 0 },
         };
@@ -81,6 +82,11 @@ export default function workspaceSettings({ params }) {
               <span class="label" id="ws-judge-label">Who judges new runs</span>
               ${seg({ name: "ws-judge", labelId: "ws-judge-label", value: () => f.default_judge, onChange: (v) => { f.default_judge = v; }, options: [{ value: "me", label: "Me", icon: "me" }, { value: "ai", label: "AI", icon: "ai" }] })}
               <span class="hint">You can pick per run, and you can always change the AI's stars.</span>
+            </div>
+            <div class="field">
+              <span class="label" id="ws-method-label">How new runs are judged</span>
+              ${seg({ name: "ws-method", labelId: "ws-method-label", value: () => f.default_method, onChange: (v) => { f.default_method = v; }, options: METHOD_OPTIONS })}
+              <span class="hint">${() => METHOD_HINT[f.default_method]} You can pick per run.</span>
             </div>
             <div class="field"><label for="ws-ai">AI judge</label>
               ${dropdown({ id: "ws-ai", label: "AI judge", options: () => judges, value: () => f.judge_contender, onChange: (v) => { f.judge_contender = v; }, placeholder: "Pick a contender to judge" })}

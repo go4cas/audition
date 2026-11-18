@@ -33,6 +33,7 @@ export function workspaceBeforeWrite(ctx: Ctx): void {
   const { record: r } = ctx;
   if (!ctx.existing) {
     if (empty(r["default_judge"])) r["default_judge"] = "me";
+    if (empty(r["default_method"])) r["default_method"] = "rate";
     if (empty(r["min_outputs"])) r["min_outputs"] = DEFAULT_MIN_OUTPUTS;
     if (empty(r["fitness_weights"])) r["fitness_weights"] = DEFAULT_FITNESS_WEIGHTS;
   }

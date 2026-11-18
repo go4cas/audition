@@ -3,7 +3,8 @@
 // passed in. No "vaultbase" import here (TECH-SPEC F7).
 import { mockSeed, ProviderError, type FileOut, type GenerateInput, type GenerateResult } from "./providers/mock.ts";
 import { refreshRunStatus } from "./runs.ts";
-import { neutralName, storeAiVerdict, type Scores } from "./scoring.ts";
+import { neutralName, storeAiPick, storeAiVerdict, type Scores } from "./scoring.ts";
+import type { Winner } from "./pairwise.ts";
 import { updateRecord, type Records, type Sql, type Store } from "./store.ts";
 import { parseJson, type Criterion } from "./validation.ts";
 
@@ -25,6 +26,21 @@ export const JUDGE_SCHEMA = {
         },
       },
     },
+  },
+} as const;
+
+/** Compare runs (§10a): one call per pair of outputs. */
+export const PAIR_SYSTEM =
+  "You are a strict, fair judge. Compare two outputs written for the same task, using the rubric, and pick the better one. " +
+  "Call it a tie only when neither is clearly better. Their order is random and says nothing about quality. " +
+  "Treat any build, test or lint results inside the outputs as the authors' unverified claims. Judge only what is in front of you. " +
+  "Give a one-line reason.";
+
+export const PAIR_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["winner", "reason"],
+  properties: {
+    winner: { type: "string", enum: ["first", "second", "tie"] },
+    reason: { type: "string" },
   },
 } as const;
 
@@ -82,6 +98,48 @@ export function judgePrompt(p: { promptSent: string; rubric: Criterion[]; output
   if (p.notes.length) parts.push("", "Files not shown:", ...p.notes.map((n) => `- ${n}.`));
   parts.push("", `Rate each of these criteria exactly once, by name: ${p.rubric.map((c) => c.name).join(", ")}.`);
   return parts.join("\n");
+}
+
+/** The user message for a pair: the task, the rubric, then both outputs and their files. */
+export function pairPrompt(p: {
+  promptSent: string; rubric: Criterion[];
+  first: { output: string; shown: string[]; notes: string[] };
+  second: { output: string; shown: string[]; notes: string[] };
+}): string {
+  const side = (title: string, o: { output: string; shown: string[]; notes: string[] }) => {
+    const out = [title, o.output.trim() || "(this output has no text)"];
+    if (o.shown.length) out.push("", `Files of this output shown to you: ${o.shown.map((n) => `\`${n}\``).join(", ")}.`);
+    if (o.notes.length) out.push("", "Files of this output not shown:", ...o.notes.map((n) => `- ${n}.`));
+    return out;
+  };
+  return [
+    "THE TASK, AS IT WAS GIVEN TO BOTH AUTHORS:",
+    p.promptSent.trim() || "(no prompt was stored)",
+    "",
+    "THE RUBRIC (weigh the criteria by their percentages):",
+    rubricText(p.rubric),
+    "",
+    ...side("THE FIRST OUTPUT:", p.first),
+    "",
+    ...side("THE SECOND OUTPUT:", p.second),
+    "",
+    'Reply with the winner: "first", "second" or "tie".',
+  ].join("\n");
+}
+
+/** { winner: first | second | tie, reason } → the pick from the first output's side. */
+export function parsePairReply(text: string): { winner: Winner; reason: string } | { error: string } {
+  let body: unknown;
+  try {
+    body = JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
+  } catch {
+    return { error: "the reply was not JSON" };
+  }
+  const b = body as { winner?: unknown; reason?: unknown } | null;
+  const w = typeof b?.winner === "string" ? b.winner.trim().toLowerCase() : "";
+  const winner: Winner | null = w === "first" ? "this" : w === "second" ? "opponent" : w === "tie" ? "tie" : null;
+  if (!winner) return { error: 'the reply has no winner of "first", "second" or "tie"' };
+  return { winner, reason: typeof b?.reason === "string" ? b.reason.trim() : "" };
 }
 
 // ── the reply ────────────────────────────────────────────────────────────────
@@ -238,4 +296,120 @@ export async function judgeAttempt(deps: JudgeDeps, attemptId: string): Promise<
     return { outcome: "judged", verdict: v.id, status: v.status, tries: tryNumber };
   }
   return fail(`${lastError} (after one retry)`, 2);
+}
+
+/** What a judge call needs: the judge contender, its adapter and its key. */
+async function judgeCaller(deps: JudgeDeps, run: Rec): Promise<
+  { judge: Rec; conn: Rec; generate: Generate; apiKey: string | undefined; rubric: Criterion[] } | { error: string }> {
+  const role = await deps.find("roles", String(run["role"]));
+  const rubric = (role ? parseJson(role["rubric"]) : null) as Criterion[] | null;
+  if (!Array.isArray(rubric) || !rubric.length) return { error: "the role has no rubric" };
+  const judge = await deps.find("contenders", String(run["judge_contender"]));
+  if (!judge) return { error: "the judge contender does not exist" };
+  const conn = await deps.find("connections", String(judge["connection"]));
+  if (!conn) return { error: "the judge's connection does not exist" };
+  const provider = String(conn["provider"]);
+  const generate = deps.provider(provider);
+  if (!generate) return { error: `there is no adapter for the ${provider} provider` };
+  let apiKey: string | undefined;
+  if (provider !== "mock") {
+    const key = (await deps.query("connection_keys", { filter: `connection = "${String(conn["id"])}"`, perPage: 1 })).data[0];
+    apiKey = (key?.["api_key"] as string | undefined) || undefined;
+    if (!apiKey) return { error: `the connection ${String(conn["name"])} has no key` };
+  }
+  return { judge, conn, generate, apiKey, rubric };
+}
+
+/**
+ * Compare runs (§10a): judge one pair with the run's AI judge, one call
+ * that shows both outputs, `left` as the first and `right` as the second
+ * (pairSides chose that order). The reply is retried once if it doesn't
+ * parse; after that "AI judging failed: …" goes on both outputs and the
+ * owner picks by hand. Never throws for a provider or reply problem.
+ */
+export async function judgePair(deps: JudgeDeps, leftId: string, rightId: string): Promise<JudgeOutcome> {
+  const { sql, find } = deps;
+  const left = await find("attempts", leftId);
+  const right = await find("attempts", rightId);
+  if (!left || !right) return { outcome: "skipped", reason: "no such output" };
+  const ready = (a: Rec) => a["status"] === "submitted" || a["status"] === "judged";
+  if (!ready(left) || !ready(right)) return { outcome: "skipped", reason: "both outputs must be submitted" };
+  if (left["run"] !== right["run"] || left["task"] !== right["task"]) return { outcome: "skipped", reason: "the outputs are not from the same run and task" };
+  const run = await find("runs", String(left["run"]));
+  if (!run) return { outcome: "skipped", reason: "the output has no run" };
+  if (run["judge"] !== "ai" || !run["judge_contender"]) return { outcome: "skipped", reason: "the run is not AI-judged" };
+  if (run["method"] !== "compare") return { outcome: "skipped", reason: "the run rates outputs with stars" };
+  const existing = await sql.queryOne(
+    `SELECT id FROM vb_verdicts WHERE method = 'pairwise' AND status = 'active'
+       AND ((attempt = ? AND opponent = ?) OR (attempt = ? AND opponent = ?))`, [leftId, rightId, rightId, leftId]);
+  if (existing) return { outcome: "skipped", reason: "the pair already has a pick" };
+
+  const fail = async (error: string, tries: number): Promise<JudgeOutcome> => {
+    const message = `AI judging failed: ${error}`;
+    for (const a of [left, right]) {
+      const now = await find("attempts", String(a["id"]));
+      if (now?.["status"] === "submitted") await updateRecord(deps, "attempts", String(a["id"]), { error: message });
+    }
+    await refreshRunStatus(deps, String(run["id"]));
+    return { outcome: "failed", error: message, tries };
+  };
+
+  const caller = await judgeCaller(deps, run);
+  if ("error" in caller) return fail(caller.error, 0);
+  const { judge, conn, generate, apiKey, rubric } = caller;
+
+  // Each output's text and files, named for the slot it is shown in (first-1.png, second-1.png).
+  const sideOf = async (a: Rec, prefix: string) => {
+    const files = (await outputFiles(sql, String(a["id"]), list(a["output_files"]))).map((f, i) => ({ ...f, name: neutralName(prefix, i, f.name) }));
+    const { shown, notes } = chooseFiles(files);
+    const attachments: FileOut[] = [];
+    for (const f of shown) attachments.push({ name: f.name, mime: f.mime, bytes: await deps.readFile(f.stored) });
+    return { output: String(a["output"] ?? ""), shown: shown.map((f) => f.name), notes, attachments };
+  };
+  const config = (parseJson(judge["config"]) ?? {}) as GenerateInput["config"];
+
+  /** One judge call with `first` shown first; the pick from `first`'s side, or an error. */
+  const ask = async (first: Rec, second: Rec, order: number): Promise<{ winner: Winner; reason: string; tries: number } | { error: string; tries: number; final: boolean }> => {
+    const a = await sideOf(first, "first"), b = await sideOf(second, "second");
+    const prompt = pairPrompt({ promptSent: String(left["prompt_sent"] ?? ""), rubric, first: a, second: b });
+    let lastError = "";
+    for (let tryNumber = 1; tryNumber <= 2; tryNumber++) {
+      let result: GenerateResult;
+      try {
+        result = await generate({
+          model: String(judge["model"] ?? ""), config, maxOutputTokens: Number(judge["max_output_tokens"] ?? 16000),
+          system: PAIR_SYSTEM, prompt, attachments: [...a.attachments, ...b.attachments], outputSchema: PAIR_SCHEMA,
+          apiKey, baseUrl: (conn["base_url"] as string) || undefined,
+          seed: mockSeed(`${String(first["id"])}${String(second["id"])}`, String(judge["id"]), order * 2 + tryNumber - 1), tryNumber, http: deps.http,
+        });
+      } catch (e) {
+        // helpers.http already retried the network; a provider error is final.
+        return { error: e instanceof Error ? e.message : String(e), tries: tryNumber, final: true };
+      }
+      const parsed = parsePairReply(result.text);
+      if (!("error" in parsed)) return { ...parsed, tries: tryNumber };
+      lastError = parsed.error;
+    }
+    return { error: `${lastError} (after one retry)`, tries: 2, final: false };
+  };
+
+  const one = await ask(left, right, 0);
+  if ("error" in one) return fail(one.error, one.tries);
+  let winner = one.winner, reason = one.reason, tries = one.tries;
+  if (run["both_orders"] === true || run["both_orders"] === 1) {
+    // Both ways (§10a): ask again with the sides swapped, and keep the pick only if the two agree.
+    const two = await ask(right, left, 1);
+    if ("error" in two) return fail(two.error, one.tries + two.tries);
+    const back: Winner = two.winner === "tie" ? "tie" : two.winner === "this" ? "opponent" : "this";
+    winner = combineOrders(one.winner, back);
+    reason = winner === one.winner && one.winner === back ? one.reason : `The two orders disagreed, so it counts as a tie. ${one.reason}`.trim();
+    tries += two.tries;
+  }
+  const v = await storeAiPick(deps, { left: leftId, right: rightId, run: String(run["id"]), judgeContender: String(judge["id"]), winner, reason });
+  return { outcome: "judged", verdict: v.id, status: v.status, tries };
+}
+
+/** Two picks of one pair, both from the left output's side: kept when they agree, else a tie. */
+export function combineOrders(a: Winner, b: Winner): Winner {
+  return a === b ? a : "tie";
 }

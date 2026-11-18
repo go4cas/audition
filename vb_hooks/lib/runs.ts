@@ -6,6 +6,7 @@ import { deriveCost } from "./cost.ts";
 import { attachFile } from "./files.ts";
 import { callProvider, ProviderError, type ApiProvider, type FileOut, type HttpLike } from "./providers/index.ts";
 import { mockSeed } from "./providers/mock.ts";
+import { methodOf, pairCount, queueJudging, settleCompareRun, type Method } from "./pairwise.ts";
 import { insertRecord, updateRecord, type Records, type Sql, type Store } from "./store.ts";
 import { listOf, parseJson } from "./validation.ts";
 
@@ -47,7 +48,7 @@ const quote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"
 
 // ── The run plan: validated body of POST /runs and /runs/preview ─────────────
 
-export interface RunBody { role: string; tasks: string[]; contenders: string[]; judge?: "me" | "ai" }
+export interface RunBody { role: string; tasks: string[]; contenders: string[]; judge?: "me" | "ai"; method?: Method; both_orders?: boolean }
 
 export interface PlanContender { contender: Rec; connection: Rec }
 export interface Plan {
@@ -56,6 +57,10 @@ export interface Plan {
   tasks: Rec[];
   contenders: PlanContender[];
   judge: "me" | "ai";
+  /** How the judge decides: stars per output ("rate") or picks between two ("compare"). */
+  method: Method;
+  /** Compare with the AI judge only: ask each pair twice, sides swapped (§10a). */
+  bothOrders: boolean;
   judgeContender: PlanContender | null;
 }
 
@@ -69,7 +74,13 @@ export function parseRunBody(raw: unknown): RunBody {
   };
   if (typeof b.role !== "string" || !ID.test(b.role)) throw new RunError(422, "Choose a role.");
   if (b.judge !== undefined && b.judge !== null && b.judge !== "me" && b.judge !== "ai") throw new RunError(422, 'The judge is "me" or "ai".');
-  return { role: b.role, tasks: ids(b.tasks, "task"), contenders: ids(b.contenders, "contender"), ...(b.judge ? { judge: b.judge as "me" | "ai" } : {}) };
+  if (b.method !== undefined && b.method !== null && b.method !== "rate" && b.method !== "compare") throw new RunError(422, 'The judging method is "rate" or "compare".');
+  return {
+    role: b.role, tasks: ids(b.tasks, "task"), contenders: ids(b.contenders, "contender"),
+    ...(b.judge ? { judge: b.judge as "me" | "ai" } : {}),
+    ...(b.method ? { method: b.method as Method } : {}),
+    ...(b.both_orders === true ? { both_orders: true } : {}),
+  };
 }
 
 async function contenderWithConnection(deps: Deps, id: string): Promise<PlanContender | null> {
@@ -107,6 +118,8 @@ export async function loadPlan(deps: Deps, body: RunBody, judgeContenderId?: str
   }
 
   const judge = body.judge ?? ((workspace["default_judge"] as "me" | "ai") || "me");
+  const method: Method = body.method ?? (workspace["default_method"] === "compare" ? "compare" : "rate");
+  if (method === "compare" && contenders.length < 2) throw new RunError(422, "Compare needs at least two contenders. Pick another one, or rate with stars.");
   let judgeContender: PlanContender | null = null;
   if (judge === "ai") {
     const jid = judgeContenderId ?? (workspace["judge_contender"] as string | null);
@@ -115,7 +128,8 @@ export async function loadPlan(deps: Deps, body: RunBody, judgeContenderId?: str
     if (!judgeContender) throw new RunError(422, "The workspace's AI judge no longer exists.");
     if (judgeContender.contender["mode"] !== "api") throw new RunError(422, "The AI judge must be a contender Audition can call (not copy and paste).");
   }
-  return { role, workspace, tasks, contenders, judge, judgeContender };
+  const bothOrders = body.both_orders === true && method === "compare" && judge === "ai";
+  return { role, workspace, tasks, contenders, judge, method, bothOrders, judgeContender };
 }
 
 // ── Preview: call counts and warnings ────────────────────────────────────────
@@ -133,14 +147,16 @@ export interface Preview {
  * Call count (§8, the spending guard): API outputs, plus the outputs to be
  * judged when the judge is AI and isn't the mock. judge_calls always shows
  * how many outputs the AI judge will score; the mock judge's calls are free,
- * so they are left out of the total.
+ * so they are left out of the total. With Compare the AI judge is called
+ * once per pair: n contenders make n × (n − 1) / 2 pairs per task.
  */
 export function previewOf(plan: Plan): Preview {
   const n = plan.tasks.length;
   const api = plan.contenders.filter((c) => c.contender["mode"] === "api").length;
   const handoff = plan.contenders.length - api;
   const outputs = n * plan.contenders.length;
-  const judgeCalls = plan.judge === "ai" ? outputs : 0;
+  const judged = plan.method === "compare" ? n * pairCount(plan.contenders.length) * (plan.bothOrders ? 2 : 1) : outputs;
+  const judgeCalls = plan.judge === "ai" ? judged : 0;
   const judgeIsMock = plan.judgeContender?.connection["provider"] === "mock";
   return {
     outputs,
@@ -194,6 +210,8 @@ export async function startRun(deps: Deps, plan: Plan, render: PromptForTask, op
     tasks: plan.tasks.map((t) => t["id"]),
     contenders: plan.contenders.map((c) => c.contender["id"]),
     judge: plan.judge,
+    method: plan.method,
+    both_orders: plan.bothOrders,
     judge_contender: plan.judgeContender?.contender["id"] ?? null,
     rerun_of: opts.rerunOf ?? null,
     status: "running",
@@ -230,7 +248,7 @@ export async function rerunPlan(deps: Deps, runId: string): Promise<Plan> {
   const run = await deps.find("runs", runId);
   if (!run) throw new RunError(404, "That run does not exist.");
   if (run["status"] !== "done") throw new RunError(409, "Run again is possible once this run is done.");
-  const body: RunBody = { role: String(run["role"]), tasks: listOf(run["tasks"]), contenders: listOf(run["contenders"]), judge: run["judge"] as "me" | "ai" };
+  const body: RunBody = { role: String(run["role"]), tasks: listOf(run["tasks"]), contenders: listOf(run["contenders"]), judge: run["judge"] as "me" | "ai", method: methodOf(run), both_orders: run["both_orders"] === true || run["both_orders"] === 1 };
   return loadPlan(deps, body, (run["judge_contender"] as string | null) || null);
 }
 
@@ -252,6 +270,9 @@ export function runStatusFrom(statuses: string[]): RunStatus {
  * status moves, so its record history shows running → judging → done.
  */
 export async function refreshRunStatus(store: Store, runId: string): Promise<RunStatus | null> {
+  const method = await store.sql.queryOne<{ method: string | null }>(`SELECT method FROM vb_runs WHERE id = ?`, [runId]);
+  // Compare: an output is judged once all of its pairs are decided.
+  if (method?.method === "compare") await settleCompareRun(store, runId);
   const rows = await store.sql.query<{ status: string }>(`SELECT status FROM vb_attempts WHERE run = ?`, [runId]);
   if (rows.length === 0) return null;
   const status = runStatusFrom(rows.map((r) => r.status));
@@ -389,9 +410,7 @@ export async function runGenerate(deps: WorkerDeps, attemptId: string): Promise<
       await updateRecord(deps, "attempts", attemptId, { status: "failed", error: errorText(e), provider_calls: calls });
     }
     deps.log(`generate attempt=${attemptId} status=${status} calls=${calls}`);
-    if (status === "submitted" && run["judge"] === "ai") {
-      await deps.enqueue("judge", { attempt: attemptId }, { uniqueKey: `judge:${attemptId}` });
-    }
+    if (status === "submitted") await queueJudging(deps, run, attemptId);
     await refreshRunStatus(deps, runId);
     return { status, calls };
   } catch (e) {

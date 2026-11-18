@@ -7,7 +7,7 @@ import { html, reactive } from "@arrow-js/core";
 import { custom } from "../../api.js";
 import { APP, go, routeArgs } from "../../lib/nav.js";
 import { busy, crumbs, page } from "../../components/page.js";
-import { TYPE_ICON, avatar, chip, duration, errorToast, icon, money, num, outputChip, plural, popId, time, toast } from "../../lib/ui.js";
+import { TYPE_ICON, avatar, chip, duration, errorToast, icon, money, num, outputChip, plural, popId, time, toast, METHOD_LABEL } from "../../lib/ui.js";
 import { load, runLabel } from "../../state/data.js";
 import { refreshInbox } from "../../state/inbox.js";
 import { subscribe } from "../../lib/realtime.js";
@@ -80,7 +80,7 @@ export default function run() {
         ${crumbs([["Workspaces", APP + "/"], [ws?.name || "Workspace", APP + "/w/" + r.workspace], [role?.name || "Role", APP + "/r/" + r.role]])}
         <div class="page-head">
           <div><h1>${runLabel(d, r)} · ${role?.name}</h1>
-            <p class="lede row-tight"><span class="badge">${icon(r.judge === "ai" ? "ai" : "me")}Judge: ${judgeName}</span><span class="badge">${icon("time")}Started ${time(r.created)}</span><span class="badge">${plural(taskIds.length, "task")} × ${plural(r.contenders?.length || 0, "contender")}</span>${r.rerun_of ? html`<a class="badge link-plain" href="${APP + "/runs/" + r.rerun_of}">${icon("again")}Again from ${runLabel(d, { id: r.rerun_of })}</a>` : ""}</p></div>
+            <p class="lede row-tight"><span class="badge">${icon(r.judge === "ai" ? "ai" : "me")}Judge: ${judgeName}</span><span class="badge">${icon(r.method === "compare" ? "judge" : "star")}${METHOD_LABEL[r.method === "compare" ? "compare" : "rate"]}${r.both_orders ? ", both ways" : ""}</span><span class="badge">${icon("time")}Started ${time(r.created)}</span><span class="badge">${plural(taskIds.length, "task")} × ${plural(r.contenders?.length || 0, "contender")}</span>${r.rerun_of ? html`<a class="badge link-plain" href="${APP + "/runs/" + r.rerun_of}">${icon("again")}Again from ${runLabel(d, { id: r.rerun_of })}</a>` : ""}</p></div>
           <div class="row">
             <a class="btn" href="${APP + "/leaderboard/" + r.role}">${icon("leaderboard")}Leaderboard</a>
             ${() => (v().run.status === "done" ? html`<button class="btn btn--primary" type="button" @click="${again}">${icon("again", "i--spin-on-hover")}Run again</button>` : html`<span data-tip="Available when every output is in and judged" tabindex="0"><button class="btn" type="button" disabled>${icon("again")}Run again</button></span>`)}

@@ -21,7 +21,7 @@ The output is a routing table: the current champion (casting) for each role, sho
 
 - Automated harness runners and sandboxes (Phase 3).
 - Agents reporting back on their own, and MCP access. You copy the prompt out and paste the result back.
-- Pairwise (A versus B) judging. Phase 1 judges with star ratings only.
+- Pairwise (A versus B) judging. Phase 1 judges with star ratings only. (Added after Phase 1 as "Compare", Nov 18, 2026; see Judging.)
 - Audition running checks itself (build, tests, lint, screenshots). Agents report those results in their reply.
 - Audition generating images itself. Image contenders return images by upload.
 - Public benchmarks, or statistics beyond confidence ranges.
@@ -58,7 +58,7 @@ Thirteen Vaultbase collections plus one view (T0 counted them against the built 
 | Collection | Kind | Key fields |
 | --- | --- | --- |
 | users | auth | The single owner account, with MFA available. No other logins in Phase 1. |
-| workspaces | base | name, description, judge_contender → contenders, default_judge (me / ai), min_outputs (default 5), fitness_weights (json: quality, tokens, time; default quality only), composer_contender → contenders (*later*) |
+| workspaces | base | name, description, judge_contender → contenders, default_judge (me / ai), default_method (rate / compare; default rate), min_outputs (default 5), fitness_weights (json: quality, tokens, time; default quality only), composer_contender → contenders (*later*) |
 | stages | base | workspace, name, order. Optional. |
 | roles | base | workspace, stage (optional), name, description, rubric (json: criteria with name, weight, guidance), pass_mark (stars, 1 to 5), default_output_type |
 | tasks | base | role, title, prompt (editor), output_type (text / image / file / code), attachments (files), base_ref (repo + commit, coding tasks only), locked, previous_version → tasks, composed_prompt (*later*) |
@@ -66,9 +66,9 @@ Thirteen Vaultbase collections plus one view (T0 counted them against the built 
 | connection_keys | base | connection, api_key (**encrypted**). The owner can write a key but never read it back; only server code reads it. |
 | contenders | base | connection, name, mode (api / handoff; runner *later*), model, group (for leaderboard grouping), config (json: system prompt, effort, temperature for OpenAI-compatible only), max_output_tokens, price_in_per_mtok (optional), price_out_per_mtok (optional), locked, previous_version → contenders, enabled |
 | handoff_templates | base | name, kind (generic; coding-harness and app *later*), body with {{vars}}, return_instructions. Phase 1 seeds one generic template. |
-| runs | base | workspace, role, tasks (list of ids), contenders (list of ids), judge (me / ai), judge_contender, rerun_of → runs (optional), status, call_count, schedule (cron, *later*) |
+| runs | base | workspace, role, tasks (list of ids), contenders (list of ids), judge (me / ai), method (rate / compare; empty means rate), both_orders (Compare with the AI judge: ask each pair both ways), judge_contender, rerun_of → runs (optional), status, call_count, schedule (cron, *later*) |
 | attempts | base | run, task, contender, mode, status, prompt_sent, output, output_files, tokens_in, tokens_out, duration_ms, provider_calls (retries included), cost (derived, empty when unknown), metrics_source (measured / manual), finish_reason, error, submitted_at |
-| verdicts | base | attempt, run, method (rubric; pairwise and outcome *later*), judge_kind (human / ai), judge_contender, scores (json: stars and a one-line reason per criterion), rubric_snapshot (json), score (weighted, 1 to 5), status (active / overridden), opponent, winner, due_at (all three *later*) |
+| verdicts | base | attempt, run, method (rubric, pairwise for Compare picks, outcome for outcome checks), judge_kind (human / ai), judge_contender, scores (json: stars and a one-line reason per criterion; for a pick, the reason only), rubric_snapshot (json), score (weighted, 1 to 5; empty for a pick), status (active / overridden), opponent and winner (this / opponent / tie; Compare picks only), due_at (outcome checks only) |
 | castings | base | role, contender, since, rationale, suggested_by (system / human), confirmed |
 | leaderboard | view | SQL over attempts and verdicts, per role × contender: outputs scored, mean score, confidence range, mean tokens, mean time, mean cost (or N/A), fitness |
 
@@ -116,7 +116,10 @@ Uploads accept text, images, PDFs and zip files, up to 25 MB per file.
 
 ## Judging, fitness and casting
 
-Phase 1 has one judging method: **star ratings against the role's rubric**.
+Phase 1 had one judging method: **star ratings against the role's rubric**. Since Nov 18, 2026 each run picks one of two methods, and the workspace sets the default:
+
+- **Rate (stars)**, the Phase 1 method below.
+- **Compare (A vs B)**, described after it.
 
 - **The rubric.** Each role has a few criteria, each with a weight (percentages that add up to 100) and a line of guidance. The judge gives each output 1 to 5 stars per criterion, and Audition computes the weighted score, from 1 to 5.
 - **One judging screen per task.** It shows all of a run's outputs for that task side by side, unlabelled and in shuffled order ("Output A, B, C"). Text is shown side by side; images are shown in a grid. The best output is the one with the highest score.
@@ -126,6 +129,14 @@ Phase 1 has one judging method: **star ratings against the role's rubric**.
 - **Code and UI outputs.** Build, test and lint results and screenshots arrive inside the output. The judging screen shows the text and images together and labels these results as the agent's own claim, because Audition runs no checks.
 
 Verdicts are separate records, so later phases can add pairwise picks and delayed outcome verdicts to the same attempts.
+
+**Compare (A vs B).** Added Nov 18, 2026 (Cas approved the `runs.method` and `workspaces.default_method` fields and the leaderboard change).
+
+- **One choice per run.** "Start a run" offers "How to judge": Rate (stars) or Compare (A vs B). The workspace setting picks which one is preselected. Compare needs at least two contenders. Run again and scheduled repeats keep the run's method.
+- **Two outputs at a time.** The judging screen shows one pair of a task's outputs side by side, still unlabelled and shuffled, and three buttons: "A is better", "About the same", "B is better". Each task with n outputs has n × (n − 1) / 2 pairs (3 outputs make 3 pairs, 4 make 6). The rubric is shown as the meaning of "better".
+- **Me or AI, with override.** The AI judge is called once per pair, sees both outputs and their images in one call, and returns the winner and a one-line reason. Which output is shown first is shuffled per pair, because judges tend to favour one side. The owner can change any pick; the owner's pick then counts and the AI's stays in history. A per-run checkbox, **Ask the AI judge both ways** (off by default), asks each pair a second time with the sides swapped; if the two answers disagree, the pair counts as a tie. It doubles the AI judge calls, and Start a run shows the exact count before you start (Cas, Nov 18, 2026).
+- **Scores.** An output's score is 1 + 4 × its win share, a tie counting half: it beat every rival → 5, lost every pair → 1, all ties → 3. It is on the same 1 to 5 scale as a star score, so both kinds feed the same leaderboard, fitness and champion rules. An output is judged once all of its pairs are decided. An output whose rivals all failed has nothing to be compared with: it is marked judged without a score and doesn't count.
+- **What the two mean.** A star score is absolute (how good against the rubric); a Compare score is relative (how it did against the others in that run). Mixing both in one role is allowed. Comparing works best when the contenders are close, or when star ratings feel arbitrary. The leaderboard average is the plain mean of a contender's per-output scores, rated or compared, each output counting once; the judging screen and the leaderboard explain this with a worked example ("How is this score worked out?").
 
 **Fitness** is calculated per role × contender across all runs, never per run:
 
@@ -199,7 +210,7 @@ Phase 1 proves the whole loop — tasks → runs → judging → casting — wit
 
 **First after Phase 1:** move server writes onto the Vaultbase records API (an API token plus a `hooks.http.allow` loopback exception, or a write helper if Vaultbase adds one: https://github.com/vaultbase-sh/vaultbase/discussions/10), then turn on record history for verdicts and castings and realtime for the run page (NOTES R5). Done for the writes and history on Nov 11, 2026 with `helpers.records` (Vaultbase 0.43, `docs/PLATFORM-UPGRADES.md` part B); realtime for the run page followed in its own PR (B3).
 
-**Deferred from Phase 1, phase not yet set:** agent report tokens and self-report; MCP, including MCP reads of castings; the coding-harness and app templates; pairwise judging; platform-run checks and screenshot capture; the stale-attempt cron; API adapters for image models; cost estimates before a run.
+**Deferred from Phase 1, phase not yet set:** agent report tokens and self-report; MCP, including MCP reads of castings; the coding-harness and app templates; pairwise judging (done Nov 18, 2026 as Compare); platform-run checks and screenshot capture; the stale-attempt cron; API adapters for image models; cost estimates before a run.
 
 ### Roadmap after Phase 1
 
@@ -209,7 +220,7 @@ Approved by Cas on Nov 11, 2026. Each step is its own thread and PR, in this ord
 | --- | --- | --- | --- |
 | 1 — Wrap-up | Realtime run page (part B3 of `docs/PLATFORM-UPGRADES.md`), with polling kept as the fallback when the connection drops. One combined request to the Vaultbase author: text/markdown, zip and csv on the upload allowlist (NOTES W1), a server-side file helper (Q2) and an "only if" condition on `helpers.records.update` (Q3). Tag v0.2.0 and deploy it by `docs/RELEASE.md`; Cas runs the server steps and the real Anthropic check. | Realtime | The run page updates without polling, and v0.2.0 runs on Cas's server |
 | 2 — Phase 2a, living arena lite | Scheduled runs of a role, using the existing `runs.schedule` field. A stale-attempt sweep. Outcome verdicts that come due on a set date, starting with Stock Review ("was the call right four weeks later?"), using the existing `verdicts.due_at` field. An email to the owner when a run finishes or a role's champion changes. | Cron, email | The Phase 2 Done-when: a scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
-| Later, phase not set | MCP read-only access to castings; the Composer utility role; guest voters; vector match of new tasks to roles; pairwise judging; API adapters for image models; push alerts (built, docs/PUSH-ALERTS.md); contender rollout by feature flags; Levare reading castings. (Outline chips: done Nov 13 2026. Off-server R2 copy of backups: built Nov 18 2026, Vaultbase's own S3 backup copy, docs/RELEASE.md "Off-server copy".) Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, feature flags | Each is picked and scoped with Cas before its thread starts |
+| Later, phase not set | MCP read-only access to castings; the Composer utility role; guest voters; vector match of new tasks to roles; pairwise judging (done Nov 18, 2026: Compare (A vs B), see Judging); API adapters for image models; push alerts (built, docs/PUSH-ALERTS.md); contender rollout by feature flags; Levare reading castings. (Outline chips: done Nov 13 2026. Off-server R2 copy of backups: built Nov 18 2026, Vaultbase's own S3 backup copy, docs/RELEASE.md "Off-server copy".) Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, feature flags | Each is picked and scoped with Cas before its thread starts |
 
 ## Phase 1 thread plan
 

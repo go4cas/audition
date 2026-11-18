@@ -232,6 +232,7 @@ Rules: list `id = @request.auth.id` · view `id = @request.auth.id` · create `"
 | description | text | |
 | default_judge | select `me`, `ai` | default `me` |
 | judge_contender | rel → contenders, setNull | The AI judge. Required when `default_judge = ai` (hook). |
+| default_method | select `rate`, `compare` | default `rate`. Which judging method "Start a run" preselects (§10a, Nov 18, 2026). |
 | min_outputs | number, min 1 | default 5 |
 | fitness_weights | json | `{ "quality": 100, "tokens": 0, "time": 0 }`, percentages summing to 100 (hook) |
 | composer_contender | rel → contenders, setNull | *later* |
@@ -344,6 +345,8 @@ Rules: list, view and update `OWNER` · create and delete `""`. T0 seeds one gen
 | contenders | json | List of contender ids, as `tasks`. |
 | judge | select `me`, `ai` | |
 | judge_contender | rel → contenders | Copied from the workspace when `judge = ai` |
+| method | select `rate`, `compare` | How the judge decides (§10a). From the request, else the workspace's `default_method`. Empty on runs from before Nov 18, 2026, which read as `rate`. Run again copies it. |
+| both_orders | bool | Compare with the AI judge only: "Ask the AI judge both ways" (Cas, Nov 18, 2026). From the request's `both_orders`; forced false otherwise. Run again copies it. |
 | rerun_of | rel → runs, setNull | |
 | status | select `running`, `judging`, `done` | |
 | call_count | number | The spending-guard figure shown before start |
@@ -382,20 +385,20 @@ The `beforeUpdate` hook allows the owner to change only `output`, `output_files`
 | --- | --- | --- |
 | attempt | rel → attempts, cascade, required | |
 | run | rel → runs, cascade | Denormalised for queries |
-| method | select `rubric`, `pairwise`, `outcome` | `rubric`; `outcome` for Phase 2a outcome checks (`docs/PHASE-2A.md`) |
+| method | select `rubric`, `pairwise`, `outcome` | `rubric` on Rate runs; `pairwise` for a pick on a Compare run (§10a); `outcome` for Phase 2a outcome checks (`docs/PHASE-2A.md`) |
 | judge_kind | select `human`, `ai` | |
 | judge_contender | rel → contenders, setNull | For AI verdicts |
-| scores | json | `{ "<criterion>": { "stars": 1-5, "reason": "…" } }` |
+| scores | json | `{ "<criterion>": { "stars": 1-5, "reason": "…" } }`; for a pick `{ "reason": "…" }` or empty |
 | rubric_snapshot | json | The role's rubric at the moment of scoring |
-| score | number | Weighted, 1 to 5, two decimals |
-| status | select `active`, `overridden` | Exactly one `active` rubric verdict per scored attempt; an outcome check stays `active` alongside it |
-| opponent | rel → attempts | *later* |
-| winner | select `this`, `opponent`, `tie` | *later* |
+| score | number | Weighted, 1 to 5, two decimals. Empty for a pick: the leaderboard view works out a Compare output's score from its picks. |
+| status | select `active`, `overridden` | Exactly one `active` rubric verdict per scored attempt, and one `active` pick per pair; an outcome check stays `active` alongside either |
+| opponent | rel → attempts | Picks only: the output shown on the right; `attempt` is the one on the left |
+| winner | select `this`, `opponent`, `tie` | Picks only, from `attempt`'s side |
 | due_at | date | Outcome checks only: when the check comes due (unix seconds). Score stays empty until the owner scores it. |
 
 Rules: list and view `OWNER` · create `OWNER` (human verdicts only) · update and delete `—`.
 
-The `beforeCreate` hook forces `judge_kind = human` and `method = rubric`. It fills `run`, `rubric_snapshot` and `score`, and checks that every rubric criterion has whole-number stars from 1 to 5. The attempt must be `submitted` or `judged`. The `afterCreate` hook marks every earlier active verdict on that attempt `overridden`, and sets the attempt to `judged`. AI verdicts are written by the judge worker through `store.ts` (the records API); the `afterCreate` hook skips server writes, because the worker activates its own verdict before it finishes.
+The `beforeCreate` hook forces `judge_kind = human`, and the run's method decides the rest. On a Rate run it forces `method = rubric` (any `opponent` or `winner` sent is dropped). It fills `run`, `rubric_snapshot` and `score`, and checks that every rubric criterion has whole-number stars from 1 to 5. The attempt must be `submitted` or `judged`. The `afterCreate` hook marks every earlier active verdict on that attempt `overridden`, and sets the attempt to `judged`. On a Compare run it forces `method = pairwise`, needs an `opponent` that is another submitted or judged output of the same run and task and a `winner`, keeps an optional `scores.reason`, and empties `score` and `rubric_snapshot`. Its `afterCreate` marks any earlier active pick on the same pair (either way round) `overridden` and refreshes the run, which judges the outputs whose pairs are all decided. AI verdicts are written by the judge worker through `store.ts` (the records API); the `afterCreate` hook skips server writes, because the worker activates its own verdict before it finishes.
 
 ### castings
 
@@ -416,28 +419,40 @@ These are raw aggregates only. Confidence ranges, fitness and the suggested cham
 
 ```sql
 SELECT
-  r.role || ':' || a.contender                                   AS id,
-  r.role                                                         AS role,
-  a.contender                                                    AS contender,
-  COUNT(v.id)                                                    AS n,
-  AVG(v.score)                                                   AS mean_score,
-  SUM(v.score * v.score)                                         AS sum_sq,
+  r.role || ':' || a.contender AS id,
+  r.role AS role,
+  a.contender AS contender,
+  COUNT(v.score) AS n,
+  AVG(v.score) AS mean_score,
+  SUM(v.score * v.score) AS sum_sq,
   COUNT(CASE WHEN a.tokens_in IS NOT NULL AND a.tokens_out IS NOT NULL THEN 1 END) AS n_tokens,
-  AVG(a.tokens_in + a.tokens_out)                                AS mean_tokens,
-  COUNT(a.duration_ms)                                           AS n_time,
-  AVG(a.duration_ms)                                             AS mean_time_ms,
-  COUNT(a.cost)                                                  AS n_cost,
-  AVG(a.cost)                                                    AS mean_cost,
+  AVG(a.tokens_in + a.tokens_out) AS mean_tokens,
+  COUNT(a.duration_ms) AS n_time,
+  AVG(a.duration_ms) AS mean_time_ms,
+  COUNT(a.cost) AS n_cost,
+  AVG(a.cost) AS mean_cost,
   (SELECT COUNT(o.score) … WHERE o.method = 'outcome' AND o.status = 'active'
      AND orun.role = r.role AND oa.contender = a.contender)       AS n_outcome,
   (SELECT AVG(o.score) …same…)                                   AS mean_outcome
 FROM vb_attempts a
-JOIN vb_runs r     ON r.id = a.run
-JOIN vb_verdicts v ON v.attempt = a.id AND v.status = 'active' AND COALESCE(v.method, 'rubric') = 'rubric'
+JOIN vb_runs r ON r.id = a.run
+JOIN (
+  SELECT rv.attempt AS attempt, rv.score AS score FROM vb_verdicts rv
+    WHERE rv.status = 'active' AND COALESCE(rv.method, 'rubric') = 'rubric'
+  UNION ALL
+  SELECT p.attempt AS attempt, ROUND(1 + 4.0 * SUM(p.points) / COUNT(*), 2) AS score FROM (
+    SELECT pv.attempt AS attempt, CASE pv.winner WHEN 'this' THEN 1.0 WHEN 'tie' THEN 0.5 ELSE 0.0 END AS points
+      FROM vb_verdicts pv WHERE pv.method = 'pairwise' AND pv.status = 'active'
+    UNION ALL
+    SELECT pv.opponent AS attempt, CASE pv.winner WHEN 'opponent' THEN 1.0 WHEN 'tie' THEN 0.5 ELSE 0.0 END AS points
+      FROM vb_verdicts pv WHERE pv.method = 'pairwise' AND pv.status = 'active' AND pv.opponent IS NOT NULL
+  ) p JOIN vb_attempts pa ON pa.id = p.attempt AND pa.status = 'judged'
+  GROUP BY p.attempt
+) v ON v.attempt = a.id
 GROUP BY r.role, a.contender
 ```
 
-The exact query is in `schema/snapshot.json`. Phase 2a (Cas approved Nov 12, 2026): quality counts rubric verdicts only, and scored outcome checks get their own two columns, which never enter quality or fitness. Only scored outputs count, and tokens and time are averaged over those same outputs. Rules: list and view `OWNER`. T0 confirms the table names (`vb_<name>`, from `src/core/collections.ts`, `userTableName`) and the storage form of relation columns before writing this query.
+The exact query is in `schema/snapshot.json`. `v` holds one score per scored output: its active rubric verdict's score on a Rate run, or on a Compare run `1 + 4 × (wins + ties / 2) / pairs played` over its active picks, counted once the output is `judged` (§10a, Nov 18, 2026). Phase 2a (Cas approved Nov 12, 2026): quality counts rubric verdicts only, and scored outcome checks get their own two columns, which never enter quality or fitness. Only scored outputs count, and tokens and time are averaged over those same outputs. Rules: list and view `OWNER`. T0 confirms the table names (`vb_<name>`, from `src/core/collections.ts`, `userTableName`) and the storage form of relation columns before writing this query.
 
 ## 7. Custom routes
 
@@ -446,7 +461,7 @@ All routes need the owner (`requireAuth: true`, plus a check that the caller is 
 | Method and path | Thread | Does |
 | --- | --- | --- |
 | `GET /app/*` | T0 | Serves `ui/dist`. Unknown paths serve `index.html`. Not signed in, because the UI itself handles sign-in. |
-| `POST /runs/preview` | T1 | `{ role, tasks[], contenders[], judge }` → `{ outputs, api_calls, handoff_outputs, judge_calls, total_provider_calls, warnings[] }`. Warnings include "the AI judge shares a provider with Mock Steady". |
+| `POST /runs/preview` | T1 | `{ role, tasks[], contenders[], judge, method? }` (`method` is `rate` or `compare`, default the workspace's; `compare` needs two contenders or more) → `{ outputs, api_calls, handoff_outputs, judge_calls, total_provider_calls, warnings[] }`. Warnings include "the AI judge shares a provider with Mock Steady". |
 | `POST /runs` | T1 | Same body as preview. Checks that the tasks belong to the role and the contenders are enabled, renders one prompt per task (§9), creates the run and one attempt per task × contender, locks every task and contender used, then enqueues each API attempt on `generate`. Returns `{ run }`. |
 | `POST /runs/:id/again` | T1 | A new run with the same role, tasks, contenders and judge, `rerun_of = :id`. Only for runs that are `done`. |
 | `GET /runs/:id` | T1 | `{ run, counts: { queued, in_progress, waiting, submitted, judged, failed }, attempts: [{ id, task, contender, mode, status, tokens_in, tokens_out, duration_ms, provider_calls, cost, finish_reason, error }] }`, for the live view to poll. Not blind. |
@@ -470,7 +485,7 @@ There are two queues. Each queue has one worker file.
 5. On failure (refusal, HTTP error after retries, timeout, or a bad response), set `status = failed` and record `error`. Nothing is rethrown, so the queue never spins.
 6. If the run's judge is `ai`, enqueue `judge` with `{ attempt }`. Then refresh the run's status.
 
-**`judge`** (`vb_hooks/workers/judge.ts`, concurrency 2). This worker calls the run's `judge_contender` through the same adapters, with the judge prompt and output schema (§10). It stores an `ai` verdict with `status = active`, unless a human verdict already exists, and sets the attempt to `judged`. If the reply doesn't match the schema, it retries once. After that it leaves the attempt `submitted`, writes "AI judging failed: …" to `attempt.error`, and the owner judges it by hand.
+**`judge`** (`vb_hooks/workers/judge.ts`, concurrency 2). On a Compare run the payload is `{ attempt, opponent }`, one job per pair, and the worker runs `judgePair` instead (§10a). Otherwise this worker calls the run's `judge_contender` through the same adapters, with the judge prompt and output schema (§10). It stores an `ai` verdict with `status = active`, unless a human verdict already exists, and sets the attempt to `judged`. If the reply doesn't match the schema, it retries once. After that it leaves the attempt `submitted`, writes "AI judging failed: …" to `attempt.error`, and the owner judges it by hand.
 
 **Run status.** `lib/runs.ts`, `refreshRunStatus`, recomputes the status after every attempt change:
 
@@ -482,7 +497,7 @@ A run of only failures is `done`. Failed attempts aren't judged and don't count.
 
 **Cost.** `cost = (tokens_in × price_in_per_mtok + tokens_out × price_out_per_mtok) / 1,000,000`. It is computed only when both prices and both token counts are present; otherwise it stays empty and shows "N/A".
 
-**Call count** (spending guard). It is the number of API outputs, plus the number of outputs to be judged when the judge is `ai` and the judge contender isn't the mock. Handoff outputs make no generation call, but are counted under "judge calls" when the judge is AI.
+**Call count** (spending guard). It is the number of API outputs, plus the number of outputs to be judged (on a Compare run, the number of pairs: tasks × n × (n − 1) / 2) when the judge is `ai` and the judge contender isn't the mock. Handoff outputs make no generation call, but are counted under "judge calls" when the judge is AI.
 
 ## 9. Prompt rendering (generic template)
 
@@ -576,11 +591,25 @@ Output is constrained with `output_config.format`:
 
 **Same-provider warning.** It applies when the judge contender's connection provider equals the provider of any API contender in the run, or when a handoff contender's name contains the judge's provider name. That second check is a heuristic, shown as "may share a provider". The warning appears in the preview and on the run page.
 
+## 10a. Compare (A vs B) judging
+
+Added Nov 18, 2026 (Cas approved the two fields and the view change). The code is `lib/pairwise.ts`, with the AI call in `lib/judge.ts` (`judgePair`) and the payload in `lib/scoring.ts`.
+
+- **Method.** `runs.method` is `rate` or `compare`. `POST /runs` takes `method`, else uses `workspaces.default_method`. Compare with fewer than two contenders is refused (422).
+- **Pairs.** For each task, every two non-failed outputs make a pair. `pairSides(run, x, y)` decides which is shown left (first to the AI): stable, but shuffled per pair by SHA-256 of the run id and both ids, so neither side is favoured.
+- **A pick** is one verdict: `method = pairwise`, `attempt` = left, `opponent` = right, `winner` = `this`, `opponent` or `tie`, `score` empty. One active pick per pair; a new one marks the old one `overridden`. The owner's pick beats the AI's, like a star override.
+- **Judged.** `refreshRunStatus` first runs `settleCompareRun`: once none of a task's outputs is queued, in progress or waiting, each submitted output whose pairs all have an active pick moves to `judged` (and gets its outcome check, Phase 2a). An output with no live rival is judged at once without a score. The run's status rules (§8) are unchanged.
+- **Score.** `1 + 4 × (wins + ties / 2) / played`, two decimals, worked out by the leaderboard view (§6) and by the payload below. It never gets stored, so an overridden pick changes it at once.
+- **Both ways** (`runs.both_orders`, a per-run checkbox, off by default). `judgePair` asks a second time with the sides swapped and keeps the pick only if both answers agree; if they disagree the pick is a tie, with the reason saying so. Still one verdict per pair. The call count doubles (preview and `call_count`), and Start a run shows the cost next to the checkbox: "Both ways: 12 AI judge calls instead of 6."
+- **AI judge.** When an output is submitted, `queueJudging` enqueues one `judge` job per rival already in (unique key `judge:<left>:<right>`), so each pair is queued once, by whichever output arrived last. `judgePair` sends both outputs in one call: the system prompt `PAIR_SYSTEM`, the task as sent, the rubric with weights, "THE FIRST OUTPUT" and "THE SECOND OUTPUT" with their files (neutral names `first-1.png`, `second-1.png`; the same file rules as Q5). Output schema: `{ winner: "first" | "second" | "tie", reason: string }`. A bad reply is retried once; then "AI judging failed: …" goes on both outputs and the owner picks. The mock judge picks the higher `[[mock-quality:n]]` marker.
+- **Blind payload.** On a Compare run `run.method` is `compare`, each output has `record: { wins, ties, losses, played, score }` and `verdict: null`, and there is a `pairs` list in label order (A vs B, A vs C, B vs C): `{ left, right, left_attempt, right_attempt, ready, pick: { judge_kind, winner: "left" | "right" | "tie", reason } | null, history: [{ judge_kind, winner, status }] }`. Nothing in it names a contender (`test/pairwise.test.ts` walks it as `blind.test.ts` does).
+- **UI.** "Start a run" and workspace settings have a "Rate (stars) / Compare (A vs B)" choice; with Compare and the AI judge, Start a run also offers "Ask the AI judge both ways" with its cost. A "How is this score worked out?" popover on the judging screen and the leaderboard explains the score with a worked example. The judging screen shows one pair at a time with "A is better", "About the same", "B is better", a row of pair chips, and the task's standings. The run page shows the method as a badge.
+
 ## 11. Leaderboard, fitness and the champion
 
 `lib/fitness.ts` is pure and unit-tested. Its input is the leaderboard rows for one role, the workspace weights and `min_outputs`, and the role's `pass_mark`.
 
-- **Quality.** `Q = (mean_score − 1) / 4`.
+- **Quality.** `Q = (mean_score − 1) / 4`. For a Compare output this is its win share.
 - **Tokens.** `T = mean_tokens / max(mean_tokens)` over the role's rows. The term is used only if **every** row has `n_tokens ≥ 1`, and it is 0 when the max is 0.
 - **Time.** `D` is the same as T, using `mean_time_ms` and `n_time`.
 - **Fitness.** `fitness = (w_q·Q − w_t·T − w_d·D) / 100`, with the weights as stored percentages. A dropped term contributes nothing, and the response lists it under `dropped` with the reason, naming the contender that lacks data. Weights are not rescaled when a term drops, so every row in the role is compared on the same terms.

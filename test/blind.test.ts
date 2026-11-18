@@ -59,7 +59,7 @@ test("Done-when 3: no forbidden key, and no contender's name or id, anywhere in 
 
 test("the payload has the run, the task as text, the rubric, and labelled outputs", async () => {
   const r = (await judging(s.run, s.task.id)).body;
-  expect(r.run).toEqual({ id: s.run, judge: "ai", status: "judging" });
+  expect(r.run).toEqual({ id: s.run, judge: "ai", method: "rate", status: "judging" });
   expect(r.task).toEqual({ id: s.task.id, title: "Compare options", prompt_text: "Compare three options.", output_type: "text" });
   expect(r.rubric).toEqual(RUBRIC);
   expect(r.outputs.map((o: { label: string }) => o.label)).toEqual(["A", "B", "C"]);

@@ -121,3 +121,30 @@ button.alert-item__link { width: 100%; font: inherit; text-align: left; cursor: 
   /* Sit in the room the page keeps free above the phone nav. */
   .app-foot { margin-top: -64px; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); justify-content: center; }
 }
+
+/* ---------- Compare (A vs B) judging ---------- */
+.pair-nav { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.pair-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-sm); font-weight: 650; cursor: pointer; transition: background var(--t-fast), color var(--t-fast); }
+.pair-chip:hover { color: var(--text); background: var(--surface-hover); }
+.pair-chip.is-done { color: var(--text); }
+.pair-chip.is-done .i { color: var(--done); }
+.pair-chip.is-current { background: var(--text); border-color: var(--text); color: var(--bg); }
+.pair-chip.is-current .i { color: inherit; }
+.pair { display: flex; flex-direction: column; gap: var(--s3); }
+.pair__sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); }
+.pair__sides .output__body { max-height: 28rem; }
+.pair__pick { display: flex; flex-direction: column; align-items: center; gap: var(--s2); padding: var(--s3); border-radius: var(--r-lg); background: var(--surface-2); border: 1px solid var(--line); text-align: center; }
+.pair__buttons { justify-content: center; flex-wrap: wrap; }
+.pair-images { display: grid; gap: var(--s2); }
+.pair-images .image-card__img { border-radius: var(--r-md); max-width: 24rem; margin-inline: auto; }
+.pair__sides .output__body:has(.pair-images) { max-height: none; }
+.standings li { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--s3); }
+.standings .grow { min-width: 0; }
+.standings .score { font-size: 1.1rem; }
+@media (max-width: 40rem) {
+  .pair__sides { grid-template-columns: 1fr; }
+  .pair__buttons .btn { flex: 1 1 100%; justify-content: center; }
+}
+@media (max-width: 40rem) {
+  .standings .state { display: none; }
+}

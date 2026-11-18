@@ -206,3 +206,34 @@ export function textToHtml(t) {
   const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return String(t || "").trim().split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
 }
+
+// How a run is judged (TECH-SPEC §10a): stars per output, or picks between two.
+export const METHOD_OPTIONS = [{ value: "rate", label: "Rate (stars)", icon: "star" }, { value: "compare", label: "Compare (A vs B)", icon: "judge" }];
+export const METHOD_LABEL = { rate: "Rate (stars)", compare: "Compare (A vs B)" };
+export const METHOD_HINT = {
+  rate: "Each output gets 1 to 5 stars per rubric line.",
+  compare: "Two outputs side by side: pick the better one, or call it a tie. Each output then scores 1 to 5 by how often it won.",
+};
+
+/**
+ * "How the Compare score works": a help button and its popover, used on the
+ * judging screen and the leaderboard (Cas asked for a clear explanation,
+ * Nov 18, 2026). Returns [button, popover]; put the popover anywhere after it.
+ */
+export function compareScoreHelp(label = "How is this score worked out?") {
+  const id = popId();
+  return [
+    html`<button class="link-btn inline-flex gap-1" type="button" popovertarget="${id}">${icon("help")}${label}</button>`,
+    html`<div class="pop" id="${id}" popover><div class="pop__head">${icon("judge")}${label}</div><div class="pop__body">
+      <p>In a Compare run, each output is put side by side with every other output on the same task. It gets a score from 1 to 5 for how often it came out better:</p>
+      <ul class="small">
+        <li>Better in every pair: <strong>5</strong></li>
+        <li>Better in half its pairs, or all ties: <strong>3</strong></li>
+        <li>Worse in every pair: <strong>1</strong></li>
+      </ul>
+      <p>In between: 1 + 4 × the share of pairs it won, where a tie counts as half a win. <span class="muted">Example: with 3 outputs, each is in 2 pairs. One win and one tie is 1.5 of 2, or 75%, so 1 + 4 × 0.75 = 4.0.</span></p>
+      <p>On the leaderboard every output counts once, whether it was rated with stars or compared, and the average is the plain average of those scores.</p>
+      <p class="xs muted">Stars say how good an output is against the rubric. A Compare score says how it did against the other outputs in that run.</p>
+    </div></div>`,
+  ];
+}

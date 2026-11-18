@@ -8,6 +8,7 @@ import { listOf, parseJson, type Criterion } from "./validation.ts";
 import { htmlToText } from "./handoff.ts";
 import { refreshRunStatus } from "./runs.ts";
 import { ensureOutcomeCheck } from "./outcomes.ts";
+import { methodOf, overrideOtherPicks, pairSides, pairVerdicts, record as pairRecord, type PairPick, type Winner } from "./pairwise.ts";
 
 export interface Score { stars: number; reason?: string }
 export type Scores = Record<string, Score>;
@@ -115,6 +116,28 @@ export async function storeAiVerdict(store: Store, v: {
   return { id, status };
 }
 
+/**
+ * Store an AI pick from the judge worker for one pair (Compare). A pick the
+ * owner already made for the pair wins: the AI's is kept as history.
+ */
+export async function storeAiPick(store: Store, v: {
+  left: string; right: string; run: string; judgeContender: string; winner: Winner; reason: string;
+}): Promise<{ id: string; status: "active" | "overridden" }> {
+  const human = await store.sql.queryOne(
+    `SELECT id FROM vb_verdicts WHERE method = 'pairwise' AND status = 'active' AND judge_kind = 'human'
+       AND ((attempt = ? AND opponent = ?) OR (attempt = ? AND opponent = ?))`, [v.left, v.right, v.right, v.left]);
+  const status = human ? "overridden" : "active";
+  const id = await insertRecord(store, "verdicts", {
+    attempt: v.left, opponent: v.right, run: v.run, method: "pairwise", judge_kind: "ai", judge_contender: v.judgeContender,
+    winner: v.winner, scores: v.reason ? { reason: v.reason } : null, status,
+  });
+  if (status === "active") {
+    await overrideOtherPicks(store, id, v.left, v.right);
+    await refreshRunStatus(store, v.run);
+  }
+  return { id, status };
+}
+
 type Rec = Record<string, unknown>;
 export interface VerdictCtx {
   record: Rec;
@@ -138,6 +161,7 @@ export async function verdictBeforeCreate(ctx: VerdictCtx): Promise<void> {
   if (attempt!["status"] !== "submitted" && attempt!["status"] !== "judged") abort("Only a submitted output can be judged.");
   const run = attempt!["run"] ? await find("runs", String(attempt!["run"])) : null;
   if (!run) abort("That output has no run.");
+  if (methodOf(run) === "compare") return pairBeforeCreate(ctx, attempt!, run!);
   const role = await find("roles", String(run!["role"]));
   if (!role) abort("That run's role does not exist.");
   const rubric = parseJson(role!["rubric"]) as Criterion[];
@@ -158,6 +182,35 @@ export async function verdictBeforeCreate(ctx: VerdictCtx): Promise<void> {
 }
 
 /**
+ * An owner's pick on a Compare run: `attempt` against `opponent`, both
+ * outputs of the same task in this run, and `winner` is "this", "opponent"
+ * or "tie". An optional one-line reason goes in scores.reason.
+ */
+async function pairBeforeCreate(ctx: VerdictCtx, attempt: Rec, run: Rec): Promise<void> {
+  const r = ctx.record;
+  const { abort, find } = ctx.helpers;
+  const opponentId = String(r["opponent"] ?? "");
+  if (!opponentId) abort("Pick the output to compare it with.");
+  if (opponentId === attempt["id"]) abort("Compare an output with another one, not with itself.");
+  const opponent = await find("attempts", opponentId);
+  if (!opponent || opponent["run"] !== attempt["run"] || opponent["task"] !== attempt["task"]) abort("Both outputs must be from the same run and task.");
+  if (opponent!["status"] !== "submitted" && opponent!["status"] !== "judged") abort("Only a submitted output can be judged.");
+  const winner = r["winner"];
+  if (winner !== "this" && winner !== "opponent" && winner !== "tie") abort("Pick the better output, or call it a tie.");
+  const raw = parseJson(r["scores"]) as { reason?: unknown } | null;
+  const reason = typeof raw?.reason === "string" ? raw.reason.trim().slice(0, 500) : "";
+  r["judge_kind"] = "human";
+  r["method"] = "pairwise";
+  r["judge_contender"] = null;
+  r["run"] = run["id"];
+  r["scores"] = reason ? { reason } : null;
+  r["rubric_snapshot"] = null;
+  r["score"] = null;
+  r["status"] = "active";
+  r["due_at"] = null;
+}
+
+/**
  * verdicts afterCreate: the new verdict is the active one, and the output is
  * judged. Server writes are skipped: storeAiVerdict activates its own verdict
  * before the worker finishes, and this hook runs in the background.
@@ -166,6 +219,11 @@ export async function verdictAfterCreate(ctx: VerdictCtx): Promise<void> {
   if (!ctx.auth) return;
   const r = ctx.record;
   if (r["status"] !== "active" || !r["attempt"] || !r["id"]) return;
+  if (r["method"] === "pairwise") {
+    await overrideOtherPicks(ctx.helpers, String(r["id"]), String(r["attempt"]), String(r["opponent"]));
+    await refreshRunStatus(ctx.helpers, String(r["run"]));
+    return;
+  }
   await activateVerdict(ctx.helpers, String(r["attempt"]), String(r["id"]));
 }
 
@@ -249,10 +307,47 @@ export async function blindPayload(deps: BlindDeps, runId: string, taskId: strin
     };
   });
 
+  const method = methodOf(run);
+  const compare = method === "compare" ? await comparePairs(sql, String(run["id"]), outputs) : null;
+
   return {
-    run: { id: String(run["id"]), judge: String(run["judge"]), status: String(run["status"]) },
+    run: { id: String(run["id"]), judge: String(run["judge"]), method, status: String(run["status"]) },
     task: { id: String(task["id"]), title: String(task["title"] ?? ""), prompt_text: htmlToText(String(task["prompt"] ?? "")), output_type: String(task["output_type"] ?? "text") },
     rubric,
-    outputs,
+    outputs: compare ? outputs.map((o) => ({ ...o, record: compare.records.get(o.attempt)! })) : outputs,
+    ...(compare ? { pairs: compare.pairs } : {}),
   };
+}
+
+const READY = new Set(["submitted", "judged"]);
+export type Side = "left" | "right" | "tie";
+
+/**
+ * Compare runs: every pair of the task's outputs in label order (A vs B,
+ * A vs C, B vs C, …), each with its sides shuffled by pairSides, its active
+ * pick and the pick history; and each output's wins, ties and losses.
+ * Picks are told as "left", "right" or "tie", never by attempt.
+ */
+async function comparePairs(sql: Sql, runId: string, outputs: Array<{ attempt: string; label: string; status: string }>) {
+  const picks = await pairVerdicts(sql, outputs.map((o) => o.attempt));
+  const side = (p: PairPick, left: string): Side => (p.winner === "tie" ? "tie" : (p.winner === "this") === (p.attempt === left) ? "left" : "right");
+  const reason = (p: PairPick) => String((parseJson(p.scores) as { reason?: string } | null)?.reason ?? "");
+  const by = new Map(outputs.map((o) => [o.attempt, o]));
+  const pairs = [];
+  for (let i = 0; i < outputs.length; i++) {
+    for (let j = i + 1; j < outputs.length; j++) {
+      const [l, r] = pairSides(runId, outputs[i]!.attempt, outputs[j]!.attempt);
+      const left = by.get(l)!, right = by.get(r)!;
+      const mine = picks.filter((p) => (p.attempt === l && p.opponent === r) || (p.attempt === r && p.opponent === l));
+      const active = mine.find((p) => p.status === "active");
+      pairs.push({
+        left: left.label, right: right.label, left_attempt: l, right_attempt: r,
+        ready: READY.has(left.status) && READY.has(right.status),
+        pick: active ? { judge_kind: active.judge_kind, winner: side(active, l), reason: reason(active) } : null,
+        history: mine.map((p) => ({ judge_kind: p.judge_kind, winner: side(p, l), status: p.status })),
+      });
+    }
+  }
+  const records = new Map(outputs.map((o) => [o.attempt, pairRecord(o.attempt, picks)]));
+  return { pairs, records };
 }

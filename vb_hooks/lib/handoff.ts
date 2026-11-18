@@ -6,6 +6,7 @@ import { listOf, parseJson, type Criterion } from "./validation.ts";
 import { isTrusted, type Records, type Sql } from "./store.ts";
 import { deriveCost } from "./cost.ts";
 import { refreshRunStatus } from "./runs.ts";
+import { queueJudging } from "./pairwise.ts";
 
 type Rec = Record<string, unknown>;
 export type Render = (template: string, vars: Rec) => string;
@@ -385,6 +386,6 @@ export async function attemptAfterUpdate(ctx: AfterCtx): Promise<void> {
   if (!runId) return;
   const run = await ctx.helpers.find("runs", runId);
   if (!run) return;
-  if (run["judge"] === "ai") await ctx.helpers.enqueue("judge", { attempt: attemptId }, { uniqueKey: `judge:${attemptId}` });
+  await queueJudging(ctx.helpers, run, attemptId);
   await refreshRunStatus(ctx.helpers, runId);
 }
