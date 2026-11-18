@@ -104,7 +104,7 @@ export default function leaderboard() {
       return html`
         ${crumbs([["Workspaces", APP + "/"], [ws?.name || "Workspace", APP + "/w/" + role.workspace], [role.name, APP + "/r/" + role.id]])}
         <div class="page-head">
-          <div><h1>${role.name}</h1><p class="lede">Every scored output across all runs. A champion needs ${plural(min, "output")} and an average above ${role.pass_mark} stars.</p></div>
+          <div><h1>${role.name}</h1><p class="lede">Every scored output across all runs. A champion needs ${plural(min, "output")} and an average above ${role.pass_mark} stars.</p><p class="small muted">Outputs from Compare runs score 1 to 5 by how often they won their pairs, a tie counting half.</p></div>
           <a class="btn" href="${latestRun ? APP + "/runs/" + latestRun.id : APP + "/runs/new?role=" + role.id}">${icon("again", "i--spin-on-hover")}${latestRun ? "Run again for more data" : "Start a run"}</a>
         </div>
         ${champBox()}

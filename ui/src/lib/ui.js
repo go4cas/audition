@@ -206,3 +206,11 @@ export function textToHtml(t) {
   const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return String(t || "").trim().split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
 }
+
+// How a run is judged (TECH-SPEC §10a): stars per output, or picks between two.
+export const METHOD_OPTIONS = [{ value: "rate", label: "Rate (stars)", icon: "star" }, { value: "compare", label: "Compare (A vs B)", icon: "judge" }];
+export const METHOD_LABEL = { rate: "Rate (stars)", compare: "Compare (A vs B)" };
+export const METHOD_HINT = {
+  rate: "Each output gets 1 to 5 stars per rubric line.",
+  compare: "Two outputs side by side: pick the better one, or call it a tie. Each output then scores 1 to 5 by how often it won.",
+};

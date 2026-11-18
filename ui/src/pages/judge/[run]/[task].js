@@ -7,7 +7,7 @@ import { html, reactive } from "@arrow-js/core";
 import { THUMB, create, custom, fileLabel, fileUrl, thumbUrl } from "../../../api.js";
 import { starInput } from "../../../components/forms.js";
 import { busy, crumbs, empty, page } from "../../../components/page.js";
-import { bump, chip, errorToast, icon, openLightbox, popId, toast } from "../../../lib/ui.js";
+import { bump, chip, errorToast, icon, openLightbox, plural, popId, toast } from "../../../lib/ui.js";
 import { refreshInbox } from "../../../state/inbox.js";
 import { APP, routeArgs } from "../../../lib/nav.js";
 
@@ -16,6 +16,9 @@ const weighted = (rubric, stars) => {
   for (const c of rubric) { if (!stars[c.name]) return null; sum += stars[c.name] * c.weight; w += c.weight; }
   return w ? Math.round((sum / w) * 100) / 100 : null;
 };
+
+// The one write this screen makes: an owner verdict (stars, or a pick in Compare).
+const saveVerdict = (body) => create("verdicts", body);
 
 export const meta = { title: "Judge · Audition" };
 
@@ -26,6 +29,11 @@ export default function judge() {
     load: async (s) => {
       const p = await custom.judging(params.run, params.task);
       s.p = p;
+      if (p.run.method === "compare") {
+        const open = p.pairs.findIndex((x) => x.ready && !x.pick);
+        s.j = reactive({ cur: open >= 0 ? open : 0 });
+        return;
+      }
       s.j = reactive({
         outs: p.outputs.map((o) => ({
           id: o.attempt, editing: !o.verdict, dirty: false,
@@ -36,12 +44,13 @@ export default function judge() {
     body: (s) => {
       const { p, j } = s;
       const image = p.task.output_type === "image";
+      if (p.run.method === "compare") return compareView(s, params);
       const out = (o) => j.outs.find((x) => x.id === o.attempt);
       const score = (o) => weighted(p.rubric, out(o).stars);
       const save = async (list) => {
         for (const o of list) {
           const st = out(o).stars;
-          await create("verdicts", { attempt: o.attempt, scores: Object.fromEntries(p.rubric.map((c) => [c.name, { stars: st[c.name], reason: "" }])) });
+          await saveVerdict({ attempt: o.attempt, scores: Object.fromEntries(p.rubric.map((c) => [c.name, { stars: st[c.name], reason: "" }])) });
         }
       };
       const saveAll = (e) => busy(e, async () => {
@@ -160,4 +169,112 @@ function blobImg(url, alt, size) {
   // A busy thumbnail queue answers 503; fall back to the full file then.
   thumbUrl(url, size).catch(() => fileUrl(url)).then((u) => { st.src = u; }).catch(() => {});
   return html`<img class="art" alt="${alt}" decoding="async" src="${() => st.src || false}">`;
+}
+
+// ---------- Compare (A vs B): two outputs at a time, pick the better one ----------
+
+const PICK_TEXT = { left: (x) => `${x.left} is better`, right: (x) => `${x.right} is better`, tie: () => "About the same" };
+const WINNER = { left: "this", right: "opponent", tie: "tie" };
+
+function compareView(s, params) {
+  const { p, j } = s;
+  const image = p.task.output_type === "image";
+  const byLabel = new Map(p.outputs.map((o) => [o.label, o]));
+  const decided = () => p.pairs.filter((x) => x.pick).length;
+  const pair = () => p.pairs[j.cur];
+  const standings = [...p.outputs].sort((a, b) => (b.record.score ?? -1) - (a.record.score ?? -1) || a.label.localeCompare(b.label));
+  const top = standings[0]?.record.score != null ? standings[0] : null;
+
+  const pick = (side) => (e) => busy(e, async () => {
+    const x = pair();
+    if (x.pick?.winner === side && x.pick.judge_kind === "human") return;
+    try {
+      await saveVerdict({ attempt: x.left_attempt, opponent: x.right_attempt, winner: WINNER[side] });
+      toast(x.pick?.judge_kind === "ai" ? "Your pick counts now. The AI's stays in history." : "Pick saved", "done", "check");
+      refreshInbox();
+      // On to the next pair still to decide, if there is one.
+      const next = p.pairs.findIndex((y, i) => i !== j.cur && y.ready && !y.pick);
+      await s.reload({ quiet: true });
+      if (next >= 0) s.j.cur = next;
+    } catch (err) { errorToast(err); }
+  });
+
+  const head = html`
+    ${crumbs([["Workspaces", APP + "/"], ["Back to the run", APP + "/runs/" + params.run], "Judging"])}
+    <div class="page-head"><div><h1>${p.task.title}</h1>
+      <p class="lede">${p.run.judge === "ai" ? "The AI compares these, two at a time. Change any pick you disagree with; your pick then counts." : "You are the judge. Look at two outputs at a time and pick the better one, or call it a tie."}</p></div></div>
+    <div class="blind-banner">${icon("blind")}<span>Names are hidden and the order is shuffled.</span></div>`;
+  if (p.outputs.length < 2) {
+    const why = p.outputs.length ? "The other outputs on this task failed, so there is nothing to compare this one with. It doesn't count on the leaderboard." : "Outputs appear here as they come in.";
+    return html`${head}<div class="panel">${empty("judge-duo", p.outputs.length ? "Nothing to compare" : "Nothing to judge yet", why, html`<a class="btn btn--primary" href="${APP + "/runs/" + params.run}">Back to the run</a>`)}</div>`;
+  }
+
+  const rubric = html`<details class="panel">
+    <summary class="panel__head summary-plain"><h2 class="h-md">${icon("rubric")}What "better" means: the rubric</h2></summary>
+    <div class="panel__body rubric-legend">${p.rubric.map((c) => html`<div><strong>${c.name} <span class="weight">${c.weight}%</span></strong><span class="muted">${c.guidance || ""}</span></div>`)}</div>
+  </details>`;
+
+  const pairNav = html`<nav class="pair-nav" aria-label="Pairs">${p.pairs.map((x, i) => html`<button type="button" class="${() => "pair-chip" + (j.cur === i ? " is-current" : "") + (x.pick ? " is-done" : "")}" aria-current="${() => (j.cur === i ? "true" : false)}" @click="${() => { j.cur = i; }}">
+      <span>${[x.left, x.right].sort().join(" vs ")}</span>${x.pick ? icon(x.pick.judge_kind === "ai" ? "ai" : "check") : !x.ready ? icon("queued") : ""}</button>`)}</nav>`;
+
+  const side = (o, which) => () => {
+    const x = pair();
+    const won = x.pick && x.pick.winner === which;
+    const imgs = o.files.filter((f) => f.is_image), rest = o.files.filter((f) => !f.is_image);
+    return html`<article class="${"output" + (won ? " is-best" : "")}" data-output="${o.label}">
+      <div class="output__head"><span class="letter-tile">${o.label}</span><span class="state best-tag" data-state="champion">${icon("trophy")}Picked</span></div>
+      <div class="output__body">
+        ${image && imgs.length ? html`<div class="pair-images">${imgs.map((f, i) => html`<button class="image-card__img ph" type="button" aria-label="${"Enlarge image " + (i + 1) + " of output " + o.label}" @click="${async () => openLightbox(`Output ${o.label}, image ${i + 1}`, await fileUrl(f.url))}">${blobImg(f.url, `Output ${o.label}, image ${i + 1}`, THUMB.card)}<span class="zoom">${icon("enlarge")}</span></button>`)}</div>` : ""}
+        ${o.output ? html`<div class="output__text">${o.output}</div>` : imgs.length ? "" : html`<p class="muted small">No text, files only.</p>`}
+        ${o.claims_note ? html`<div class="claim"><span class="claim__label">${icon("warning")}The agent's own claim. Audition didn't check it.</span><span class="small">Build, test and lint results in this output are the agent's own claims; Audition did not run them.</span></div>` : ""}
+        ${!image && imgs.length ? html`<div class="thumbs">${imgs.map((f, i) => html`<button class="thumb" type="button" aria-label="${"Image " + (i + 1) + " of output " + o.label}" @click="${async () => openLightbox(`Output ${o.label}, image ${i + 1}`, await fileUrl(f.url))}">${blobImg(f.url, `Output ${o.label}, image ${i + 1}`, THUMB.small)}</button>`)}</div>` : ""}
+        ${rest.length ? html`<ul class="files">${rest.map((f) => html`<li>${icon("file")}<button class="link-btn" type="button" @click="${async () => { try { const a = document.createElement("a"); a.href = await fileUrl(f.url); a.download = fileLabel(f.name); a.click(); } catch (err) { errorToast(err); } }}">${fileLabel(f.name)}</button></li>`)}</ul>` : ""}
+      </div>
+    </article>`;
+  };
+
+  const current = () => {
+    const x = pair();
+    const L = byLabel.get(x.left), R = byLabel.get(x.right);
+    const btn = (which) => {
+      const on = x.pick?.winner === which;
+      return html`<button class="${"btn btn--lg" + (on ? " btn--primary" : "")}" type="button" aria-pressed="${on ? "true" : "false"}" disabled="${!x.ready}" @click="${pick(which)}">${which === "tie" ? icon("shuffle") : icon("trophy")}${PICK_TEXT[which](x)}</button>`;
+    };
+    const aiHist = x.history.find((h) => h.judge_kind === "ai");
+    const note = !x.ready
+      ? html`<span class="judge-tag">${icon("queued")}One of these outputs isn't in yet.</span>`
+      : !x.pick
+        ? html`<span class="judge-tag">${icon("draft")}${p.run.judge === "ai" ? "The AI hasn't compared these yet" : "Not decided yet"}</span>`
+        : x.pick.judge_kind === "ai"
+          ? html`<span class="judge-tag">${icon("ai")}The AI picked: ${PICK_TEXT[x.pick.winner](x)}${x.pick.reason ? html`. <span class="text-2">${x.pick.reason}</span>` : ""}</span>`
+          : html`<span class="judge-tag">${icon("me")}Your pick counts${aiHist ? `; the AI had picked: ${PICK_TEXT[aiHist.winner](x)}` : ""}</span>`;
+    return html`<section class="pair" aria-label="${"Output " + x.left + " against output " + x.right}">
+      <div class="pair__sides">${side(L, "left")}${side(R, "right")}</div>
+      <div class="pair__pick">
+        <p class="small text-2 row-tight">${icon("judge")}Which is better? <span class="muted">Pair ${j.cur + 1} of ${p.pairs.length}</span></p>
+        <div class="row pair__buttons">${btn("left")}${btn("tie")}${btn("right")}</div>
+        ${note}
+      </div>
+    </section>`;
+  };
+
+  const table = html`<div class="panel">
+    <div class="panel__head"><h2 class="h-md">${icon("trophy", "gold")}Standings on this task</h2><span class="muted small">Score = 1 + 4 × win share (a tie counts half)</span></div>
+    <ul class="list standings">${standings.map((o) => html`<li>
+      <span class="letter-tile">${o.label}</span>
+      <span class="grow small text-2">${o.record.played ? `${plural(o.record.wins, "win")}, ${plural(o.record.ties, "tie")}, ${plural(o.record.losses, "loss", "losses")}` : "Not compared yet"}</span>
+      ${top === o ? html`<span class="state" data-state="champion">${icon("trophy")}Best so far</span>` : ""}
+      <span class="score">${icon("star")}<span>${o.record.score == null ? "–" : o.record.score.toFixed(1)}</span></span>
+    </li>`)}</ul>
+  </div>`;
+
+  return html`${head}${rubric}
+    <div class="row-tight"><div class="progress progress--short"><span class="p-done" style="${"width:" + (decided() / p.pairs.length) * 100 + "%"}"></span></div><span class="small text-2">${decided()} of ${plural(p.pairs.length, "pair")} decided</span></div>
+    ${pairNav}
+    ${() => current()}
+    ${table}
+    <div class="row-between"><span></span><div class="row">
+      <a class="btn btn--quiet" href="${APP + "/runs/" + params.run}">Back to run</a>
+      ${p.role ? html`<a class="btn" href="${APP + "/leaderboard/" + p.role}">${icon("leaderboard")}See leaderboard</a>` : ""}
+    </div></div>`;
 }

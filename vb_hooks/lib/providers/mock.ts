@@ -109,6 +109,13 @@ export async function generate(input: GenerateInput): Promise<GenerateResult> {
     }
     case "judge": {
       if (!input.outputSchema) throw new ProviderError("Mock Judge needs a judge schema.", false);
+      if ((input.outputSchema as { properties?: Record<string, unknown> }).properties?.["winner"]) {
+        // Compare: the output with the higher quality marker wins; equal is a tie.
+        const [one, two] = input.prompt.split("THE SECOND OUTPUT:");
+        const q1 = qualityMarker(one ?? "") ?? 3, q2 = qualityMarker(two ?? "") ?? 3;
+        const winner = q1 > q2 ? "first" : q2 > q1 ? "second" : "tie";
+        return { text: JSON.stringify({ winner, reason: "mock judge" }), files: [], tokensIn: tokensIn(input), tokensOut: 20, finishReason: "end_turn", durationMs };
+      }
       const base = qualityMarker(input.prompt) ?? 3;
       const images = input.attachments.filter((a) => a.mime.startsWith("image/")).length;
       const criteria = (input.criteria ?? []).map((name) => ({

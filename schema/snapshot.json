@@ -240,6 +240,16 @@
           }
         },
         {
+          "name": "default_method",
+          "type": "select",
+          "options": {
+            "values": [
+              "rate",
+              "compare"
+            ]
+          }
+        },
+        {
           "name": "min_outputs",
           "type": "number",
           "options": {
@@ -534,6 +544,16 @@
           "collection": "contenders",
           "options": {
             "cascade": "setNull"
+          }
+        },
+        {
+          "name": "method",
+          "type": "select",
+          "options": {
+            "values": [
+              "rate",
+              "compare"
+            ]
           }
         },
         {
@@ -943,7 +963,7 @@
           "required": false
         }
       ],
-      "view_query": "SELECT\n  r.role || ':' || a.contender AS id,\n  r.role AS role,\n  a.contender AS contender,\n  COUNT(v.id) AS n,\n  AVG(v.score) AS mean_score,\n  SUM(v.score * v.score) AS sum_sq,\n  COUNT(CASE WHEN a.tokens_in IS NOT NULL AND a.tokens_out IS NOT NULL THEN 1 END) AS n_tokens,\n  AVG(a.tokens_in + a.tokens_out) AS mean_tokens,\n  COUNT(a.duration_ms) AS n_time,\n  AVG(a.duration_ms) AS mean_time_ms,\n  COUNT(a.cost) AS n_cost,\n  AVG(a.cost) AS mean_cost,\n  (SELECT COUNT(o.score) FROM vb_verdicts o JOIN vb_attempts oa ON oa.id = o.attempt JOIN vb_runs orun ON orun.id = oa.run\n    WHERE o.method = 'outcome' AND o.status = 'active' AND orun.role = r.role AND oa.contender = a.contender) AS n_outcome,\n  (SELECT AVG(o.score) FROM vb_verdicts o JOIN vb_attempts oa ON oa.id = o.attempt JOIN vb_runs orun ON orun.id = oa.run\n    WHERE o.method = 'outcome' AND o.status = 'active' AND orun.role = r.role AND oa.contender = a.contender) AS mean_outcome\nFROM vb_attempts a\nJOIN vb_runs r ON r.id = a.run\nJOIN vb_verdicts v ON v.attempt = a.id AND v.status = 'active' AND COALESCE(v.method, 'rubric') = 'rubric'\nGROUP BY r.role, a.contender",
+      "view_query": "SELECT\n  r.role || ':' || a.contender AS id,\n  r.role AS role,\n  a.contender AS contender,\n  COUNT(v.score) AS n,\n  AVG(v.score) AS mean_score,\n  SUM(v.score * v.score) AS sum_sq,\n  COUNT(CASE WHEN a.tokens_in IS NOT NULL AND a.tokens_out IS NOT NULL THEN 1 END) AS n_tokens,\n  AVG(a.tokens_in + a.tokens_out) AS mean_tokens,\n  COUNT(a.duration_ms) AS n_time,\n  AVG(a.duration_ms) AS mean_time_ms,\n  COUNT(a.cost) AS n_cost,\n  AVG(a.cost) AS mean_cost,\n  (SELECT COUNT(o.score) FROM vb_verdicts o JOIN vb_attempts oa ON oa.id = o.attempt JOIN vb_runs orun ON orun.id = oa.run\n    WHERE o.method = 'outcome' AND o.status = 'active' AND orun.role = r.role AND oa.contender = a.contender) AS n_outcome,\n  (SELECT AVG(o.score) FROM vb_verdicts o JOIN vb_attempts oa ON oa.id = o.attempt JOIN vb_runs orun ON orun.id = oa.run\n    WHERE o.method = 'outcome' AND o.status = 'active' AND orun.role = r.role AND oa.contender = a.contender) AS mean_outcome\nFROM vb_attempts a\nJOIN vb_runs r ON r.id = a.run\nJOIN (\n  SELECT rv.attempt AS attempt, rv.score AS score FROM vb_verdicts rv\n    WHERE rv.status = 'active' AND COALESCE(rv.method, 'rubric') = 'rubric'\n  UNION ALL\n  SELECT p.attempt AS attempt, ROUND(1 + 4.0 * SUM(p.points) / COUNT(*), 2) AS score FROM (\n    SELECT pv.attempt AS attempt, CASE pv.winner WHEN 'this' THEN 1.0 WHEN 'tie' THEN 0.5 ELSE 0.0 END AS points\n      FROM vb_verdicts pv WHERE pv.method = 'pairwise' AND pv.status = 'active'\n    UNION ALL\n    SELECT pv.opponent AS attempt, CASE pv.winner WHEN 'opponent' THEN 1.0 WHEN 'tie' THEN 0.5 ELSE 0.0 END AS points\n      FROM vb_verdicts pv WHERE pv.method = 'pairwise' AND pv.status = 'active' AND pv.opponent IS NOT NULL\n  ) p JOIN vb_attempts pa ON pa.id = p.attempt AND pa.status = 'judged'\n  GROUP BY p.attempt\n) v ON v.attempt = a.id\nGROUP BY r.role, a.contender",
       "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
       "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
       "create_rule": "",
