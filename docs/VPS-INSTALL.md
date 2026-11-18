@@ -19,7 +19,7 @@ RELEASE.md was written for a fresh, empty VPS. On a shared one, these steps are 
 | 6. cert to `/etc/caddy/cloudflare-origin.pem` | Generic file name | **High.** Overwrites another site's origin cert if it uses the same name |
 | 6. firewall: 80/443 only from Cloudflare | Changes server-wide firewall rules | **High.** Breaks any app not proxied by Cloudflare, and Let's Encrypt HTTP checks |
 
-These are already contained and stay as they are: the `audition` system user (no login shell), `/opt/audition`, `/var/lib/audition`, `/etc/audition`, the `audition.service` unit with its hardening (read-only system, only the data folder writable, no capabilities), Vaultbase bound to 127.0.0.1 only, and no system cron (backups and repeats are Vaultbase's own jobs). Backups stay inside `/var/lib/audition/backups`.
+These are already contained and stay as they are: the `audition` system user (no login shell), `/opt/audition`, `/var/lib/audition`, `/etc/audition`, the `audition.service` unit with its hardening (read-only system, only the data folder writable, no capabilities), Vaultbase bound to 127.0.0.1 only, and no system cron (backups and repeats are Vaultbase's own jobs). Backups stay inside `/var/lib/audition/backups`; the optional off-server copy goes to a Cloudflare R2 bucket, sent by Vaultbase itself (RELEASE.md "Off-server copy").
 
 ## Proposed contained install
 
