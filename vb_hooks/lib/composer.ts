@@ -12,7 +12,7 @@ import { callable, RunError, type Deps } from "./runs.ts";
 import { callProvider, ProviderError, type HttpLike } from "./providers/index.ts";
 import { mockSeed } from "./providers/mock.ts";
 import { updateRecord } from "./store.ts";
-import { parseJson } from "./validation.ts";
+import { makesImages, parseJson } from "./validation.ts";
 
 type Rec = Record<string, any>;
 
@@ -77,6 +77,7 @@ async function composerFor(deps: Deps, workspace: Rec): Promise<Rec> {
   const c = await deps.find("contenders", id);
   if (!c) throw new RunError(422, "The workspace's Composer no longer exists. Choose another in the workspace settings.");
   if (c["mode"] !== "api") throw new RunError(422, "The Composer must be a contender Audition can call (not copy and paste).");
+  if (makesImages(c)) throw new RunError(422, "The Composer makes images, so it can't write prompts. Choose a text model in the workspace settings.");
   if (c["enabled"] === false || c["enabled"] === 0) throw new RunError(422, `The Composer "${c["name"]}" is turned off.`);
   return c;
 }

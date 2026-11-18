@@ -3,6 +3,7 @@
 import * as anthropic from "./anthropic.ts";
 import * as mock from "./mock.ts";
 import * as openai from "./openai-compatible.ts";
+import * as openaiImages from "./openai-images.ts";
 import { ProviderError, type GenerateInput, type GenerateResult } from "./mock.ts";
 import type { HttpLike, HttpRequest } from "./shared.ts";
 
@@ -90,9 +91,15 @@ export async function callProvider(input: CallInput, now: () => number = Date.no
   const host = allowedHost(provider, rest.baseUrl);
   const guarded = egressGuard(http, host!);
   const baseUrl = effectiveBaseUrl(provider, rest.baseUrl) ?? undefined;
+  // An image maker (config.image) answers through the Images API; it can't
+  // judge or compose, which need a text answer in a set JSON shape (§12a).
+  const images = provider === "openai-compatible" && openaiImages.imageOptionsOf(rest.config) !== null;
+  if (images && rest.outputSchema) throw withCalls(new ProviderError("This contender makes images, so it can't judge or compose.", false), 0);
   const started = now();
   try {
-    const result = provider === "anthropic"
+    const result = images
+      ? await openaiImages.generate({ ...rest, baseUrl, http: guarded })
+      : provider === "anthropic"
       ? await anthropic.generate({ ...rest, baseUrl, http: guarded })
       : provider === "openai-compatible"
         ? await openai.generate({ ...rest, baseUrl, http: guarded })

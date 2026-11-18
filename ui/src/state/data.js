@@ -36,6 +36,6 @@ export const PROVIDER_LABEL = { anthropic: "Anthropic", "openai-compatible": "Op
 export const contenderMeta = (d, c) => {
   const conn = d.byId.connections?.get(c.connection);
   if (c.mode === "handoff") return "Copy and paste";
-  const bits = [c.model, conn ? PROVIDER_LABEL[conn.provider] : null, c.config?.effort ? `${c.config.effort} effort` : null];
+  const bits = [c.model, conn ? PROVIDER_LABEL[conn.provider] : null, c.config?.effort ? `${c.config.effort} effort` : null, c.config?.image ? "makes images" : null];
   return bits.filter(Boolean).join(" · ");
 };

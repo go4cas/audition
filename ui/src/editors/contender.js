@@ -1,7 +1,8 @@
 // 8. Add, edit, or "Duplicate and edit" a contender: "Audition calls it" or
 // "I copy and paste". The fields change to fit the connection's provider:
 // effort for Anthropic, temperature for OpenAI-compatible (TECH-SPEC F8),
-// a behaviour for the mock.
+// a behaviour for the mock. An OpenAI-compatible contender can make images
+// instead of text (TECH-SPEC §12a): then it gets size, quality and count.
 import { html, reactive } from "@arrow-js/core";
 import { create, update } from "../api.js";
 import { APP, go } from "../lib/nav.js";
@@ -19,6 +20,20 @@ const EFFORTS = [
   { value: "max", label: "Max", desc: "Thinks longest, uses most tokens" },
 ];
 const BEHAVIOURS = ["steady", "erratic", "flaky", "fail", "image", "judge"].map((b) => ({ value: b, label: b[0].toUpperCase() + b.slice(1), desc: { steady: "Always about four stars", erratic: "Two to five stars by chance", flaky: "Fails once, then answers", fail: "Always fails", image: "Returns one or two images", judge: "Made for judging" }[b] }));
+
+const SIZES = [
+  { value: "auto", label: "Auto", desc: "The model picks" },
+  { value: "1024x1024", label: "Square", desc: "1024 × 1024" },
+  { value: "1536x1024", label: "Landscape", desc: "1536 × 1024" },
+  { value: "1024x1536", label: "Portrait", desc: "1024 × 1536" },
+];
+const QUALITIES = [
+  { value: null, label: "Model default", desc: "Let the model decide" },
+  { value: "low", label: "Low", desc: "Fastest and cheapest" },
+  { value: "medium", label: "Medium", desc: "Balanced" },
+  { value: "high", label: "High", desc: "Finest detail, costs most" },
+];
+const FORMATS = [{ value: null, label: "Model default", desc: "Usually PNG" }, ...["png", "jpeg", "webp"].map((v) => ({ value: v, label: v.toUpperCase(), desc: { png: "Lossless, can be transparent", jpeg: "Smaller files", webp: "Small, can be transparent" }[v] }))];
 
 export default function contenderForm({ params, query }) {
   const tempPop = popId();
@@ -40,12 +55,15 @@ export default function contenderForm({ params, query }) {
         model: src?.model || "", effort: cfg.effort || null, temperature: cfg.temperature ?? "", behaviour: cfg.mock?.behaviour || "steady",
         system_prompt: cfg.system_prompt || "", notes: cfg.notes || "", max_output_tokens: src?.max_output_tokens ?? 16000, group: src?.group || "",
         price_in: src?.price_in_per_mtok ?? "", price_out: src?.price_out_per_mtok ?? "",
+        makes: cfg.image ? "image" : "text", img_size: cfg.image?.size || "auto", img_quality: cfg.image?.quality || null,
+        img_n: cfg.image?.n ?? 1, img_format: cfg.image?.format || null, img_b64: cfg.image?.ask_b64 === true,
       });
     },
     body: (s) => {
       const { d, f, src } = s;
       const apiConns = d.connections.filter((c) => c.provider !== "manual").map((c) => ({ value: c.id, label: c.name, icon: c.provider === "mock" ? "api" : "key", desc: PROVIDER_LABEL[c.provider] + (c.provider === "mock" ? " · built-in test provider" : c.has_key ? " · key saved" : " · no key yet") }));
       const provider = () => d.byId.connections.get(f.connection)?.provider;
+      const images = () => provider() === "openai-compatible" && f.makes === "image";
       const save = (e) => busy(e, async () => {
         e.preventDefault();
         const api = f.mode === "api";
@@ -53,7 +71,14 @@ export default function contenderForm({ params, query }) {
         if (api) {
           if (f.system_prompt.trim()) config.system_prompt = f.system_prompt.trim();
           if (provider() === "anthropic" && f.effort) config.effort = f.effort;
-          if (provider() === "openai-compatible" && f.temperature !== "") config.temperature = Number(f.temperature);
+          const images = provider() === "openai-compatible" && f.makes === "image";
+          if (provider() === "openai-compatible" && !images && f.temperature !== "") config.temperature = Number(f.temperature);
+          if (images) {
+            config.image = { size: f.img_size, n: Math.min(4, Math.max(1, Number(f.img_n) || 1)) };
+            if (f.img_quality) config.image.quality = f.img_quality;
+            if (f.img_format) config.image.format = f.img_format;
+            if (f.img_b64) config.image.ask_b64 = true;
+          }
           if (provider() === "mock") config.mock = { behaviour: f.behaviour };
         } else if (f.notes.trim()) config.notes = f.notes.trim();
         const body = {
@@ -84,17 +109,29 @@ export default function contenderForm({ params, query }) {
           <div class="field"><label for="cn-name">Name</label><input class="input" id="cn-name" required value="${() => f.name}" @input="${(e) => { f.name = e.target.value; }}" placeholder="${() => (f.mode === "api" ? "Opus 5.5, high effort" : "Claude Code (manual), plan mode")}"><span class="hint">What the leaderboard shows. Two setups of the same model are two contenders.</span></div>
 
           ${() => (f.mode === "api" ? html`<div class="stack">
+            ${() => (provider() === "openai-compatible" ? html`<div class="field">
+              <span class="label" id="cn-makes-label">What does it make?</span>
+              ${seg({ name: "cn-makes", labelId: "cn-makes-label", value: () => f.makes, onChange: (v) => { f.makes = v; }, options: [{ value: "text", label: "Text", icon: "text" }, { value: "image", label: "Images", icon: "image" }] })}
+              <span class="hint">${() => (f.makes === "image" ? "Audition calls the provider's Images API and keeps every picture it returns. Attach images to a task to have them edited." : "Audition calls Chat Completions and keeps the text answer.")}</span>
+            </div>` : "")}
             <div class="fields-2">
               <div class="field"><label for="cn-conn">Connection</label>${dropdown({ id: "cn-conn", label: "Connection", options: () => apiConns, value: () => f.connection, onChange: (v) => { f.connection = v; } })}</div>
               <div class="field"><label for="cn-model">Model</label><input class="input" id="cn-model" value="${() => f.model}" @input="${(e) => { f.model = e.target.value; }}" placeholder="${() => (provider() === "mock" ? "mock-steady" : "claude-opus-5-5")}"></div>
               ${() => (provider() === "anthropic" ? html`<div class="field"><label for="cn-effort">Effort</label>${dropdown({ id: "cn-effort", label: "Effort", options: () => EFFORTS, value: () => f.effort, onChange: (v) => { f.effort = v; } })}</div>` : "")}
-              ${() => (provider() === "openai-compatible" ? html`<div class="field"><label for="cn-temp">Temperature <button class="info-btn" type="button" popovertarget="${tempPop}" aria-label="What is temperature?">${icon("help")}</button></label><input class="input num" id="cn-temp" type="number" step="0.1" min="0" max="2" value="${() => f.temperature}" @input="${(e) => { f.temperature = e.target.value; }}"></div>` : "")}
+              ${() => (provider() === "openai-compatible" && !images() ? html`<div class="field"><label for="cn-temp">Temperature <button class="info-btn" type="button" popovertarget="${tempPop}" aria-label="What is temperature?">${icon("help")}</button></label><input class="input num" id="cn-temp" type="number" step="0.1" min="0" max="2" value="${() => f.temperature}" @input="${(e) => { f.temperature = e.target.value; }}"></div>` : "")}
               ${() => (provider() === "mock" ? html`<div class="field"><label for="cn-behaviour">Mock behaviour</label>${dropdown({ id: "cn-behaviour", label: "Mock behaviour", options: () => BEHAVIOURS, value: () => f.behaviour, onChange: (v) => { f.behaviour = v; } })}</div>` : "")}
             </div>
+            ${() => (images() ? html`<div class="fields-2">
+              <div class="field"><label for="cn-size">Size</label>${dropdown({ id: "cn-size", label: "Size", options: () => SIZES, value: () => f.img_size, onChange: (v) => { f.img_size = v; } })}</div>
+              <div class="field"><label for="cn-quality">Quality</label>${dropdown({ id: "cn-quality", label: "Quality", options: () => QUALITIES, value: () => f.img_quality, onChange: (v) => { f.img_quality = v; } })}</div>
+              <div class="field"><label for="cn-n">Images per output</label><input class="input num" id="cn-n" type="number" min="1" max="4" value="${() => f.img_n}" @input="${(e) => { f.img_n = e.target.value; }}"><span class="hint">1 to 4. Each one costs.</span></div>
+              <div class="field"><label for="cn-format">File type</label>${dropdown({ id: "cn-format", label: "File type", options: () => FORMATS, value: () => f.img_format, onChange: (v) => { f.img_format = v; } })}</div>
+              <label class="check"><input type="checkbox" checked="${() => f.img_b64}" @change="${(e) => { f.img_b64 = e.target.checked; }}"><span class="check__box">${icon("check")}</span><span>Ask for base64 <span class="muted small">for DALL·E and servers that send links</span></span></label>
+            </div>` : "")}
             <div class="pop" id="${tempPop}" popover><div class="pop__head">${icon("sliders")}Temperature</div><div class="pop__body"><p>How adventurous the answers are. 0 gives the same, careful answer each time. 1 gives more varied, creative answers.</p></div></div>
             <div class="field"><label for="cn-sys">System prompt <span class="muted">(optional)</span></label><textarea class="textarea textarea--short" id="cn-sys" rows="3" value="${() => f.system_prompt}" @input="${(e) => { f.system_prompt = e.target.value; }}" placeholder="Extra instructions this contender always gets"></textarea></div>
             <div class="fields-2">
-              <div class="field"><label for="cn-max">${icon("tokens")}Max output tokens</label><input class="input num" id="cn-max" type="number" min="1" required value="${() => f.max_output_tokens}" @input="${(e) => { f.max_output_tokens = e.target.value; }}"><span class="hint">A hard limit on every reply. Your spending guard.</span></div>
+              ${() => (images() ? "" : html`<div class="field"><label for="cn-max">${icon("tokens")}Max output tokens</label><input class="input num" id="cn-max" type="number" min="1" required value="${() => f.max_output_tokens}" @input="${(e) => { f.max_output_tokens = e.target.value; }}"><span class="hint">A hard limit on every reply. Your spending guard.</span></div>`)}
               <div class="field"><label for="cn-group">Leaderboard group</label><input class="input" id="cn-group" value="${() => f.group}" @input="${(e) => { f.group = e.target.value; }}" placeholder="Opus 5.5"><span class="hint">Groups setups of the same model.</span></div>
             </div>
             <details class="panel">
