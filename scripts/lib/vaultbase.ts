@@ -195,9 +195,28 @@ export async function ownerLogin(base: string, email: string, password: string):
 }
 
 /** Settings Audition needs (TECH-SPEC §4). */
+/**
+ * Rate limits (Vaultbase's per-address limiter, Settings > Rate limiting).
+ * Setting the rules replaces Vaultbase's defaults, so the last three are its
+ * defaults, kept as they were (NOTES R6, RF2). The first match wins, so the
+ * guest rules come first: guest sign-ins (each makes a guest account) and the
+ * guest routes, which anyone holding a link can call (TECH-SPEC §10b).
+ */
+export const RATE_LIMIT_RULES = [
+  { label: "/api/auth/guests/anonymous", max: 10, windowMs: 60_000, audience: "all" },
+  { label: "/api/custom/guest/*", max: 240, windowMs: 60_000, audience: "all" },
+  { label: "*:auth", max: 10, windowMs: 3000, audience: "all" },
+  { label: "*:create", max: 60, windowMs: 5000, audience: "all" },
+  { label: "/api/*", max: 300, windowMs: 10000, audience: "all" },
+];
+
 export const SETTINGS = {
   "queues.timeout_ms": "900000",
   "auth.mfa.enabled": "true",
+  // Guest voters (TECH-SPEC §10b): anonymous sessions. Only the `guests`
+  // collection lets anyone sign up, so this can't make an owner account.
+  "auth.anonymous.enabled": "true",
+  "rate_limit.rules": JSON.stringify(RATE_LIMIT_RULES),
 };
 
 export async function applySettings(base: string, adminToken: string): Promise<void> {

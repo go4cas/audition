@@ -97,6 +97,7 @@ Do this after every install, upgrade and restore.
 - [ ] Home lists the workspaces; a leaderboard opens.
 - [ ] Start a run: any role, one task, `Mock Steady`, judged by Me. It finishes; judge it; it shows on the leaderboard.
 - [ ] While that run is live, the browser's dev tools (Network, WS) show an open `/realtime` socket. If it fails, the run page still works by polling: check that Cloudflare's WebSockets setting is on and Caddy passes `/realtime` through (NOTES "Realtime run page").
+- [ ] On a run's page, Guest votes, "Ask guests to vote" makes a link. Opened in a private window (not signed in), it shows the answers by letter and saves a star. Close the link afterwards. If the private window says "Voting isn't open", the settings weren't applied: rerun the upgrade with `--force`.
 - [ ] In the admin, Settings, Backup & restore shows the schedule on and a next run.
 - [ ] `https://<your domain>/_/` answers 404 (the admin isn't public), or 403 from Cloudflare's WAF rule behind a tunnel.
 
@@ -206,7 +207,7 @@ sudo bash install.sh --version v0.3.1      # the release tag
 
 Fetch the new `install.sh` first, so the upgrade runs the release's own installer. On a server that can't reach GitHub, copy the new bundle up and run `sudo bash install.sh --bundle audition-<tag>-linux-x64.tar.gz` instead (see [Install](#install)).
 
-Running the installer again on a server that has Audition upgrades it. It downloads and checks the new bundle (and the new Vaultbase binary, when the pin changed), stops the service, takes a **cold copy of the whole data folder** into `/var/lib/audition-rollback` (the database, the files and both keys), switches `/opt/audition/current` and the binary symlink, and starts the service. Vaultbase upgrades its data folder when it starts and can't downgrade, so that copy is the rollback, not a Vaultbase backup. Then run the smoke test. Hook files only change while the service is stopped.
+Running the installer again on a server that has Audition upgrades it. It downloads and checks the new bundle (and the new Vaultbase binary, when the pin changed), stops the service, takes a **cold copy of the whole data folder** into `/var/lib/audition-rollback` (the database, the files and both keys), switches `/opt/audition/current` and the binary symlink, starts the service, and applies Audition's Vaultbase settings again (signed in as the admin from `/etc/audition/admin-credentials`), so a setting a release adds takes effect (guest voters, Nov 18, 2026: anonymous sessions and rate limits). Vaultbase upgrades its data folder when it starts and can't downgrade, so that copy is the rollback, not a Vaultbase backup. Then run the smoke test. Hook files only change while the service is stopped.
 
 ### Rollback
 
@@ -230,6 +231,10 @@ It stops the service, moves the current data aside to `/var/lib/audition.failed-
 | A one-off database copy | `vb backup --to /var/lib/audition/manual-$(date +%F).db` (database only, no files or keys) |
 | Is there a newer Vaultbase? | `vb update` |
 | Redo the proxy site file | `sudo bash install.sh proxy [--tls-cert FILE --tls-key FILE]` |
+
+### Guest links and Cloudflare
+
+Guest voters (TECH-SPEC §10b) need no Cloudflare change. The guest page (`/api/custom/app/vote/…`), the guest sign-in (`/api/v1/auth/guests/anonymous`) and the guest routes (`/api/custom/guest/…`) go through like the rest of the app, and the host-scoped WAF rule only blocks `/_/`. Vaultbase's rate limiter (10 guest sign-ins and 240 guest calls a minute per visitor) sees each visitor's address because `audition.env` trusts the tunnel. Optional second layer: a Cloudflare rate-limiting rule on `/api/v1/auth/guests/anonymous` for your host (the free plan allows one). If Cloudflare's Bot Fight Mode or "Under Attack" mode is on, guests may get a challenge page first; that is fine.
 
 ## Making a release
 

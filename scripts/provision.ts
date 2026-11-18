@@ -54,6 +54,18 @@ export async function provision(o: ProvisionOpts) {
   return { token, seed, backupStatus: backups.body?.data?.status };
 }
 
+if (import.meta.main && process.argv[2] === "settings") {
+  // `install.sh` upgrades run this: Audition's Vaultbase settings (SETTINGS)
+  // again, so a release that adds one (guest voters: anonymous sessions and
+  // rate limits) takes effect without a fresh install. Idempotent.
+  const url = (process.env["AUDITION_URL"] ?? "http://127.0.0.1:8091").replace(/\/$/, "");
+  const email = process.env["AUDITION_ADMIN_EMAIL"], password = process.env["AUDITION_ADMIN_PASSWORD"];
+  if (!email || !password) { console.error("Set AUDITION_ADMIN_EMAIL and AUDITION_ADMIN_PASSWORD."); process.exit(2); }
+  await applySettings(url, await adminLogin(url, email, password));
+  console.log(`Settings applied: ${Object.keys(SETTINGS).join(", ")}`);
+  process.exit(0);
+}
+
 if (import.meta.main && process.argv[2] === "offsite") {
   // The off-server backup copy (scripts/offsite.ts), in the same compiled tool.
   process.exit(await offsiteMain(process.argv.slice(3)));

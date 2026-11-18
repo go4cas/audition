@@ -20,6 +20,8 @@ export interface RawRow {
   /** Phase 2a outcome checks: scored ones only. Never part of quality or fitness. */
   n_outcome?: number;
   mean_outcome?: number | null;
+  /** Guest voters: 1 per output where the crowd's score is one of the n scores (TECH-SPEC §10b). */
+  n_guest?: number;
 }
 
 export interface Row {
@@ -36,6 +38,7 @@ export interface Row {
   fitness: number;
   n_outcome: number;
   mean_outcome: number | null;
+  n_guest: number;
   qualifies: boolean;
   enough_data: boolean;
 }
@@ -120,6 +123,7 @@ export function leaderboard(raw: RawRow[], opts: { weights: FitnessWeights; minO
       fitness: round(fitness, 4),
       n_outcome: r.n_outcome ?? 0,
       mean_outcome: r.n_outcome && r.mean_outcome != null ? round(r.mean_outcome, 2) : null,
+      n_guest: r.n_guest ?? 0,
       qualifies: enough_data && r.mean_score > passMark,
       enough_data,
     };
@@ -149,6 +153,7 @@ export function parseViewRow(v: Record<string, unknown>, name: string, group: st
     mean_cost: num(v["mean_cost"]),
     n_outcome: num(v["n_outcome"]) ?? 0,
     mean_outcome: num(v["mean_outcome"]),
+    n_guest: num(v["n_guest"]) ?? 0,
   };
 }
 

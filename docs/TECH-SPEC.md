@@ -201,10 +201,11 @@ audition/
 
 ## 5. Accounts and access rules
 
-There are two identities.
+There are three identities.
 
 - **The Vaultbase admin.** Created with `vaultbase setup-admin`. Scripts use it for setup and seeding, and it can open the admin UI at `/_/`. The app UI never uses it.
 - **The owner.** One record in the `users` auth collection. The UI signs in as the owner.
+- **Guests** (Nov 18, 2026, §10b). Anonymous sessions in their own `guests` auth collection, made by anyone who opens a guest link. No rule below lets them in; they use only the guest routes.
 
 Rule shorthand used below:
 
@@ -214,7 +215,7 @@ Rule shorthand used below:
 
 ## 6. Data model
 
-Thirteen base or auth collections plus one view (T0 counted them against the built schema; earlier drafts said fourteen). Every collection also gets `id`, `created_at` and `updated_at` from Vaultbase. "Later" fields exist from T0, are nullable, and are unused in Phase 1. "Rel" means a relation, with its delete behaviour.
+Sixteen base or auth collections plus one view (thirteen until guest voters added `guests`, `guest_links` and `guest_votes` on Nov 18, 2026, §10b) (T0 counted them against the built schema; earlier drafts said fourteen). Every collection also gets `id`, `created_at` and `updated_at` from Vaultbase. "Later" fields exist from T0, are nullable, and are unused in Phase 1. "Rel" means a relation, with its delete behaviour.
 
 ### users (auth)
 
@@ -223,6 +224,10 @@ Thirteen base or auth collections plus one view (T0 counted them against the bui
 | name | text | |
 
 Rules: list `id = @request.auth.id` · view `id = @request.auth.id` · create `""` · update `id = @request.auth.id` · delete `""`.
+
+### guests (auth), guest_links, guest_votes
+
+Guest voters, §10b. `guests`: no extra fields; list and view `id = @request.auth.id` · create `@request.body.email:isset = false` (anonymous sign-in only) · update and delete `""`. `guest_links`: all five `OWNER`. `guest_votes`: list and view `OWNER` · create, update and delete `—`.
 
 ### workspaces
 
@@ -455,11 +460,11 @@ JOIN (
 GROUP BY r.role, a.contender
 ```
 
-The exact query is in `schema/snapshot.json`. `v` holds one score per scored output: its active rubric verdict's score on a Rate run, or on a Compare run `1 + 4 × (wins + ties / 2) / pairs played` over its active picks, counted once the output is `judged` (§10a, Nov 18, 2026). Phase 2a (Cas approved Nov 12, 2026): quality counts rubric verdicts only, and scored outcome checks get their own two columns, which never enter quality or fitness. Only scored outputs count, and tokens and time are averaged over those same outputs. Rules: list and view `OWNER`. T0 confirms the table names (`vb_<name>`, from `src/core/collections.ts`, `userTableName`) and the storage form of relation columns before writing this query.
+Guest voters (§10b, Nov 18, 2026) add a third part to `v`, tagged `src = 'g'` (the first two are `'j'`): one score per output from the guests of links the owner set to count, once it has 3 or more guest votes (the average stars, or `1 + 4 ×` the guests' win share on a Compare run). The view also has `n_guest`, and tokens, time and cost are averaged over the `'j'` rows only, so an output with a crowd score isn't counted twice. The exact query is in `schema/snapshot.json`. `v` holds one score per scored output: its active rubric verdict's score on a Rate run, or on a Compare run `1 + 4 × (wins + ties / 2) / pairs played` over its active picks, counted once the output is `judged` (§10a, Nov 18, 2026). Phase 2a (Cas approved Nov 12, 2026): quality counts rubric verdicts only, and scored outcome checks get their own two columns, which never enter quality or fitness. Only scored outputs count, and tokens and time are averaged over those same outputs. Rules: list and view `OWNER`. T0 confirms the table names (`vb_<name>`, from `src/core/collections.ts`, `userTableName`) and the storage form of relation columns before writing this query.
 
 ## 7. Custom routes
 
-All routes need the owner (`requireAuth: true`, plus a check that the caller is in `users`). They take and return JSON, and their errors look like Vaultbase's: `{ "error": "…", "code": 422, "details"?: {…} }`. Paths below are relative to `/api/custom`.
+All routes need the owner (`requireAuth: true`, plus a check that the caller is in `users`), except `GET /app/*` and the three guest routes (§10b), which check for a guest session themselves. They take and return JSON, and their errors look like Vaultbase's: `{ "error": "…", "code": 422, "details"?: {…} }`. Paths below are relative to `/api/custom`.
 
 | Method and path | Thread | Does |
 | --- | --- | --- |
@@ -467,12 +472,15 @@ All routes need the owner (`requireAuth: true`, plus a check that the caller is 
 | `POST /runs/preview` | T1 | `{ role, tasks[], contenders[], judge, method? }` (`method` is `rate` or `compare`, default the workspace's; `compare` needs two contenders or more) → `{ outputs, api_calls, handoff_outputs, judge_calls, total_provider_calls, warnings[] }`. Warnings include "the AI judge shares a provider with Mock Steady". |
 | `POST /runs` | T1 | Same body as preview. Checks that the tasks belong to the role and the contenders are enabled, renders one prompt per task (§9), creates the run and one attempt per task × contender, locks every task and contender used, then enqueues each API attempt on `generate`. Returns `{ run }`. |
 | `POST /runs/:id/again` | T1 | A new run with the same role, tasks, contenders and judge, `rerun_of = :id`. Only for runs that are `done`. |
-| `GET /runs/:id` | T1 | `{ run, counts: { queued, in_progress, waiting, submitted, judged, failed }, attempts: [{ id, task, contender, mode, status, tokens_in, tokens_out, duration_ms, provider_calls, cost, finish_reason, error }] }`, for the live view to poll. Not blind. |
+| `GET /runs/:id` | T1 | `{ run, counts: { queued, in_progress, waiting, submitted, judged, failed }, attempts: [{ id, task, contender, mode, status, tokens_in, tokens_out, duration_ms, provider_calls, cost, finish_reason, error }], guests: [{ id, token, active, counts, expires_at, max_guests, created, guests, votes, state }] }`, for the live view to poll. Not blind. |
 | `GET /handoff/:runId/:taskId` | T2 | `{ prompt, attachments: [{ name, url }], waiting: [{ attempt, contender_name }] }`. The prompt is the stored `prompt_sent`. |
-| `GET /judging/:runId/:taskId` | T3 | The blind payload (§10) |
-| `GET /leaderboard/:roleId` | T3 | `{ terms_used: ["quality", "tokens"], dropped: [{ term: "time", reason: "Codex (manual) has no time data" }], rows: [{ contender, name, group, n, mean_score, ci_low, ci_high, mean_tokens, mean_time_ms, mean_cost, fitness, n_outcome, mean_outcome, qualifies, enough_data }], suggested: contenderId \| null, casting: { contender, since } \| null }` |
+| `GET /judging/:runId/:taskId` | T3 | The blind payload (§10). Each output also has `guests: { votes, score, counts } \| null` (§10b). |
+| `GET /leaderboard/:roleId` | T3 | `{ terms_used: ["quality", "tokens"], dropped: [{ term: "time", reason: "Codex (manual) has no time data" }], rows: [{ contender, name, group, n, mean_score, ci_low, ci_high, mean_tokens, mean_time_ms, mean_cost, fitness, n_outcome, mean_outcome, n_guest, qualifies, enough_data }], suggested: contenderId \| null, casting: { contender, since } \| null }` |
 | `POST /castings` | T3 | `{ role, contender, rationale? }`. Refuses unless the contender qualifies (§11). Creates a confirmed casting with `suggested_by` set to `system` if it was the suggestion, otherwise `human`. |
 | `POST /tasks/:id/compose` | Composer | Checks the task is unlocked and not already composing and that the workspace's Composer is an enabled `api` contender, sets `tasks.compose` to `composing`, enqueues `compose` with `{ task }`, and returns `{ task }` at once (§9a). |
+| `GET /guest/:token` | Guest voters | A guest's blind ballot (§10b). Guest sessions only. |
+| `POST /guest/:token/votes` | Guest voters | `{ task, label, stars }` or `{ task, left, right, pick }`. One vote per guest per output or pair. |
+| `GET /guest/:token/files/:task/:label/:i` | Guest voters | An output file for a guest, under a neutral name. |
 | `DELETE /connections/:id/key` | T1 | Removes the stored key (F2) |
 | `POST /files/:collection/:id/:field` | T2 | The owner's upload path, built while Vaultbase's own was broken (NOTES.md F9, fixed in 0.41.1; F15, O6). Kept until part B of `docs/PLATFORM-UPGRADES.md`. Multipart, parts named `file`. Only `attempts/output_files` (handoff, waiting) and `tasks/attachments` (unlocked). 25 MB per file, Phase 1 types, all or nothing. Returns `{ data: record }`. |
 
@@ -623,6 +631,20 @@ Added Nov 18, 2026 (Cas approved the two fields and the view change). The code i
 - **AI judge.** When an output is submitted, `queueJudging` enqueues one `judge` job per rival already in (unique key `judge:<left>:<right>`), so each pair is queued once, by whichever output arrived last. `judgePair` sends both outputs in one call: the system prompt `PAIR_SYSTEM`, the task as sent, the rubric with weights, "THE FIRST OUTPUT" and "THE SECOND OUTPUT" with their files (neutral names `first-1.png`, `second-1.png`; the same file rules as Q5). Output schema: `{ winner: "first" | "second" | "tie", reason: string }`. A bad reply is retried once; then "AI judging failed: …" goes on both outputs and the owner picks. The mock judge picks the higher `[[mock-quality:n]]` marker.
 - **Blind payload.** On a Compare run `run.method` is `compare`, each output has `record: { wins, ties, losses, played, score }` and `verdict: null`, and there is a `pairs` list in label order (A vs B, A vs C, B vs C): `{ left, right, left_attempt, right_attempt, ready, pick: { judge_kind, winner: "left" | "right" | "tie", reason } | null, history: [{ judge_kind, winner, status }] }`. Nothing in it names a contender (`test/pairwise.test.ts` walks it as `blind.test.ts` does).
 - **UI.** "Start a run" and workspace settings have a "Rate (stars) / Compare (A vs B)" choice; with Compare and the AI judge, Start a run also offers "Ask the AI judge both ways" with its cost. A "How is this score worked out?" popover on the judging screen and the leaderboard explains the score with a worked example. The judging screen shows one pair at a time with "A is better", "About the same", "B is better", a row of pair chips, and the task's standings. The run page shows the method as a badge.
+
+## 10b. Guest voters
+
+Added Nov 18, 2026. Cas approved the schema (`guests`, `guest_links`, `guest_votes`, the leaderboard view) and the rule "the crowd counts as one judge". The code is `lib/guests.ts`, three guest routes, two `guest_links` hooks, the `sweep-guests` job, `ui/src/pages/vote/[token].js` and `ui/src/lib/guest.js`.
+
+- **Who a guest is.** A Vaultbase anonymous session (`POST /api/v1/auth/guests/anonymous`, setting `auth.anonymous.enabled`, in `SETTINGS`). It lives in its own auth collection, `guests`, never in `users`. Every API rule on Audition's collections needs `@request.auth.collectionName = "users"`, and every owner route checks `isOwner` (type user, collection `users`), so a guest token reaches nothing but the guest routes (`test/guests.test.ts` lists every collection and owner route). `users` keeps `create_rule = ""`, so an anonymous sign-in there answers 403. The `guests` create rule is `@request.body.email:isset = false`: the anonymous sign-in passes it, a register with an email doesn't. A guest can view only its own record. Vaultbase counts an anonymous session as not signed in for `requireAuth` routes, so the guest routes set `requireAuth: false` and check `isGuest` (type user, collection `guests`, `anonymous: true`) themselves.
+- **guest_links** (owner CRUD, record history on): `run` (cascade), `token` (unique index), `active`, `expires_at` (unix seconds), `max_guests` (1 to 500), `counts`. The before-hooks make the token (64 hex characters from two random UUIDs; whatever the owner sends is replaced), default `active = true`, `counts = false`, `max_guests = 50`, `expires_at` = now + 7 days, refuse an end date more than 30 days out, and refuse changing `run` or `token`.
+- **guest_votes** (owner list and view; no REST writes, the vote route writes through `helpers.records`): `link` (cascade), `run`, `task`, `guest` (setNull), `attempt`, `opponent`, `stars` (1 to 5) or `winner` (`this`, `opponent`, `tie`). One vote per guest per output (Rate) or per pair (Compare, either way round); voting again changes it.
+- **Routes.** `GET /guest/:token`: the blind ballot. `POST /guest/:token/votes`: `{task, label, stars}` or `{task, left, right, pick: "left" | "right" | "tie"}`. `GET /guest/:token/files/:task/:label/:i`: an output file under its neutral name (`A-1.png`), read from local storage (Vaultbase's file endpoint checks the attempts view rule, which only the owner passes), with `content-security-policy: sandbox` and `nosniff`. Every call checks the link: unknown token 404; closed, expired, or full for a new guest 410 (a guest who already voted always gets back in). `GET /runs/:id` also returns `guests`, the run's links with guest and vote counts and a state (`open`, `closed`, `expired`, `full`).
+- **The ballot is blind.** Tasks with their title and prompt (the composed prompt if there is one), outputs by letter only (the same letters as the owner's judging screen), the rubric names and guidance as "what makes a good answer", the guest's own votes, and on Compare runs every pair with sides from `pairSides`. No attempt or contender ids, names, models, tokens, time, cost, scores or anyone else's verdicts. Only `submitted` and `judged` outputs show.
+- **How guest votes count.** Only on links with `counts` on, and only per output with 3 or more guest votes (`CROWD_MIN`). Then all those votes together are one more score in the leaderboard's mean (§6): the average stars, or `1 + 4 ×` the win share. However many guests vote, they never outweigh one judge. Owner and AI verdicts are untouched. The judging screen shows each output's crowd ("Guests 4.3 · 3 votes", with "not counted" when it doesn't count) and the leaderboard shows "(1 from guests)" next to the count.
+- **Limits.** Vaultbase's rate limiter (`RATE_LIMIT_RULES` in `scripts/lib/vaultbase.ts`, per client address): 10 guest sign-ins a minute, 240 guest route calls a minute, then Vaultbase's own defaults. Setting `rate_limit.rules` replaces the defaults, so they are repeated there. Behind Cloudflare the limiter sees the visitor's address because `audition.env` trusts the local proxy (RELEASE.md). A link takes 50 guests by default and closes after 7 days.
+- **Clean-up.** `sweep-guests` (daily, 04:17 UTC) deletes guest accounts older than 31 days. Their votes stay, without the guest.
+- **UI.** The run page has a "Guest votes" panel: "Ask guests to vote" makes a link (and closes any open one), with Copy link, guests and votes, the end date, a "Count on the leaderboard" switch and Close link; earlier links are listed with their state and switch. The guest page (`/vote/<token>`, no sign-in, no app chrome) shows the ballot task by task, saves each vote at once, and thanks the guest when everything is done. A closed or expired link shows "Voting is closed" with the reason. The guest's session is kept under its own storage key, apart from the owner's token.
 
 ## 11. Leaderboard, fitness and the champion
 

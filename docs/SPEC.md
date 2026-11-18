@@ -158,6 +158,14 @@ Verdicts are separate records, so later phases can add pairwise picks and delaye
 - **Scores.** An output's score is 1 + 4 × its win share, a tie counting half: it beat every rival → 5, lost every pair → 1, all ties → 3. It is on the same 1 to 5 scale as a star score, so both kinds feed the same leaderboard, fitness and champion rules. An output is judged once all of its pairs are decided. An output whose rivals all failed has nothing to be compared with: it is marked judged without a score and doesn't count.
 - **What the two mean.** A star score is absolute (how good against the rubric); a Compare score is relative (how it did against the others in that run). Mixing both in one role is allowed. Comparing works best when the contenders are close, or when star ratings feel arbitrary. The leaderboard average is the plain mean of a contender's per-output scores, rated or compared, each output counting once; the judging screen and the leaderboard explain this with a worked example ("How is this score worked out?").
 
+**Guest voters.** Added Nov 18, 2026 (Cas approved the schema and chose "the crowd counts as one judge").
+
+- **A link anyone can open.** On a run's page, "Ask guests to vote" makes a link to copy and send. Whoever opens it votes without an account: Audition gives them a Vaultbase anonymous session, kept in its own `guests` collection so it can never reach the owner's data.
+- **Blind, like the owner's screen.** Guests see each task's question and the answers by letter, in the same shuffled order, and the rubric as "what makes a good answer". They never see which tool made an answer, any score, or anyone else's votes. On a Rate run they give each answer 1 to 5 stars; on a Compare run they pick the better of two, or "About the same". Each vote saves at once and can be changed while the link is open.
+- **The owner stays in charge.** A link is open for 7 days (30 at most) and takes 50 guests. The owner can close it at any time, and sees how many guests voted. Guest votes only count on the leaderboard when the owner switches "Count on the leaderboard" on for that link.
+- **The crowd counts as one judge.** On an output with 3 or more guest votes, the guests' average (or their win share on a Compare run) becomes one more score next to the owner's or AI's verdict. Fifty guests, or one person clearing cookies, never outweigh a judge. The judging screen shows what guests made of each output; the leaderboard shows how many of a contender's scores came from guests.
+- **Abuse.** Vaultbase's rate limiter caps guest sign-ins (10 a minute) and guest calls (240 a minute) per address. Guest accounts are deleted after 31 days.
+
 **Fitness** is calculated per role × contender across all runs, never per run:
 
 ```
@@ -193,7 +201,7 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 | Stale-attempt sweep | Cron | Later |
 | Scheduled runs, outcome verdicts | Cron | 2 |
 | Run-complete and casting alerts | Push and email | 2 |
-| Guest voters | Anonymous sessions | 2 |
+| Guest voters (built Nov 18, 2026) | Anonymous sessions, rate limits | 2 |
 | Match a new task to a role | Vector search | 2 |
 | Contender rollout | Feature flags | 2 |
 | Runner callbacks | HMAC-signed webhooks | 3 |
@@ -212,10 +220,10 @@ The only secrets Audition holds are provider API keys. It never stores account p
 
 - **Keys are write-only to clients.** API keys sit in an encrypted field on `connection_keys`, which the owner can write but not read, and only server-side code reads them. No API response or realtime event returns them.
 - **Harness credentials stay on the harness machine.** Handoff contenders hold no credentials in Audition.
-- **API rules:** the single owner alone can access everything. The blind judging endpoint never returns contender fields.
+- **API rules:** the single owner alone can access everything. The blind judging endpoint never returns contender fields. Guests (anonymous sessions in `guests`) can reach no collection, only the guest routes, which check the link on every call and serve the same blind view.
 - **Uploads** are checked for type (text, images, PDF, zip) and size (25 MB per file).
 - **Egress:** Vaultbase's guard blocks private and loopback ranges, and Audition refuses any provider URL whose host isn't the connection's.
-- **Rate limits** apply to the auth routes.
+- **Rate limits** apply to the auth routes, and tighter ones to guest sign-ins and the guest routes.
 - **Development and cloud sessions use the mock provider only.** No real provider keys ever enter the repo, tests or Claude Code cloud sessions. The real-provider check runs on the owner's own machine.
 
 ## Phases
@@ -225,7 +233,7 @@ Phase 1 proves the whole loop — tasks → runs → judging → casting — wit
 | Phase | Scope | Done when |
 | --- | --- | --- |
 | 1 — Core loop | Workspaces, stages, roles, tasks; connections and contenders; API mode and handoff by copy and paste with one generic template; star-rubric judging by Me or AI with owner override; Run again; leaderboard with tokens, time and optional cost; champion suggestion and casting; single owner | All four reference workspaces run end to end against the mock provider. Then Cas runs one real check with Anthropic on their own machine, outside any Claude session, after T5 merges. |
-| 2 — Living arena | Composer utility role; scheduled runs; outcome verdicts; push and email alerts; guest voters; vector match of new tasks to roles; Levare reads castings | A scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
+| 2 — Living arena | Composer utility role; scheduled runs; outcome verdicts; push and email alerts; guest voters (built Nov 18, 2026, see "Guest voters" under Judging); vector match of new tasks to roles; Levare reads castings | A scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
 | 3 — Runners | Automated runners for harness contenders, with sandboxes outside Vaultbase reporting through signed webhooks | A coding task runs on two harnesses with no manual step |
 
 **First after Phase 1:** move server writes onto the Vaultbase records API (an API token plus a `hooks.http.allow` loopback exception, or a write helper if Vaultbase adds one: https://github.com/vaultbase-sh/vaultbase/discussions/10), then turn on record history for verdicts and castings and realtime for the run page (NOTES R5). Done for the writes and history on Nov 11, 2026 with `helpers.records` (Vaultbase 0.43, `docs/PLATFORM-UPGRADES.md` part B); realtime for the run page followed in its own PR (B3).
@@ -240,7 +248,7 @@ Approved by Cas on Nov 11, 2026. Each step is its own thread and PR, in this ord
 | --- | --- | --- | --- |
 | 1 — Wrap-up | Realtime run page (part B3 of `docs/PLATFORM-UPGRADES.md`), with polling kept as the fallback when the connection drops. One combined request to the Vaultbase author: text/markdown, zip and csv on the upload allowlist (NOTES W1), a server-side file helper (Q2) and an "only if" condition on `helpers.records.update` (Q3). Tag v0.2.0 and deploy it by `docs/RELEASE.md`; Cas runs the server steps and the real Anthropic check. | Realtime | The run page updates without polling, and v0.2.0 runs on Cas's server |
 | 2 — Phase 2a, living arena lite | Scheduled runs of a role, using the existing `runs.schedule` field. A stale-attempt sweep. Outcome verdicts that come due on a set date, starting with Stock Review ("was the call right four weeks later?"), using the existing `verdicts.due_at` field. An email to the owner when a run finishes or a role's champion changes. | Cron, email | The Phase 2 Done-when: a scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
-| Later, phase not set | MCP read-only access to castings; the Composer utility role (built Nov 18, 2026, see "The Composer"); guest voters; vector match of new tasks to roles; pairwise judging (done Nov 18, 2026: Compare (A vs B), see Judging); API adapters for image models (OpenAI-compatible Images API built Nov 18, 2026, see "Image models"; Replicate waits on Vaultbase); push alerts (built, docs/PUSH-ALERTS.md); contender rollout by feature flags; Levare reading castings. (Outline chips: done Nov 13 2026. Off-server R2 copy of backups: built Nov 18 2026, Vaultbase's own S3 backup copy, docs/RELEASE.md "Off-server copy".) Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, feature flags | Each is picked and scoped with Cas before its thread starts |
+| Later, phase not set | MCP read-only access to castings; the Composer utility role (built Nov 18, 2026, see "The Composer"); guest voters (built Nov 18, 2026); vector match of new tasks to roles; pairwise judging (done Nov 18, 2026: Compare (A vs B), see Judging); API adapters for image models (OpenAI-compatible Images API built Nov 18, 2026, see "Image models"; Replicate waits on Vaultbase); push alerts (built, docs/PUSH-ALERTS.md); contender rollout by feature flags; Levare reading castings. (Outline chips: done Nov 13 2026. Off-server R2 copy of backups: built Nov 18 2026, Vaultbase's own S3 backup copy, docs/RELEASE.md "Off-server copy".) Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, feature flags | Each is picked and scoped with Cas before its thread starts |
 
 ## Phase 1 thread plan
 

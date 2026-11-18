@@ -902,6 +902,168 @@
       "history_enabled": true
     },
     {
+      "name": "guests",
+      "type": "auth",
+      "fields": [
+        {
+          "name": "email",
+          "type": "email",
+          "required": true,
+          "implicit": true,
+          "options": {
+            "unique": true
+          }
+        },
+        {
+          "name": "verified",
+          "type": "bool",
+          "required": false,
+          "implicit": true
+        }
+      ],
+      "list_rule": "id = @request.auth.id",
+      "view_rule": "id = @request.auth.id",
+      "create_rule": "@request.body.email:isset = false",
+      "update_rule": "",
+      "delete_rule": "",
+      "history_enabled": false
+    },
+    {
+      "name": "guest_links",
+      "type": "base",
+      "fields": [
+        {
+          "name": "run",
+          "type": "relation",
+          "collection": "runs",
+          "required": true,
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "token",
+          "type": "text"
+        },
+        {
+          "name": "active",
+          "type": "bool"
+        },
+        {
+          "name": "expires_at",
+          "type": "date"
+        },
+        {
+          "name": "max_guests",
+          "type": "number",
+          "options": {
+            "min": 1,
+            "max": 500
+          }
+        },
+        {
+          "name": "counts",
+          "type": "bool"
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "update_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "delete_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "history_enabled": true,
+      "indexes": [
+        {
+          "fields": [
+            "token"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "guest_votes",
+      "type": "base",
+      "fields": [
+        {
+          "name": "link",
+          "type": "relation",
+          "collection": "guest_links",
+          "required": true,
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "run",
+          "type": "relation",
+          "collection": "runs",
+          "required": true,
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "task",
+          "type": "relation",
+          "collection": "tasks",
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "guest",
+          "type": "relation",
+          "collection": "guests",
+          "options": {
+            "cascade": "setNull"
+          }
+        },
+        {
+          "name": "attempt",
+          "type": "relation",
+          "collection": "attempts",
+          "required": true,
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "opponent",
+          "type": "relation",
+          "collection": "attempts",
+          "options": {
+            "cascade": "cascade"
+          }
+        },
+        {
+          "name": "stars",
+          "type": "number",
+          "options": {
+            "min": 1,
+            "max": 5
+          }
+        },
+        {
+          "name": "winner",
+          "type": "select",
+          "options": {
+            "values": [
+              "this",
+              "opponent",
+              "tie"
+            ]
+          }
+        }
+      ],
+      "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
+      "create_rule": "",
+      "update_rule": "",
+      "delete_rule": "",
+      "history_enabled": false
+    },
+    {
       "name": "leaderboard",
       "type": "view",
       "fields": [
@@ -927,6 +1089,11 @@
         },
         {
           "name": "sum_sq",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "n_guest",
           "type": "text",
           "required": false
         },
@@ -971,7 +1138,7 @@
           "required": false
         }
       ],
-      "view_query": "SELECT\n  r.role || ':' || a.contender AS id,\n  r.role AS role,\n  a.contender AS contender,\n  COUNT(v.score) AS n,\n  AVG(v.score) AS mean_score,\n  SUM(v.score * v.score) AS sum_sq,\n  COUNT(CASE WHEN a.tokens_in IS NOT NULL AND a.tokens_out IS NOT NULL THEN 1 END) AS n_tokens,\n  AVG(a.tokens_in + a.tokens_out) AS mean_tokens,\n  COUNT(a.duration_ms) AS n_time,\n  AVG(a.duration_ms) AS mean_time_ms,\n  COUNT(a.cost) AS n_cost,\n  AVG(a.cost) AS mean_cost,\n  (SELECT COUNT(o.score) FROM vb_verdicts o JOIN vb_attempts oa ON oa.id = o.attempt JOIN vb_runs orun ON orun.id = oa.run\n    WHERE o.method = 'outcome' AND o.status = 'active' AND orun.role = r.role AND oa.contender = a.contender) AS n_outcome,\n  (SELECT AVG(o.score) FROM vb_verdicts o JOIN vb_attempts oa ON oa.id = o.attempt JOIN vb_runs orun ON orun.id = oa.run\n    WHERE o.method = 'outcome' AND o.status = 'active' AND orun.role = r.role AND oa.contender = a.contender) AS mean_outcome\nFROM vb_attempts a\nJOIN vb_runs r ON r.id = a.run\nJOIN (\n  SELECT rv.attempt AS attempt, rv.score AS score FROM vb_verdicts rv\n    WHERE rv.status = 'active' AND COALESCE(rv.method, 'rubric') = 'rubric'\n  UNION ALL\n  SELECT p.attempt AS attempt, ROUND(1 + 4.0 * SUM(p.points) / COUNT(*), 2) AS score FROM (\n    SELECT pv.attempt AS attempt, CASE pv.winner WHEN 'this' THEN 1.0 WHEN 'tie' THEN 0.5 ELSE 0.0 END AS points\n      FROM vb_verdicts pv WHERE pv.method = 'pairwise' AND pv.status = 'active'\n    UNION ALL\n    SELECT pv.opponent AS attempt, CASE pv.winner WHEN 'opponent' THEN 1.0 WHEN 'tie' THEN 0.5 ELSE 0.0 END AS points\n      FROM vb_verdicts pv WHERE pv.method = 'pairwise' AND pv.status = 'active' AND pv.opponent IS NOT NULL\n  ) p JOIN vb_attempts pa ON pa.id = p.attempt AND pa.status = 'judged'\n  GROUP BY p.attempt\n) v ON v.attempt = a.id\nGROUP BY r.role, a.contender",
+      "view_query": "SELECT\n  r.role || ':' || a.contender AS id,\n  r.role AS role,\n  a.contender AS contender,\n  COUNT(v.score) AS n,\n  AVG(v.score) AS mean_score,\n  SUM(v.score * v.score) AS sum_sq,\n  COUNT(CASE WHEN v.src = 'g' THEN 1 END) AS n_guest,\n  COUNT(CASE WHEN v.src = 'j' AND a.tokens_in IS NOT NULL AND a.tokens_out IS NOT NULL THEN 1 END) AS n_tokens,\n  AVG(CASE WHEN v.src = 'j' THEN a.tokens_in + a.tokens_out END) AS mean_tokens,\n  COUNT(CASE WHEN v.src = 'j' THEN a.duration_ms END) AS n_time,\n  AVG(CASE WHEN v.src = 'j' THEN a.duration_ms END) AS mean_time_ms,\n  COUNT(CASE WHEN v.src = 'j' THEN a.cost END) AS n_cost,\n  AVG(CASE WHEN v.src = 'j' THEN a.cost END) AS mean_cost,\n  (SELECT COUNT(o.score) FROM vb_verdicts o JOIN vb_attempts oa ON oa.id = o.attempt JOIN vb_runs orun ON orun.id = oa.run\n    WHERE o.method = 'outcome' AND o.status = 'active' AND orun.role = r.role AND oa.contender = a.contender) AS n_outcome,\n  (SELECT AVG(o.score) FROM vb_verdicts o JOIN vb_attempts oa ON oa.id = o.attempt JOIN vb_runs orun ON orun.id = oa.run\n    WHERE o.method = 'outcome' AND o.status = 'active' AND orun.role = r.role AND oa.contender = a.contender) AS mean_outcome\nFROM vb_attempts a\nJOIN vb_runs r ON r.id = a.run\nJOIN (\n  SELECT rv.attempt AS attempt, rv.score AS score, 'j' AS src FROM vb_verdicts rv\n    WHERE rv.status = 'active' AND COALESCE(rv.method, 'rubric') = 'rubric'\n  UNION ALL\n  SELECT p.attempt AS attempt, ROUND(1 + 4.0 * SUM(p.points) / COUNT(*), 2) AS score, 'j' AS src FROM (\n    SELECT pv.attempt AS attempt, CASE pv.winner WHEN 'this' THEN 1.0 WHEN 'tie' THEN 0.5 ELSE 0.0 END AS points\n      FROM vb_verdicts pv WHERE pv.method = 'pairwise' AND pv.status = 'active'\n    UNION ALL\n    SELECT pv.opponent AS attempt, CASE pv.winner WHEN 'opponent' THEN 1.0 WHEN 'tie' THEN 0.5 ELSE 0.0 END AS points\n      FROM vb_verdicts pv WHERE pv.method = 'pairwise' AND pv.status = 'active' AND pv.opponent IS NOT NULL\n  ) p JOIN vb_attempts pa ON pa.id = p.attempt AND pa.status = 'judged'\n  GROUP BY p.attempt\n  UNION ALL\n  SELECT g.attempt AS attempt, ROUND(AVG(g.points), 2) AS score, 'g' AS src FROM (\n    SELECT gv.attempt AS attempt, 1.0 * gv.stars AS points\n      FROM vb_guest_votes gv JOIN vb_guest_links gl ON gl.id = gv.link AND gl.counts = 1\n      WHERE gv.opponent IS NULL AND gv.stars IS NOT NULL\n    UNION ALL\n    SELECT gv.attempt AS attempt, CASE gv.winner WHEN 'this' THEN 5.0 WHEN 'tie' THEN 3.0 ELSE 1.0 END AS points\n      FROM vb_guest_votes gv JOIN vb_guest_links gl ON gl.id = gv.link AND gl.counts = 1\n      WHERE gv.opponent IS NOT NULL AND gv.winner IS NOT NULL\n    UNION ALL\n    SELECT gv.opponent AS attempt, CASE gv.winner WHEN 'opponent' THEN 5.0 WHEN 'tie' THEN 3.0 ELSE 1.0 END AS points\n      FROM vb_guest_votes gv JOIN vb_guest_links gl ON gl.id = gv.link AND gl.counts = 1\n      WHERE gv.opponent IS NOT NULL AND gv.winner IS NOT NULL\n  ) g JOIN vb_attempts ga ON ga.id = g.attempt AND ga.status IN ('submitted', 'judged')\n  GROUP BY g.attempt\n  HAVING COUNT(*) >= 3\n) v ON v.attempt = a.id\nGROUP BY r.role, a.contender",
       "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
       "view_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",
       "create_rule": "",

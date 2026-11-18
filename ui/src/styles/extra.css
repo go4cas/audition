@@ -148,3 +148,22 @@ button.alert-item__link { width: 100%; font: inherit; text-align: left; cursor: 
 @media (max-width: 40rem) {
   .standings .state { display: none; }
 }
+
+/* Guest voting (TECH-SPEC §10b): the page a shared link opens, and the owner's
+   "Guest votes" panel on the run page. */
+.vote-brand { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
+.vote-brand .brand__mark { width: 30px; height: 30px; }
+.vote-brand__name { font-weight: 700; letter-spacing: -0.01em; }
+.vote-prompt summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }
+.vote-prompt[open] summary { margin-bottom: var(--s2); }
+.vote-prompt .output__text { max-height: 16rem; overflow: auto; padding: var(--s3); border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); }
+.vote-stars { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2); }
+.output.is-rated { border-color: var(--done-line); }
+.vote-foot { text-align: center; }
+.guest-link { display: flex; gap: var(--s2); align-items: center; }
+.guest-link .input { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-xs); }
+.guest-stats { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); }
+.guest-crowd { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 40rem) {
+  .guest-link { flex-direction: column; align-items: stretch; }
+}

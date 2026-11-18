@@ -17,6 +17,12 @@ const weighted = (rubric, stars) => {
   return w ? Math.round((sum / w) * 100) / 100 : null;
 };
 
+// What guests made of an output (TECH-SPEC §10b), if any voted: their score,
+// how many votes, and whether it counts on the leaderboard.
+const crowd = (o) => (o.guests
+  ? html`<span class="guest-crowd small text-2" data-testid="guest-crowd" title="${o.guests.counts ? "Counts as one more judge on the leaderboard" : "Not counted on the leaderboard"}">${icon("me")}Guests ${o.guests.score.toFixed(1)} · ${plural(o.guests.votes, "vote")}${o.guests.counts ? "" : ", not counted"}</span>`
+  : "");
+
 // The one write this screen makes: an owner verdict (stars, or a pick in Compare).
 const saveVerdict = (body) => create("verdicts", body);
 
@@ -136,7 +142,7 @@ export default function judge() {
               </button>
               ${o.output ? html`<p class="small text-2 image-card__caption">${o.output}</p>` : ""}
               <div class="output__rating">${p.rubric.map((c) => stars(o, c))}</div>
-              <div class="image-card__foot">${scoreEl(o)}${() => { const x = out(o); return o.verdict && !x.dirty ? chip("done", "Rated") : Object.values(x.stars).some(Boolean) ? chip("active", "In progress") : chip("draft", "Not rated"); }}${editBtn(o)}</div>
+              <div class="image-card__foot">${scoreEl(o)}${crowd(o)}${() => { const x = out(o); return o.verdict && !x.dirty ? chip("done", "Rated") : Object.values(x.stars).some(Boolean) ? chip("active", "In progress") : chip("draft", "Not rated"); }}${editBtn(o)}</div>
             </article>`;
           })}</div>
           <div class="row-tight"><div class="progress progress--short"><span class="p-done" style="${() => "width:" + (rated() / p.outputs.length) * 100 + "%"}"></span></div><span class="small text-2">${() => `${rated()} of ${p.outputs.length} rated`}</span></div>
@@ -153,7 +159,7 @@ export default function judge() {
             ${o.files?.length ? files(o) : o.claims_note ? html`<p class="xs muted row-tight">${icon("image")}No screenshots attached.</p>` : ""}
           </div>
           <div class="output__rating">${p.rubric.map((c) => stars(o, c))}</div>
-          <div class="output__foot">${tag(o)}${editBtn(o)}</div>
+          <div class="output__foot">${tag(o)}${crowd(o)}${editBtn(o)}</div>
         </article>`)}</div>
         ${saveBar}`;
     },
@@ -264,7 +270,7 @@ function compareView(s, params) {
     ${helpPop}
     <ul class="list standings">${standings.map((o) => html`<li>
       <span class="letter-tile">${o.label}</span>
-      <span class="grow small text-2">${o.record.played ? `${plural(o.record.wins, "win")}, ${plural(o.record.ties, "tie")}, ${plural(o.record.losses, "loss", "losses")}` : "Not compared yet"}</span>
+      <span class="grow small text-2">${o.record.played ? `${plural(o.record.wins, "win")}, ${plural(o.record.ties, "tie")}, ${plural(o.record.losses, "loss", "losses")}` : "Not compared yet"} ${crowd(o)}</span>
       ${top === o ? html`<span class="state" data-state="champion">${icon("trophy")}Best so far</span>` : ""}
       <span class="score">${icon("star")}<span>${o.record.score == null ? "–" : o.record.score.toFixed(1)}</span></span>
     </li>`)}</ul>

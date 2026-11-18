@@ -19,12 +19,12 @@ describe("quiver:app", () => {
     expect(r.stderr.toString()).toBe("");
   });
 
-  test("has the same URLs as the 3.1 route table, plus Phase 2a's outcome checks and the alerts page", () => {
+  test("has the same URLs as the 3.1 route table, plus Phase 2a's outcome checks, the alerts page and guest voting", () => {
     const routes = [...gen.matchAll(/^\s*'([^']+)': \(\) => import\(/gm)].map((m) => m[1]!.replace(/:\w+/g, ":p"));
     expect(routes.sort()).toEqual([
       "/", "/alerts", "/contenders", "/contenders/:p/edit", "/contenders/new", "/handoff/:p/:p", "/judge/:p/:p",
       "/leaderboard/:p", "/outcomes", "/r/:p", "/r/:p/tasks/new", "/runs/:p", "/runs/new", "/signin", "/t/:p",
-      "/w/:p", "/w/:p/roles/new", "/w/:p/settings", "/w/new",
+      "/vote/:p", "/w/:p", "/w/:p/roles/new", "/w/:p/settings", "/w/new",
     ]);
     expect(gen).toMatch(/notFound: \(\) => import\('[^']+\/pages\/not-found\.js'\)/);
   });
