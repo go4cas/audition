@@ -18,9 +18,10 @@ test("migrations/diff between the instance and the snapshot is empty", async () 
   expect(r.body.data.unchanged.map((c: { name: string }) => c.name).sort()).toEqual(snapshot.collections.map((c: { name: string }) => c.name).sort());
 });
 
-test("13 base or auth collections plus the leaderboard view", () => {
+test("16 base or auth collections plus the leaderboard view", () => {
   const kinds = snapshot.collections.map((c: { type: string }) => c.type);
-  expect(kinds.filter((k: string) => k !== "view").length).toBe(13);
+  // 13 since T0, plus guests, guest_links and guest_votes (guest voters, Nov 18, 2026).
+  expect(kinds.filter((k: string) => k !== "view").length).toBe(16);
   expect(snapshot.collections.filter((c: { type: string }) => c.type === "view").map((c: { name: string }) => c.name)).toEqual(["leaderboard"]);
 });
 
@@ -30,7 +31,7 @@ test("every collection states all five rules and history_enabled", () => {
     expect(typeof c.history_enabled, c.name).toBe("boolean");
   }
   const history = snapshot.collections.filter((c: { history_enabled: boolean }) => c.history_enabled).map((c: { name: string }) => c.name).sort();
-  expect(history).toEqual(["attempts", "castings", "contenders", "roles", "runs", "tasks", "verdicts"]);
+  expect(history).toEqual(["attempts", "castings", "contenders", "guest_links", "roles", "runs", "tasks", "verdicts"]);
 });
 
 const LATER: Array<[string, string]> = [

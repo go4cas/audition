@@ -1,7 +1,9 @@
 // GET /api/custom/judging/:runId/:taskId (TECH-SPEC §10): the blind payload
 // for the judging screen. It never holds who made an output: no contender,
 // connection, model, group, mode, tokens, time or cost (test/blind.test.ts).
+// Each output also carries what guests made of it, if any voted (§10b).
 import { defineRoute } from "vaultbase";
+import { crowdScores } from "../lib/guests.ts";
 import { ownerRoute, RunError } from "../lib/runs.ts";
 import { blindPayload } from "../lib/scoring.ts";
 
@@ -13,6 +15,7 @@ export default defineRoute({
   handle: (ctx) => ownerRoute(ctx, async () => {
     const payload = await blindPayload(ctx.helpers as never, String(ctx.params["runId"]), String(ctx.params["taskId"]));
     if (!payload) throw new RunError(404, "That run or task does not exist.");
-    return payload;
+    const crowd = await crowdScores(ctx.helpers.sql as never, payload.outputs.map((o) => o.attempt));
+    return { ...payload, outputs: payload.outputs.map((o) => ({ ...o, guests: crowd.get(o.attempt) ?? null })) };
   }),
 });

@@ -4,10 +4,10 @@
 // polls that route every 2 seconds instead (PLATFORM-UPGRADES B3). Outputs and
 // scores stay hidden here so judging stays blind.
 import { html, reactive } from "@arrow-js/core";
-import { custom } from "../../api.js";
+import { create, custom, update } from "../../api.js";
 import { APP, go, routeArgs } from "../../lib/nav.js";
 import { busy, crumbs, page } from "../../components/page.js";
-import { TYPE_ICON, avatar, chip, duration, errorToast, icon, money, num, outputChip, plural, popId, time, toast, METHOD_LABEL } from "../../lib/ui.js";
+import { TYPE_ICON, avatar, chip, copyText, date, duration, errorToast, icon, money, num, outputChip, plural, popId, time, toast, METHOD_LABEL } from "../../lib/ui.js";
 import { load, runLabel } from "../../state/data.js";
 import { refreshInbox } from "../../state/inbox.js";
 import { subscribe } from "../../lib/realtime.js";
@@ -105,6 +105,8 @@ export default function run() {
 
         ${() => (v().run.status === "done" ? repeatPanel(s, d, r) : "")}
 
+        ${guestPanel(s, r)}
+
         <div class="notice">${icon("blind")}<div class="small">Outputs and scores stay hidden here so judging stays blind. You'll see them on the judging screen, without names.</div></div>
 
         ${taskIds.map((tid) => {
@@ -126,6 +128,69 @@ export default function run() {
         })}`;
     },
   });
+}
+
+// Guest votes (TECH-SPEC §10b): a link anyone can open to rate this run's
+// outputs, blind, without an account. The owner copies it, sees how many
+// guests voted, decides whether their votes count on the leaderboard, and
+// closes it.
+function guestPanel(s, r) {
+  // Drawn by hand into its host, not through a reactive slot: its shape
+  // changes (no link, an open link, older links), and Arrow 1.0.6 can't swap
+  // template shapes in one slot reliably (NOTES U3, P4).
+  const hostId = "guest-panel-body";
+  let links = s.live.v.guests || [];
+  const draw = () => {
+    const host = document.getElementById(hostId);
+    if (!host) { requestAnimationFrame(draw); return; }
+    host.replaceChildren();
+    body()(host);
+  };
+  const reload = async () => { try { s.live.v = await custom.run(r.id); links = s.live.v.guests || []; } catch { /* keep the last view */ } draw(); };
+  const urlOf = (l) => `${location.origin}${APP}/vote/${l.token}`;
+  const make = (e) => busy(e, async () => {
+    try {
+      // One open link at a time: a new one closes the old.
+      for (const l of links.filter((x) => x.state === "open")) await update("guest_links", l.id, { active: false });
+      await create("guest_links", { run: r.id });
+      await reload();
+      toast("Guest link ready. Copy it and send it to anyone.", "done", "send");
+    } catch (err) { errorToast(err); }
+  });
+  const set = (l, patch, msg) => async (e) => {
+    try { await update("guest_links", l.id, patch); toast(msg, "done", "check"); } catch (err) { errorToast(err); }
+    await reload();
+  };
+  const copy = (l) => async (e) => {
+    const ok = await copyText(urlOf(l), e.currentTarget.closest(".guest-link")?.querySelector("input"));
+    toast(ok ? "Link copied" : "Select the link and copy it", ok ? "done" : "error", ok ? "copy" : "warning");
+  };
+  const STATE = { open: ["done", "Open"], closed: ["draft", "Closed"], expired: ["draft", "Expired"], full: ["warning", "Full"] };
+  const countsSwitch = (l) => html`<label class="switch"><input type="checkbox" checked="${l.counts}" data-testid="guest-counts" @change="${(e) => set(l, { counts: e.target.checked }, e.target.checked ? "Guest votes from this link now count" : "Guest votes from this link no longer count")(e)}"><span class="switch__track"></span>Count on the leaderboard</label>`;
+  const stats = (l) => html`<div class="guest-stats small text-2">
+    <span class="row-tight">${icon("me")}${plural(l.guests, "guest")} of ${l.max_guests}</span>
+    <span class="row-tight">${icon("star")}${plural(l.votes, "vote")}</span>
+    ${l.expires_at ? html`<span class="row-tight">${icon("time")}${l.state === "expired" ? "Closed" : "Closes"} ${date(l.expires_at)}</span>` : ""}
+  </div>`;
+  const hint = html`<p class="xs muted">When counting is on, all guest votes on one output together count as one more judge, once 3 guests have voted on it. Your own verdicts are never replaced.</p>`;
+  const body = () => {
+    const open = links.find((l) => l.state === "open");
+    const rest = links.filter((l) => l !== open);
+    const makeBtn = open ? "" : html`<button class="btn btn--sm btn--primary" type="button" data-testid="guest-make" @click="${make}">${icon("plus")}${links.length ? "New guest link" : "Ask guests to vote"}</button>`;
+    return html`<div class="panel__head"><h2 class="h-md">${icon("send")}Guest votes</h2>${makeBtn}</div>
+      <div class="panel__body gap-10">
+        ${links.length ? "" : html`<p class="small text-2">Want more opinions? Make a link and send it to anyone. They rate this run's outputs ${r.method === "compare" ? "two at a time" : "with stars"}, without an account, and never see which tool made what.</p>`}
+        ${open ? html`<div class="stack-sm" data-testid="guest-open">
+          <div class="guest-link"><input class="input grow" readonly aria-label="Guest link" value="${urlOf(open)}" @focus="${(e) => e.target.select()}"><button class="btn" type="button" @click="${copy(open)}">${icon("copy")}Copy link</button></div>
+          <div class="row-between">${stats(open)}<div class="row-tight">${countsSwitch(open)}<button class="btn btn--sm btn--quiet" type="button" @click="${set(open, { active: false }, "Link closed. Guests can't vote with it any more.")}">${icon("close")}Close link</button></div></div>
+        </div>` : ""}
+        ${hint}
+        ${rest.length ? html`<div class="stack-sm"><p class="small text-2">${open ? "Earlier links" : "Links"}</p><ul class="list">${rest.map((l) => html`<li class="row-between">
+          <span class="row-tight">${chip(STATE[l.state][0], STATE[l.state][1])}<span class="small text-2">Made ${date(l.created)}</span></span>${stats(l)}${countsSwitch(l)}</li>`)}</ul></div>` : ""}
+      </div>`;
+  };
+  draw();
+  return html`<div class="panel" data-testid="guest-panel" id="${hostId}"></div>`;
 }
 
 const EVERY = [{ value: "day", label: "Day" }, { value: "week", label: "Week" }, { value: "month", label: "Month" }];

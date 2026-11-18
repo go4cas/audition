@@ -534,6 +534,15 @@ cmd_upgrade() {
     die "see: journalctl -u audition -n 50"
   fi
   sed -i "s/^VERSION=.*/VERSION=$VERSION/" "$MARKER"
+  # Audition's Vaultbase settings again, so ones a release adds (guest voters:
+  # anonymous sessions and their rate limits) take effect on an upgrade too.
+  if [ -f "$ETC/admin-credentials" ] && [ -x "$PREFIX/current/bin/audition-setup" ]; then
+    env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
+      AUDITION_URL="http://127.0.0.1:$port" \
+      AUDITION_ADMIN_EMAIL="$(admin_field email)" AUDITION_ADMIN_PASSWORD="$(admin_field password)" \
+      "$PREFIX/current/bin/audition-setup" settings | sed 's/^/      /' \
+      || warn "applying Audition's settings failed; guest links may not work. Rerun the upgrade with --force."
+  fi
   # Keep this release and the one before it; remove older ones.
   local d
   for d in "$PREFIX"/releases/*; do
