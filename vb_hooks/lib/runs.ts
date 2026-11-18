@@ -48,7 +48,7 @@ const quote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"
 
 // ── The run plan: validated body of POST /runs and /runs/preview ─────────────
 
-export interface RunBody { role: string; tasks: string[]; contenders: string[]; judge?: "me" | "ai"; method?: Method }
+export interface RunBody { role: string; tasks: string[]; contenders: string[]; judge?: "me" | "ai"; method?: Method; both_orders?: boolean }
 
 export interface PlanContender { contender: Rec; connection: Rec }
 export interface Plan {
@@ -59,6 +59,8 @@ export interface Plan {
   judge: "me" | "ai";
   /** How the judge decides: stars per output ("rate") or picks between two ("compare"). */
   method: Method;
+  /** Compare with the AI judge only: ask each pair twice, sides swapped (§10a). */
+  bothOrders: boolean;
   judgeContender: PlanContender | null;
 }
 
@@ -77,6 +79,7 @@ export function parseRunBody(raw: unknown): RunBody {
     role: b.role, tasks: ids(b.tasks, "task"), contenders: ids(b.contenders, "contender"),
     ...(b.judge ? { judge: b.judge as "me" | "ai" } : {}),
     ...(b.method ? { method: b.method as Method } : {}),
+    ...(b.both_orders === true ? { both_orders: true } : {}),
   };
 }
 
@@ -125,7 +128,8 @@ export async function loadPlan(deps: Deps, body: RunBody, judgeContenderId?: str
     if (!judgeContender) throw new RunError(422, "The workspace's AI judge no longer exists.");
     if (judgeContender.contender["mode"] !== "api") throw new RunError(422, "The AI judge must be a contender Audition can call (not copy and paste).");
   }
-  return { role, workspace, tasks, contenders, judge, method, judgeContender };
+  const bothOrders = body.both_orders === true && method === "compare" && judge === "ai";
+  return { role, workspace, tasks, contenders, judge, method, bothOrders, judgeContender };
 }
 
 // ── Preview: call counts and warnings ────────────────────────────────────────
@@ -151,7 +155,7 @@ export function previewOf(plan: Plan): Preview {
   const api = plan.contenders.filter((c) => c.contender["mode"] === "api").length;
   const handoff = plan.contenders.length - api;
   const outputs = n * plan.contenders.length;
-  const judged = plan.method === "compare" ? n * pairCount(plan.contenders.length) : outputs;
+  const judged = plan.method === "compare" ? n * pairCount(plan.contenders.length) * (plan.bothOrders ? 2 : 1) : outputs;
   const judgeCalls = plan.judge === "ai" ? judged : 0;
   const judgeIsMock = plan.judgeContender?.connection["provider"] === "mock";
   return {
@@ -207,6 +211,7 @@ export async function startRun(deps: Deps, plan: Plan, render: PromptForTask, op
     contenders: plan.contenders.map((c) => c.contender["id"]),
     judge: plan.judge,
     method: plan.method,
+    both_orders: plan.bothOrders,
     judge_contender: plan.judgeContender?.contender["id"] ?? null,
     rerun_of: opts.rerunOf ?? null,
     status: "running",
@@ -243,7 +248,7 @@ export async function rerunPlan(deps: Deps, runId: string): Promise<Plan> {
   const run = await deps.find("runs", runId);
   if (!run) throw new RunError(404, "That run does not exist.");
   if (run["status"] !== "done") throw new RunError(409, "Run again is possible once this run is done.");
-  const body: RunBody = { role: String(run["role"]), tasks: listOf(run["tasks"]), contenders: listOf(run["contenders"]), judge: run["judge"] as "me" | "ai", method: methodOf(run) };
+  const body: RunBody = { role: String(run["role"]), tasks: listOf(run["tasks"]), contenders: listOf(run["contenders"]), judge: run["judge"] as "me" | "ai", method: methodOf(run), both_orders: run["both_orders"] === true || run["both_orders"] === 1 };
   return loadPlan(deps, body, (run["judge_contender"] as string | null) || null);
 }
 

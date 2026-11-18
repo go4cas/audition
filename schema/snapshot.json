@@ -557,6 +557,10 @@
           }
         },
         {
+          "name": "both_orders",
+          "type": "bool"
+        },
+        {
           "name": "rerun_of",
           "type": "relation",
           "collection": "runs",

@@ -20,7 +20,7 @@ export default function newRun() {
       const d = s.d;
       const roles = query.ws ? d.roles.filter((r) => r.workspace === query.ws) : d.roles;
       const role = d.byId.roles.get(query.role) || sortRoles(d, roles)[0] || null;
-      s.f = reactive({ role: role?.id || null, tasks: [], contenders: [], judge: "me", method: "rate", preview: null, previewError: null });
+      s.f = reactive({ role: role?.id || null, tasks: [], contenders: [], judge: "me", method: "rate", bothOrders: false, preview: null, previewError: null });
       s.pickRole(role?.id);
     },
     init: {
@@ -49,7 +49,7 @@ export default function newRun() {
         const outputs = f.tasks.length * f.contenders.length;
         const jc = judge(), mockJudge = jc && d.byId.connections.get(jc.connection)?.provider === "mock";
         const pairs = (f.contenders.length * (f.contenders.length - 1)) / 2;
-        const judged = f.method === "compare" ? f.tasks.length * pairs : outputs;
+        const judged = f.method === "compare" ? f.tasks.length * pairs * (f.bothOrders && f.judge === "ai" ? 2 : 1) : outputs;
         const judge_calls = f.judge === "ai" && !mockJudge ? judged : 0;
         return { outputs, api_calls: f.tasks.length * api, handoff_outputs: f.tasks.length * manual, judge_calls, total_provider_calls: f.tasks.length * api + judge_calls, warnings: [] };
       };
@@ -59,7 +59,7 @@ export default function newRun() {
         timer = setTimeout(async () => {
           const n = ++seq;
           if (!f.role || !f.tasks.length || !f.contenders.length) { f.preview = null; return; }
-          try { const p = await custom.preview({ role: f.role, tasks: [...f.tasks], contenders: [...f.contenders], judge: f.judge, method: f.method }); if (n === seq) { f.preview = p; f.previewError = null; } }
+          try { const p = await custom.preview({ role: f.role, tasks: [...f.tasks], contenders: [...f.contenders], judge: f.judge, method: f.method, both_orders: f.method === "compare" && f.judge === "ai" && f.bothOrders }); if (n === seq) { f.preview = p; f.previewError = null; } }
           catch (e) { if (n === seq) { f.preview = null; f.previewError = e.status === 404 ? null : e.message; } }
         }, 150);
       };
@@ -67,12 +67,20 @@ export default function newRun() {
       const tick = (key) => () => { const v = sum()[key]; queueMicrotask(() => bump(document.getElementById("sum-" + key))); return num(v); };
       const start = (e) => busy(e, async () => {
         try {
-          const r = await custom.startRun({ role: f.role, tasks: [...f.tasks], contenders: [...f.contenders], judge: f.judge, method: f.method });
+          const r = await custom.startRun({ role: f.role, tasks: [...f.tasks], contenders: [...f.contenders], judge: f.judge, method: f.method, both_orders: f.method === "compare" && f.judge === "ai" && f.bothOrders });
           const run = r.run || r;
           toast("Run started", "done", "play");
           go("/runs/" + (run.id || run));
         } catch (err) { errorToast(err); }
       });
+      // What "both ways" costs for this run, in AI judge calls (Cas, Nov 18, 2026).
+      // Built once with reactive slots: Arrow recycles a template by its shape (NOTES QC1).
+      const once = () => f.tasks.length * pairsOf(f.contenders.length);
+      const mockJudge = () => { const jc = judge(); return !!jc && d.byId.connections.get(jc.connection)?.provider === "mock"; };
+      const costNote = html`<div class="notice" data-state="${() => (f.bothOrders ? "warning" : "active")}" data-testid="both-cost" hidden="${() => !(f.method === "compare" && f.judge === "ai" && once())}">${icon("cost")}<div class="small">
+          <strong>${() => (f.bothOrders ? `Both ways: ${plural(once() * 2, "AI judge call")} instead of ${num(once())}.` : `The AI judge will make ${plural(once(), "call")}, one per pair.`)}</strong>
+          ${() => (f.bothOrders ? "Each call also carries two outputs, so it uses about twice the input tokens of a star rating." : `Asking both ways would make ${num(once() * 2)}.`)}
+          ${() => (mockJudge() ? "The built-in mock judge is free." : "")}</div></div>`;
       refreshPreview();
       const w = ws();
       return html`
@@ -100,6 +108,8 @@ export default function newRun() {
               ${() => seg({ name: "nr-method", labelId: "nr-method-label", value: () => f.method, onChange: (v) => { f.method = v; refreshPreview(); }, options: METHOD_OPTIONS })}
               <span class="hint">${() => METHOD_HINT[f.method] + (f.method === "compare" ? ` With these contenders: ${plural(pairsOf(f.contenders.length), "pair")} per task.` : "")}</span>
             </div>
+            ${() => (f.method === "compare" && f.judge === "ai" ? html`<label class="check self-start"><input type="checkbox" id="nr-both" checked="${() => f.bothOrders}" @change="${(e) => { f.bothOrders = e.target.checked; refreshPreview(); }}"><span class="check__box">${icon("check")}</span><span><strong>Ask the AI judge both ways</strong><br><span class="muted small">Each pair is judged twice, with the sides swapped. If the two answers disagree, it counts as a tie. Fairer, but it doubles the calls to the AI judge.</span></span></label>` : "")}
+            ${costNote}
             ${() => (sum().warnings || []).map((w) => html`<div class="notice" data-state="warning">${icon("warning")}<div><strong>${w}</strong> A judge may favour its own family. You can go ahead, or judge this run yourself.</div></div>`)}
             ${() => (f.previewError ? html`<div class="notice" data-state="error">${icon("error")}<div>${f.previewError}</div></div>` : "")}
           </form>

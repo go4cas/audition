@@ -58,6 +58,7 @@ const waitFor = async (fn: () => Promise<boolean>, what: string, ms = 60_000) =>
   while (Date.now() < end) { if (await fn()) return; await Bun.sleep(300); }
   throw new Error("Timed out waiting for " + what);
 };
+const costSays = (text: string) => p.waitForFunction((t) => (document.querySelector("[data-testid=both-cost]") as HTMLElement | null)?.innerText.includes(t), text);
 const runStatus = async (id: string) => (await h.api("owner", "GET", `/api/v1/runs/${id}`)).body.data.status as string;
 
 async function shot(name: string) {
@@ -144,6 +145,19 @@ test("Software Factory: the AI compares, and my pick overrules one of its picks"
   const role = await one("roles", `name = "Researcher"`);
   const tasks = await list("tasks", `role = "${role.id}"`);
   // Mock Judge is the AI judge here and costs no calls: 3 outputs per task, 3 pairs per task.
+  // "Ask the AI judge both ways" shows its cost before you tick it, and doubles the judge calls when ticked.
+  const r = await one("roles", `name = "Researcher"`);
+  await go(`/runs/new?role=${r.id}`);
+  for (const c of ["Mock Steady", "Mock Erratic", "Mock Steady B"]) await p.locator("label.check").filter({ has: p.locator("strong", { hasText: new RegExp(`^${c}$`) }) }).click();
+  await p.locator(`label[for^="nr-judge-"]`, { hasText: "AI" }).first().click();
+  await p.locator(`label[for^="nr-method-"]`, { hasText: "Compare (A vs B)" }).click();
+  const once = tasks.length * 3;
+  await costSays(`will make ${once} calls`);
+  await p.locator("label.check", { hasText: "Ask the AI judge both ways" }).click();
+  await costSays(`Both ways: ${once * 2} AI judge calls instead of ${once}.`);
+  await shot("compare-both-ways");
+  await p.locator("label.check", { hasText: "Ask the AI judge both ways" }).click();
+  await costSays(`will make ${once} calls`);
   const run = await startRun("Researcher", ["Mock Steady", "Mock Erratic", "Mock Steady B"], { judge: "AI", method: "Compare (A vs B)", calls: tasks.length * 3 });
   await waitFor(async () => (await runStatus(run)) === "done", "the AI to compare every pair");
   const t = tasks[0];
@@ -164,6 +178,15 @@ test("Software Factory: the AI compares, and my pick overrules one of its picks"
 
   await go(`/leaderboard/${role.id}`);
   await p.getByText("Outputs from Compare runs score 1 to 5").waitFor();
+  await p.getByRole("button", { name: "How is this score worked out?" }).click();
+  await p.locator(".pop:popover-open").getByText("1 + 4 × 0.75 = 4.0").waitFor();
+  if (SCREENS) for (const theme of ["light", "dark"] as const) {
+    await p.emulateMedia({ colorScheme: theme });
+    await p.waitForTimeout(150);
+    await p.screenshot({ path: join(SCREENS, `compare-score-help-${theme}-1280.png`) });
+  }
+  await p.emulateMedia({ colorScheme: null });
+  await p.keyboard.press("Escape");
   await shot("compare-leaderboard");
 }, 180_000);
 

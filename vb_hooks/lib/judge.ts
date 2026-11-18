@@ -358,36 +358,58 @@ export async function judgePair(deps: JudgeDeps, leftId: string, rightId: string
   if ("error" in caller) return fail(caller.error, 0);
   const { judge, conn, generate, apiKey, rubric } = caller;
 
-  const attachments: FileOut[] = [];
+  // Each output's text and files, named for the slot it is shown in (first-1.png, second-1.png).
   const sideOf = async (a: Rec, prefix: string) => {
     const files = (await outputFiles(sql, String(a["id"]), list(a["output_files"]))).map((f, i) => ({ ...f, name: neutralName(prefix, i, f.name) }));
     const { shown, notes } = chooseFiles(files);
+    const attachments: FileOut[] = [];
     for (const f of shown) attachments.push({ name: f.name, mime: f.mime, bytes: await deps.readFile(f.stored) });
-    return { output: String(a["output"] ?? ""), shown: shown.map((f) => f.name), notes };
+    return { output: String(a["output"] ?? ""), shown: shown.map((f) => f.name), notes, attachments };
   };
-  const prompt = pairPrompt({
-    promptSent: String(left["prompt_sent"] ?? ""), rubric,
-    first: await sideOf(left, "first"), second: await sideOf(right, "second"),
-  });
   const config = (parseJson(judge["config"]) ?? {}) as GenerateInput["config"];
 
-  let lastError = "";
-  for (let tryNumber = 1; tryNumber <= 2; tryNumber++) {
-    let result: GenerateResult;
-    try {
-      result = await generate({
-        model: String(judge["model"] ?? ""), config, maxOutputTokens: Number(judge["max_output_tokens"] ?? 16000),
-        system: PAIR_SYSTEM, prompt, attachments, outputSchema: PAIR_SCHEMA,
-        apiKey, baseUrl: (conn["base_url"] as string) || undefined,
-        seed: mockSeed(`${leftId}${rightId}`, String(judge["id"]), tryNumber - 1), tryNumber, http: deps.http,
-      });
-    } catch (e) {
-      return fail(e instanceof Error ? e.message : String(e), tryNumber);
+  /** One judge call with `first` shown first; the pick from `first`'s side, or an error. */
+  const ask = async (first: Rec, second: Rec, order: number): Promise<{ winner: Winner; reason: string; tries: number } | { error: string; tries: number; final: boolean }> => {
+    const a = await sideOf(first, "first"), b = await sideOf(second, "second");
+    const prompt = pairPrompt({ promptSent: String(left["prompt_sent"] ?? ""), rubric, first: a, second: b });
+    let lastError = "";
+    for (let tryNumber = 1; tryNumber <= 2; tryNumber++) {
+      let result: GenerateResult;
+      try {
+        result = await generate({
+          model: String(judge["model"] ?? ""), config, maxOutputTokens: Number(judge["max_output_tokens"] ?? 16000),
+          system: PAIR_SYSTEM, prompt, attachments: [...a.attachments, ...b.attachments], outputSchema: PAIR_SCHEMA,
+          apiKey, baseUrl: (conn["base_url"] as string) || undefined,
+          seed: mockSeed(`${String(first["id"])}${String(second["id"])}`, String(judge["id"]), order * 2 + tryNumber - 1), tryNumber, http: deps.http,
+        });
+      } catch (e) {
+        // helpers.http already retried the network; a provider error is final.
+        return { error: e instanceof Error ? e.message : String(e), tries: tryNumber, final: true };
+      }
+      const parsed = parsePairReply(result.text);
+      if (!("error" in parsed)) return { ...parsed, tries: tryNumber };
+      lastError = parsed.error;
     }
-    const parsed = parsePairReply(result.text);
-    if ("error" in parsed) { lastError = parsed.error; continue; }
-    const v = await storeAiPick(deps, { left: leftId, right: rightId, run: String(run["id"]), judgeContender: String(judge["id"]), winner: parsed.winner, reason: parsed.reason });
-    return { outcome: "judged", verdict: v.id, status: v.status, tries: tryNumber };
+    return { error: `${lastError} (after one retry)`, tries: 2, final: false };
+  };
+
+  const one = await ask(left, right, 0);
+  if ("error" in one) return fail(one.error, one.tries);
+  let winner = one.winner, reason = one.reason, tries = one.tries;
+  if (run["both_orders"] === true || run["both_orders"] === 1) {
+    // Both ways (§10a): ask again with the sides swapped, and keep the pick only if the two agree.
+    const two = await ask(right, left, 1);
+    if ("error" in two) return fail(two.error, one.tries + two.tries);
+    const back: Winner = two.winner === "tie" ? "tie" : two.winner === "this" ? "opponent" : "this";
+    winner = combineOrders(one.winner, back);
+    reason = winner === one.winner && one.winner === back ? one.reason : `The two orders disagreed, so it counts as a tie. ${one.reason}`.trim();
+    tries += two.tries;
   }
-  return fail(`${lastError} (after one retry)`, 2);
+  const v = await storeAiPick(deps, { left: leftId, right: rightId, run: String(run["id"]), judgeContender: String(judge["id"]), winner, reason });
+  return { outcome: "judged", verdict: v.id, status: v.status, tries };
+}
+
+/** Two picks of one pair, both from the left output's side: kept when they agree, else a tie. */
+export function combineOrders(a: Winner, b: Winner): Winner {
+  return a === b ? a : "tie";
 }

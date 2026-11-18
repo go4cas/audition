@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { boot, create, fixtures, type Harness } from "./harness.ts";
 import { GENERIC_TEMPLATE } from "../seed/reference.ts";
 import { pairCount, pairScore, pairSides, record } from "../vb_hooks/lib/pairwise.ts";
-import { PAIR_SCHEMA, pairPrompt, parsePairReply } from "../vb_hooks/lib/judge.ts";
+import { combineOrders, PAIR_SCHEMA, pairPrompt, parsePairReply } from "../vb_hooks/lib/judge.ts";
 import { generate } from "../vb_hooks/lib/providers/mock.ts";
 import { BLIND_FORBIDDEN_KEYS } from "../vb_hooks/lib/scoring.ts";
 import { until } from "./t3-helpers.ts";
@@ -45,6 +45,13 @@ describe("pure parts", () => {
     expect(parsePairReply('{"winner":"tie"}')).toEqual({ winner: "tie", reason: "" });
     expect("error" in parsePairReply('{"winner":"A"}')).toBe(true);
     expect("error" in parsePairReply("not json")).toBe(true);
+  });
+  test("both ways: two picks that agree stand, two that disagree make a tie", () => {
+    expect(combineOrders("this", "this")).toBe("this");
+    expect(combineOrders("opponent", "opponent")).toBe("opponent");
+    expect(combineOrders("tie", "tie")).toBe("tie");
+    expect(combineOrders("this", "opponent")).toBe("tie");
+    expect(combineOrders("this", "tie")).toBe("tie");
   });
   test("the mock judge picks the output with the higher quality marker", async () => {
     const side = (q: number) => ({ output: `answer [[mock-quality:${q}]]`, shown: [], notes: [] });
@@ -112,6 +119,11 @@ test("call count: the AI judge is called once per pair, not once per output", as
   expect(rate.judge_calls).toBe(8); // 2 tasks × 4 outputs
   expect(compare.judge_calls).toBe(12); // 2 tasks × 6 pairs of 4
   expect(compare.total_provider_calls).toBe(8 + 12);
+  const both = (await post("/runs/preview", body({ judge: "ai", method: "compare", both_orders: true }))).body.data;
+  expect(both.judge_calls).toBe(24); // each pair twice, sides swapped
+  // "Both ways" only means something for Compare with the AI judge.
+  expect((await post("/runs/preview", body({ judge: "ai", method: "rate", both_orders: true }))).body.data.judge_calls).toBe(8);
+  expect((await post("/runs/preview", body({ judge: "me", method: "compare", both_orders: true }))).body.data.judge_calls).toBe(0);
   await h.api("owner", "PATCH", `/api/v1/workspaces/${f.workspace.id}`, { judge_contender: judge.id });
 });
 
@@ -269,4 +281,26 @@ test("on a Rate run the pair fields are ignored: the run's method decides", asyn
   expect(v.body.data.opponent).toBeNull();
   expect(v.body.data.winner).toBeNull();
   expect((await judging(run, f.task.id)).pairs).toBeUndefined();
+});
+
+test("both ways: the AI judges each pair twice with the sides swapped; Run again keeps it", async () => {
+  const r = await post("/runs", { role: f.role.id, tasks: [f.task.id], contenders: [C.steady!.id, C.erratic!.id, C.image!.id], judge: "ai", method: "compare", both_orders: true });
+  expect(r.status).toBe(200);
+  const run = r.body.data.run.id;
+  expect(r.body.data.run.both_orders).toBe(true);
+  await until(async () => (await get("runs", run)).status === "done", "the both-ways run to be done", 40_000);
+  const attempts = await attemptsOf(run);
+  const by = new Map(attempts.map((a) => [a.id, a]));
+  const picks = await picksOf(run);
+  expect(picks.length).toBe(3); // still one pick per pair
+  for (const p of picks) {
+    // The mock judge follows the quality markers in either order, so both answers agree.
+    const a = by.get(p.attempt)!, o = by.get(p.opponent)!;
+    expect(p.winner).toBe(quality(a) > quality(o) ? "this" : quality(o) > quality(a) ? "opponent" : "tie");
+  }
+  const again = await post(`/runs/${run}/again`, {});
+  expect((await get("runs", again.body.data.run.id)).both_orders).toBe(true);
+  // A Rate run never stores it.
+  const rate = await post("/runs", { role: f.role.id, tasks: [f.task.id], contenders: [C.steady!.id, C.erratic!.id], judge: "ai", method: "rate", both_orders: true });
+  expect(rate.body.data.run.both_orders).toBe(false);
 });

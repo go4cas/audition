@@ -7,7 +7,7 @@ import { html, reactive } from "@arrow-js/core";
 import { THUMB, create, custom, fileLabel, fileUrl, thumbUrl } from "../../../api.js";
 import { starInput } from "../../../components/forms.js";
 import { busy, crumbs, empty, page } from "../../../components/page.js";
-import { bump, chip, errorToast, icon, openLightbox, plural, popId, toast } from "../../../lib/ui.js";
+import { bump, chip, compareScoreHelp, errorToast, icon, openLightbox, plural, popId, toast } from "../../../lib/ui.js";
 import { refreshInbox } from "../../../state/inbox.js";
 import { APP, routeArgs } from "../../../lib/nav.js";
 
@@ -258,8 +258,10 @@ function compareView(s, params) {
     </section>`;
   };
 
+  const [helpBtn, helpPop] = compareScoreHelp();
   const table = html`<div class="panel">
-    <div class="panel__head"><h2 class="h-md">${icon("trophy", "gold")}Standings on this task</h2><span class="muted small">Score = 1 + 4 × win share (a tie counts half)</span></div>
+    <div class="panel__head"><h2 class="h-md">${icon("trophy", "gold")}Standings on this task</h2><span class="small">${helpBtn}</span></div>
+    ${helpPop}
     <ul class="list standings">${standings.map((o) => html`<li>
       <span class="letter-tile">${o.label}</span>
       <span class="grow small text-2">${o.record.played ? `${plural(o.record.wins, "win")}, ${plural(o.record.ties, "tie")}, ${plural(o.record.losses, "loss", "losses")}` : "Not compared yet"}</span>
