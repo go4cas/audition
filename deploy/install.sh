@@ -8,6 +8,8 @@
 #   sudo bash install.sh rollback        # undo the last upgrade
 #   sudo bash install.sh status
 #   sudo bash install.sh proxy --tls-cert F --tls-key F   # redo only the proxy site file
+#   sudo bash install.sh offsite         # copy every backup to Cloudflare R2 too (--off to stop)
+#   sudo bash install.sh restore-offsite # new server: bring back the newest backup from R2
 #   bash install.sh preflight            # only read the server and report
 #
 # Options: --version vX.Y.Z  --bundle FILE.tar.gz  --domain NAME  --email ADDRESS
@@ -63,10 +65,10 @@ confirm() { # confirm "Question" → 0 for yes
 
 # ── Arguments ─────────────────────────────────────────────────────────────────
 CMD=install; VERSION=""; BUNDLE=""; DOMAIN=""; EMAIL=""; PORT=""; PROXY=auto
-TLS_CERT=""; TLS_KEY=""; YES=0; PURGE=0; FORCE=0
+TLS_CERT=""; TLS_KEY=""; YES=0; PURGE=0; FORCE=0; OFF=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    install|upgrade|uninstall|rollback|status|preflight|proxy) CMD="$1";;
+    install|upgrade|uninstall|rollback|status|preflight|proxy|offsite|restore-offsite) CMD="$1";;
     --version) VERSION="${2:?}"; shift;;
     --bundle) BUNDLE="${2:?}"; shift;;
     --domain) DOMAIN="${2:?}"; shift;;
@@ -78,6 +80,7 @@ while [ $# -gt 0 ]; do
     --yes|-y) YES=1;;
     --purge) PURGE=1;;
     --force) FORCE=1;;
+    --off) OFF=1;;
     -h|--help) sed -n '2,23p' "$0"; exit 0;;
     *) die "unknown option $1 (see --help)";;
   esac
@@ -605,6 +608,121 @@ cmd_status() {
   curl -fsS --noproxy "*" "http://127.0.0.1:$(conf_get PORT)/_/ready" >/dev/null 2>&1 && echo "ready: yes" || echo "ready: no"
 }
 
+# ── Off-server backups (Cloudflare R2) ────────────────────────────────────────
+# Vaultbase copies each backup to the bucket itself (its backups.s3.* settings);
+# these two commands only switch that on, and bring a copy back on a new
+# server. The R2 keys are passed to the setup tool in its environment and
+# saved by Vaultbase, encrypted; nothing here writes them to a file.
+admin_field() { sed -n "s/^$1: //p" "$ETC/admin-credentials" | head -1; }
+
+ask_r2() {
+  note "From the Cloudflare dashboard: R2 Object Storage. docs/RELEASE.md \"Off-server copy\" has the steps."
+  [ -n "${R2_ACCOUNT_ID:-}" ] || ask R2_ACCOUNT_ID "R2 Account ID (or the bucket's S3 API URL)"
+  [ -n "${R2_BUCKET:-}" ] || ask R2_BUCKET "Bucket name" "audition-backups"
+  [ -n "${R2_ACCESS_KEY_ID:-}" ] || ask R2_ACCESS_KEY_ID "Access Key ID"
+  [ -n "${R2_SECRET_ACCESS_KEY:-}" ] || ask_secret R2_SECRET_ACCESS_KEY "Secret Access Key (hidden)"
+  R2_PREFIX="${R2_PREFIX:-audition/}"
+  [ -n "$R2_ACCOUNT_ID" ] && [ -n "$R2_BUCKET" ] && [ -n "$R2_ACCESS_KEY_ID" ] && [ -n "$R2_SECRET_ACCESS_KEY" ] \
+    || die "all four R2 answers are needed."
+}
+
+setup_tool() { # setup_tool ARGS... : the release's setup tool, signed in as the Vaultbase admin
+  env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
+    AUDITION_URL="http://127.0.0.1:$(conf_get PORT)" \
+    AUDITION_ADMIN_EMAIL="$(admin_field email)" AUDITION_ADMIN_PASSWORD="$(admin_field password)" \
+    R2_ACCOUNT_ID="${R2_ACCOUNT_ID:-}" R2_BUCKET="${R2_BUCKET:-}" R2_PREFIX="${R2_PREFIX:-}" \
+    R2_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID:-}" R2_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY:-}" \
+    "$PREFIX/current/bin/audition-setup" offsite "$@"
+}
+
+need_running() {
+  need_root
+  installed || die "Audition isn't installed here."
+  [ -f "$ETC/admin-credentials" ] || die "$ETC/admin-credentials is missing."
+  [ -x "$PREFIX/current/bin/audition-setup" ] || die "this release has no setup tool."
+  wait_ready "$(conf_get PORT)" || die "Audition isn't running. Start it: sudo systemctl start audition"
+}
+
+cmd_offsite() {
+  need_running
+  if [ "$OFF" = 1 ]; then
+    setup_tool off | sed 's/^/      /' || die "turning the copy off failed"
+    return
+  fi
+  step "Off-server copy of backups, in Cloudflare R2"
+  ask_r2
+  setup_tool on | sed 's/^/      /' || die "the copy isn't on; nothing was saved unless it says so above."
+  ok "every backup (daily at 03:00 UTC, and Back up now in the admin) also goes to the bucket"
+  note "Keep your saved .encryption-key and .secret with the R2 keys: a new server needs all of them."
+}
+
+# The saved keys, as pasted: the two values on their own lines, or run
+# together the way `sudo cat .encryption-key .secret` prints them.
+parse_keys() {
+  local all; all=$(printf '%s' "$1" | tr -d ' \t\r\n')
+  ENC_KEY=${all:0:44}; SIGN_SECRET=${all:44}
+  [[ "$ENC_KEY" =~ ^[A-Za-z0-9+/]{43}=$ ]] && [[ "$SIGN_SECRET" =~ ^[0-9a-f]{128}$ ]]
+}
+
+cmd_restore_offsite() {
+  need_running
+  local port data_keys="" pasted="" newest
+  port=$(conf_get PORT)
+  step "Restore from the off-server copy"
+  note "This replaces everything in Audition on this server with the newest backup in the bucket."
+  note "Your account and data come back as they were; the Vaultbase admin stays the one in $ETC/admin-credentials."
+  confirm "Go ahead?" || die "nothing changed."
+  ask_r2
+
+  note "Paste the .encryption-key and .secret you saved (sudo cat ... from the old server), then Enter."
+  note "Leave it empty on the same server, when its keys never changed."
+  if [ -n "${AUDITION_SAVED_KEYS+set}" ]; then pasted="$AUDITION_SAVED_KEYS"; else ask_secret pasted "Saved keys (hidden)"; fi
+  if [ -n "$pasted" ]; then
+    parse_keys "$pasted" || die "that doesn't look like the two saved keys (44 characters ending in =, then 128 hex characters)."
+    data_keys=1
+  fi
+
+  step "Downloading the backups"
+  local work; work=$(mktemp -d)
+  setup_tool pull "$DATA/backups" | tee "$work/pull" | sed 's/^/      /' || { rm -rf "$work"; die "download failed; nothing was restored."; }
+  chown -R "$SVC_USER:$SVC_USER" "$DATA/backups"
+  newest=$(sed -n 's/^newest: //p' "$work/pull"); rm -rf "$work"
+  [ -n "$newest" ] || die "no backup to restore."
+
+  if [ -n "$data_keys" ]; then
+    step "Putting back the saved keys"
+    systemctl stop audition
+    install -d -m 0700 "$DATA/keys-before-restore"
+    for f in .encryption-key .secret; do cp -p "$DATA/$f" "$DATA/keys-before-restore/$f"; done
+    printf '%s' "$ENC_KEY" >"$DATA/.encryption-key"; printf '%s' "$SIGN_SECRET" >"$DATA/.secret"
+    chown "$SVC_USER:$SVC_USER" "$DATA/.encryption-key" "$DATA/.secret"; chmod 0600 "$DATA/.encryption-key" "$DATA/.secret"
+    systemctl start audition
+    if ! wait_ready "$port"; then
+      systemctl stop audition
+      cp -p "$DATA/keys-before-restore/.encryption-key" "$DATA/keys-before-restore/.secret" "$DATA/"
+      systemctl start audition
+      die "Audition didn't start with the saved keys, so this server's own keys are back and nothing was restored. This happens when settings with secrets were saved on this server before the restore. See: journalctl -u audition -n 50"
+    fi
+    ok "saved keys in place (this server's own are in $DATA/keys-before-restore)"
+  fi
+
+  step "Restoring $newest"
+  setup_tool restore "$newest" | sed 's/^/      /' || die "the restore failed. See: journalctl -u audition -n 50"
+  # Keep the admin in $ETC/admin-credentials: the restore brought the old
+  # server's admin. Vaultbase's install record follows the restored database
+  # as the restore's last step; setup-admin waits for that.
+  local tries=0
+  until runuser -u "$SVC_USER" -- env VAULTBASE_ENV_FILE="$ETC/audition.env" "$PREFIX/bin/vaultbase" setup-admin \
+      --email "$(admin_field email)" --password "$(admin_field password)" --force >/dev/null 2>&1; do
+    tries=$((tries + 1)); [ "$tries" -lt 30 ] || die "resetting the Vaultbase admin failed; the restore itself is done. Run: sudo -u $SVC_USER env VAULTBASE_ENV_FILE=$ETC/audition.env $PREFIX/bin/vaultbase setup-admin --email <email> --password <password> --force"
+    sleep 1
+  done
+  systemctl restart audition
+  wait_ready "$port" || die "Audition didn't start after the restore. See: journalctl -u audition -n 50"
+  ok "restored; the Vaultbase admin is still the one in $ETC/admin-credentials"
+  note "The off-server copy settings came back with the backup, so copying goes on. Run the smoke test (docs/RELEASE.md)."
+}
+
 case "$CMD" in
   install) cmd_install;;
   upgrade) cmd_upgrade;;
@@ -613,4 +731,6 @@ case "$CMD" in
   status) cmd_status;;
   preflight) run_preflight;;
   proxy) cmd_proxy;;
+  offsite) cmd_offsite;;
+  restore-offsite) cmd_restore_offsite;;
 esac

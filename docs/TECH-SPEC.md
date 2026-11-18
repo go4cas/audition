@@ -87,7 +87,8 @@ T0 builds `vb:bump` and `test/upgrade.test.ts`. The upgrade test can only be mea
 | Browser APIs | `fetch`; native `<dialog>` and the Popover API for popovers; CSS transitions and `@starting-style` for motion; `navigator.clipboard` for the copy button | All built into current browsers, no library needed |
 | UI hosting | Served by Vaultbase itself through a custom route (`/api/custom/app/`) | Q2: one process, one origin |
 | Tooling | Bun (scripts, build, `bun test`). Playwright as a dev dependency for T4 browser tests. | Bun is the runtime Vaultbase is built on |
-| Production (Release thread) | A VPS running the binary under systemd, behind Cloudflare and a reverse proxy, with `vaultbase backup` on a schedule | Spec |
+| Production (Release thread) | A VPS running the binary under systemd, behind Cloudflare and a reverse proxy, with Vaultbase's own scheduled backups (`backups.*` settings, set by `provision`) | Spec |
+| Off-server backups | **Vaultbase's own S3 copy of each backup** (`backups.s3.*` settings) into a private **Cloudflare R2** bucket, under the prefix `audition/`. Vaultbase uploads every scheduled and on-demand backup with its uploaded files, and prunes the bucket to the same `backups.keep` (14). `install.sh offsite` (the setup tool's `offsite on`, `scripts/offsite.ts`) checks the bucket and keys with a test write, saves the settings through the admin settings API, takes a backup and checks it reached the bucket. For a lost server, `install.sh restore-offsite` downloads the bucket into the backups folder, puts the saved `.encryption-key` and `.secret` in place, and restores the newest through Vaultbase's restore API. Steps in `docs/RELEASE.md` "Off-server copy"; findings in NOTES "Off-server backups". | Cas approved it on Nov 18, 2026 (roadmap "Later"). Vaultbase does the copying, the pruning, the encryption of the secret and the restore, so Audition adds no scheduled job and no backup format of its own (the project shows Vaultbase's features). The one part Vaultbase has no command for, downloading a bucket into a new server's backups folder, is the setup tool's `offsite pull`, which writes only Vaultbase's own backup file names. |
 
 ## 2. Answers to the open questions
 
@@ -170,6 +171,8 @@ audition/
 ├── scripts/
 │   ├── fetch-vaultbase.ts     # download + checksum
 │   ├── dev.ts                 # boot: fetch, apply snapshot, settings, seed, start
+│   ├── provision.ts           # set up a running production instance (the compiled setup tool)
+│   ├── offsite.ts             # the off-server R2 copy of backups: on, off, pull, restore
 │   └── stop.ts
 ├── test/
 │   ├── harness.ts             # boots a fresh instance on a free port in a temp dir
@@ -185,6 +188,7 @@ audition/
 | `bun run setup` | Fetch and check the binary |
 | `bun run vb:bump <version>` | Rewrite `vaultbase.lock.json` for a new release (upgrade policy, §1) |
 | `bun run provision` | Set up a production instance that is already running: settings, backup schedule, owner, seed (Release, `docs/RELEASE.md`) |
+| `bun scripts/provision.ts offsite on\|off\|pull DIR\|restore NAME` | The off-server R2 copy (`scripts/offsite.ts`); on the server it runs as `bin/audition-setup offsite …` from `install.sh offsite` and `restore-offsite` |
 | `bun run dev` | Setup, build the UI, start Vaultbase with `--apply-snapshot schema/snapshot.json --snapshot-mode sync`, create the admin and the owner if missing, apply settings, seed if empty, then print the UI URL |
 | `bun run stop` | Stop the instance started by `dev` (PID file in `.vaultbase/`) |
 | `bun run seed` | Seed the reference workspaces into a running instance (idempotent by name) |
