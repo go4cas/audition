@@ -11,26 +11,26 @@ Where this document and `SPEC.md` disagree, this PR also edits `SPEC.md`, and th
 | | |
 | --- | --- |
 | Product | Vaultbase, [vaultbase-sh/vaultbase](https://github.com/vaultbase-sh/vaultbase) |
-| Pinned version | **v0.46.0** (released Nov 13, 2026; tag commit `141fbb17a499c0f4895fe8db0bfa60806dba0b7e`). Cas asked for the move from 0.44.0 on Nov 17, 2026 (NOTES, "Vaultbase 0.46 upgrade"). Earlier pins: 0.37.x, 0.40.2 (Nov 6, 2026, for the security fixes in 0.38 and 0.39), then 0.44.0 (Nov 11, 2026, `docs/PLATFORM-UPGRADES.md` part A, for the upload fix F9 and `helpers.records`). |
-| Binary | `https://github.com/vaultbase-sh/vaultbase/releases/download/v0.46.0/<asset>` |
+| Pinned version | **v0.47.0** (released Nov 18, 2026; tag commit `7a72e2b354f9bda9e742a7ca99bb5ee79ad63a2d`). Cas approved the move from 0.46.0 on Nov 19, 2026, for the OneSignal fix (NOTES, "Vaultbase 0.47 upgrade"). Earlier pins: 0.37.x, 0.40.2 (Nov 6, 2026, for the security fixes in 0.38 and 0.39), 0.44.0 (Nov 11, 2026, `docs/PLATFORM-UPGRADES.md` part A, for the upload fix F9 and `helpers.records`), then 0.46.0 (Nov 17, 2026). |
+| Binary | `https://github.com/vaultbase-sh/vaultbase/releases/download/v0.47.0/<asset>` |
 | Checksums | From the release's `SHA256SUMS` file, and checked against a downloaded binary |
 
-SHA-256 for v0.46.0 (from `SHA256SUMS`):
+SHA-256 for v0.47.0 (from `SHA256SUMS`):
 
 | Asset | SHA-256 |
 | --- | --- |
-| `vaultbase-linux-x64` | `7deb7ecc4e852d9df048dc0dffcf0b9f4ac6a6268ac6630ef9d1d87d0733fc14` |
-| `vaultbase-linux-x64-musl` | `a1e8614510e9e8429432da9a22998c75f9176495020491cc71bae3c2bb387fcd` |
-| `vaultbase-linux-arm64` | `f8aec25f025efed2355f84bc400524f78d6a97762bcecf176a46f45212026cd2` |
-| `vaultbase-macos-arm64` | `e0652a3deab38a026f1832280e4d880132e4554822c4355fda255b84321c2450` |
-| `vaultbase-macos-x64` | `038301df1784b0afe3efde33cbac81fe6c7dae0b517339f3139698758d0c2b3b` |
-| `vaultbase-windows-x64.exe` | `25d39c079ca6f665cea9727d6249064e9c6d18af47e5ca05b6a8e8149e2558ff` |
+| `vaultbase-linux-x64` | `1b92aa205fc6cfc7f7a0235571d819d453dc90a921d4257b61210837a05c1610` |
+| `vaultbase-linux-x64-musl` | `50cc731876a843cea69ee8b55b7584b7ee4ad148adb42dd9547b04172f024723` |
+| `vaultbase-linux-arm64` | `6c950791c0dedc52f612c9d84ed946886006824fbb98fa05bd5ffaf23fccf117` |
+| `vaultbase-macos-arm64` | `43edf5e082f7ee0427b4ace6bbbe949109791b7d6608a7c3a912e414df1d65c2` |
+| `vaultbase-macos-x64` | `0dff149803e9bf86a5b155745c901253f523e8187f443192a353af1c90ad19a1` |
+| `vaultbase-windows-x64.exe` | `651097aa984ec313e2fdad7169c4f4e7e05e9d3d2855c9992cba996d6b6998cd` |
 
-The `vaultbase-linux-x64` binary was downloaded by `bun run setup` (126,789,808 bytes) and its SHA-256 matched the line above.
+The `vaultbase-linux-x64` binary was downloaded by `bun run setup` (126,810,288 bytes) and its SHA-256 matched the line above.
 
 **T0 records the pin in the repo** as `vaultbase.lock.json`: version, the release URL, and the SHA-256 for each asset. The download script refuses a binary whose checksum doesn't match. Since 0.39.1, releases also carry a Sigstore bundle (`<asset>.sigstore.json`). Verifying it needs `cosign`, so it is optional, not part of `bun run setup`.
 
-**How this was checked.** `docs.vaultbase.dev` always shows the latest release, not the pinned one, so every claim about behaviour below was read from the source at the release's git tag (file paths are given). The analysis was done at v0.37.0 and re-checked at v0.40.2. The files this design depends on (`code-files.ts`, `hooks.ts`, `hook-helpers-extra.ts`, `routes.ts`, `api-paths.ts`, `migrations.ts`, `hook-egress.ts`, `script-limits.ts`) are identical between the two tags. `src/index.ts` changed by 11 lines: setup-admin email checking, and priming rule case folding at startup. Neither affects Audition. The other behaviours relied on were re-read at v0.40.2 and still hold: encrypted fields decrypted on read (`records.ts`), the upload handler and its MIME allowlist (`api/files.ts`, `core/sec.ts`), and routes that parse only JSON and text bodies. For v0.44.0 the changelog and release notes of 0.41.0 to 0.44.0 and the source diff `v0.40.2..v0.44.0` of these files were read (`docs/PLATFORM-UPGRADES.md`, part A), and `bun test` passes on the binary. For v0.46.0 the changelog and release notes of 0.45.0, 0.45.1 and 0.46.0 were read, with the source diff `v0.44.0..v0.46.0` of these files: only `code-files.ts` (the hook types file), `core/routes.ts` (form bodies, `ctx.ip`, logged status), `core/migrations.ts` and the records code (client ids, idempotency keys) changed. The upload handler and its MIME allowlist did not.
+**How this was checked.** `docs.vaultbase.dev` always shows the latest release, not the pinned one, so every claim about behaviour below was read from the source at the release's git tag (file paths are given). The analysis was done at v0.37.0 and re-checked at v0.40.2. The files this design depends on (`code-files.ts`, `hooks.ts`, `hook-helpers-extra.ts`, `routes.ts`, `api-paths.ts`, `migrations.ts`, `hook-egress.ts`, `script-limits.ts`) are identical between the two tags. `src/index.ts` changed by 11 lines: setup-admin email checking, and priming rule case folding at startup. Neither affects Audition. The other behaviours relied on were re-read at v0.40.2 and still hold: encrypted fields decrypted on read (`records.ts`), the upload handler and its MIME allowlist (`api/files.ts`, `core/sec.ts`), and routes that parse only JSON and text bodies. For v0.44.0 the changelog and release notes of 0.41.0 to 0.44.0 and the source diff `v0.40.2..v0.44.0` of these files were read (`docs/PLATFORM-UPGRADES.md`, part A), and `bun test` passes on the binary. For v0.46.0 the changelog and release notes of 0.45.0, 0.45.1 and 0.46.0 were read, with the source diff `v0.44.0..v0.46.0` of these files: only `code-files.ts` (the hook types file), `core/routes.ts` (form bodies, `ctx.ip`, logged status), `core/migrations.ts` and the records code (client ids, idempotency keys) changed. The upload handler and its MIME allowlist did not. For v0.47.0 the changelog and release notes were read, with the whole source diff `v0.46.0..v0.47.0`: outside the admin UI, only `core/notifications.ts` (the OneSignal header) changed.
 
 The upgrade notes between 0.37.0 and 0.40.2 that touch Audition:
 
@@ -55,6 +55,11 @@ The upgrade notes between 0.44.0 and 0.46.0 that touch Audition (none of the thr
 - **0.46.0: an `id` sent on a create is used** (must be a free UUID; `409` if taken), where it was replaced. Audition's creates never send one: the UI posts form fields, and server code goes through `insertRecord` with named fields.
 - **0.46.0: `POST /admin/migrations/apply` answers 422 when a collection fails.** Audition applies the schema with `--apply-snapshot` (service and tests), which already exited 1 on a failure.
 
+The upgrade notes between 0.46.0 and 0.47.0 that touch Audition (0.47.0 has no **Security** section and its upgrade notes say "None"):
+
+- **0.47.0: OneSignal pushes work with App API keys (`os_v2_app_…`)** (Vaultbase issue #16). They are sent with `Authorization: Key`; legacy REST keys keep `Basic`. Before, every push from Audition's `helpers.notify` failed with 401 (NOTES, "Vaultbase 0.47 upgrade", V1). **Test connection** now reads one row of the app's message list, so it works with an App key too. No Audition code change: `alertOwner()` already calls `helpers.notify`.
+- **0.47.0: an admin Schema page** draws the collections and their relations. Read-only; nothing for Audition to do. `vaultbase.d.ts` did not change.
+
 ### Upgrade policy
 
 Vaultbase ships about one release a day and is pre-1.0, where a minor version may change behaviour. Following every release would turn Audition into a Vaultbase-chasing project, and falling far behind would make each upgrade large. The policy:
@@ -76,7 +81,7 @@ T0 builds `vb:bump` and `test/upgrade.test.ts`. The upgrade test can only be mea
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Backend platform | Vaultbase v0.46.0: one binary with SQLite, auth, REST, files, hooks, queues and encrypted fields | Spec decision. It does the backend work, so Audition writes only its own logic. |
+| Backend platform | Vaultbase v0.47.0: one binary with SQLite, auth, REST, files, hooks, queues and encrypted fields | Spec decision. It does the backend work, so Audition writes only its own logic. |
 | Database | SQLite, inside Vaultbase (the default; one file in the data folder) | Single owner, single server. Postgres is not needed. |
 | Server logic | TypeScript files in `vb_hooks/` (hooks, custom routes, queue workers), run by Vaultbase's built-in Bun | Spec rule: logic lives in the repo |
 | Schema | `schema/snapshot.json`, applied by `vaultbase --apply-snapshot` | Q1 |
@@ -720,7 +725,7 @@ Added Nov 18, 2026. `lib/providers/openai-images.ts`. No schema change: a conten
 - **Request.** No image attachments: `POST {baseUrl}/images/generations`, JSON `{ model, prompt, n, size?, quality?, output_format?, background?, response_format? }`. With image attachments (PNG, JPEG, GIF, WebP): `POST {baseUrl}/images/edits`, `multipart/form-data` built by hand (`editsBody()`, since `helpers.http` takes a `Uint8Array` body and a content type), the same fields as text parts and each image as `image` (one) or `image[]` (several). `Authorization: Bearer` as for chat. 10-minute timeout, 3 tries, as for the other adapters.
 - **Prompt.** The contender's system prompt, then "Attached files not shown here: …" for non-image attachments, then the rendered task prompt (the same text every contender gets, §9).
 - **Reply.** Each `data[].b64_json` is decoded; the file type is sniffed from its first bytes (PNG, JPEG, WebP, GIF; anything else fails) and named `image-<n>.<ext>`. The output text lists the file names, with `revised_prompt` when the provider sends one. Tokens from `usage.input_tokens` / `usage.output_tokens` (gpt-image), else empty; cost is derived as usual. `finish_reason` is `images`.
-- **Why base64 only.** Vaultbase 0.46's `helpers.http` always reads the reply with `res.text()`, so downloading an image from a link would corrupt it. gpt-image always answers in base64; DALL·E and some compatible servers need `ask_b64` (sends `response_format: "b64_json"`). A reply with links only fails with that hint. The egress guard (F3) is unchanged: only the connection's host is called.
+- **Why base64 only.** Vaultbase's `helpers.http` (still in 0.47) always reads the reply with `res.text()`, so downloading an image from a link would corrupt it. gpt-image always answers in base64; DALL·E and some compatible servers need `ask_b64` (sends `response_format: "b64_json"`). A reply with links only fails with that hint. The egress guard (F3) is unchanged: only the connection's host is called.
 - **Storing.** The generate worker already stores `GenerateResult.files` with `lib/files.ts attachFile()` on `attempts.output_files` (thumbs and download audit included), so judging, the AI judge and Compare need no change.
 - **Guards.** An image maker can't answer a call with `outputSchema` (judge, Composer): `callProvider()` refuses before any HTTP call, `loadPlan()` refuses it as the AI judge and `composerFor()` as the Composer, and the workspace screen leaves image makers out of both pickers. `previewOf()` adds `imageMismatchWarnings()`: an image maker on a task whose `output_type` isn't `image`, and an OpenAI-compatible text contender on an `image` task.
 - **Not done (needs Vaultbase).** Replicate (Flux, Stable Diffusion, Ideogram, Recraft, …) answers with `replicate.delivery` links, which `helpers.http` can't download as bytes. NOTES I1 has the request. Google Imagen/Gemini (inline base64) would work today but needs a new `connections.provider` value, a schema change for Cas to approve.

@@ -4,7 +4,7 @@
 // when the task has image attachments, and stores each returned image as an
 // attempt file. Unit-tested against a fake http only; no real call in tests.
 //
-// helpers.http reads every reply as text (Vaultbase 0.46), so image bytes
+// helpers.http reads every reply as text (Vaultbase 0.46 and 0.47), so image bytes
 // can't be downloaded from a link. The adapter asks for base64 in the JSON
 // reply (gpt-image models always answer that way) and refuses a reply that
 // only carries links, with a hint to set the format.
