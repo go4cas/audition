@@ -16,7 +16,7 @@ const root = mkdtempSync(join(tmpdir(), "audition-upgrade-"));
 const dataDir = join(root, "data");
 let hooksDir: string;
 let oldBin: string, newBin: string, oldVersion: string, newVersion: string;
-const COLLECTIONS = ["users", "workspaces", "stages", "roles", "tasks", "connections", "contenders", "handoff_templates", "runs", "attempts", "verdicts", "castings", "connection_keys"];
+const COLLECTIONS = ["users", "workspaces", "groups", "roles", "tasks", "connections", "contenders", "handoff_templates", "runs", "attempts", "verdicts", "castings", "connection_keys"];
 let before: Record<string, Array<Record<string, unknown>>> = {};
 let files: Array<{ name: string; sha: string }> = [];
 let h: Harness | null = null;
@@ -111,5 +111,5 @@ test("the loop still works after the upgrade", async () => {
   const board = await h!.api("owner", "GET", "/api/v1/leaderboard");
   expect(board.body.data.length).toBeGreaterThanOrEqual(2);
   const ws = (await h!.api("owner", "GET", "/api/v1/workspaces?perPage=1")).body.data[0];
-  expect((await create(h!, "stages", { workspace: ws.id, name: "After upgrade" })).name).toBe("After upgrade");
+  expect((await create(h!, "groups", { workspace: ws.id, name: "After upgrade" })).name).toBe("After upgrade");
 }, 120_000);

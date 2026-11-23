@@ -173,18 +173,19 @@ test("versions footer and the light/dark toggle", async () => {
   await p.emulateMedia({ colorScheme: null });
 }, 60_000);
 
-test("Software Factory: edit the workspace, a stage, a role's rubric and a task", async () => {
+test("Software Factory: edit the workspace, a group, a role's rubric and a task", async () => {
   const ws = await one("workspaces", `name = "Software Factory"`);
   await go(`/w/${ws.id}`);
   await shot("workspace");
   await go(`/w/${ws.id}/settings`);
   await p.fill("#ws-desc", "Agents that research, spec and build small web features.");
-  await p.getByLabel("Stage 2", { exact: true }).fill("Specification");
+  await p.getByLabel("Group 2", { exact: true }).fill("Specification");
+  await shot("workspace-settings");
   await p.click("button[type=submit]");
   await toastSays("Settings saved");
   await p.waitForURL(new RegExp(`/app/w/${ws.id}$`));
   expect((await one("workspaces", `id = "${ws.id}"`)).description).toBe("Agents that research, spec and build small web features.");
-  expect((await one("stages", `workspace = "${ws.id}" && name = "Specification"`))).toBeTruthy();
+  expect((await one("groups", `workspace = "${ws.id}" && name = "Specification"`))).toBeTruthy();
 
   const role = await one("roles", `name = "Researcher"`);
   await go(`/r/${role.id}`);

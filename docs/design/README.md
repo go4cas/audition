@@ -109,7 +109,7 @@ Each state has its own colour tokens (`--active`, `--active-bg`, `--active-line`
 
 ```mermaid
 flowchart LR
-  Home["2 Home<br/>waiting for you + workspaces"] --> WS["3 Workspace<br/>stages and roles"]
+  Home["2 Home<br/>waiting for you + workspaces"] --> WS["3 Workspace<br/>groups and roles"]
   WS --> WSS["4 Workspace settings"]
   WS --> Role["5 Role and rubric"]
   Role --> Task["6 Task"]
@@ -135,8 +135,8 @@ Each screen uses the reference workspace content from the spec, so the wireframe
 | --- | --- | --- | --- |
 | 1 | Sign in | One owner account; the code field shows only when two-step sign-in is on. | |
 | 2 | Home | Hero with greeting and Your cast, then Up next, Also waiting, workspaces with rings, Who plays which role, and Latest. | |
-| 3 | Workspace | Numbered stages, role cards with champion, suggestion or progress. This is the routing table. Recent runs below. | |
-| 4 | Workspace settings | Stages (reorder), default judge, AI judge, outputs needed, fitness weights with a live bar and a "needs 100" warning. | Why a minimum |
+| 3 | Workspace | Groups (stages until Nov 23, 2026), role cards with champion, suggestion or progress. This is the routing table. Recent runs below. | |
+| 4 | Workspace settings | Groups (display order), default judge, AI judge, outputs needed, fitness weights with a live bar and a "needs 100" warning. | Why a minimum |
 | 5 | Role and rubric | Criteria with weights, a weight bar that updates as you type, pass mark, tasks with a read-only chip. | Pass mark |
 | 6 | Task | Opens read-only; **Duplicate and edit** turns it into an editable version 2. | |
 | 7 | Contenders | Connections with status, contenders with avatars and state. | Key stays hidden; full contender settings |

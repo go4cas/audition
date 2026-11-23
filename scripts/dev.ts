@@ -1,7 +1,8 @@
 // bun run dev: one command from a fresh clone to a running Audition.
 //   1. download and verify the pinned Vaultbase binary
 //   2. build the UI
-//   3. create or reset the admin; start Vaultbase with the schema snapshot
+//   3. create or reset the admin; migrate existing data (scripts/lib/migrate.ts);
+//      start Vaultbase with the schema snapshot
 //   4. apply settings, create the owner if missing, seed if needed
 //   5. print the UI URL
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -12,6 +13,7 @@ import {
   refuseProviderKeys, setupAdmin, startInstance,
 } from "./lib/vaultbase.ts";
 import { CREDENTIALS_FILE, loadCredentials } from "./lib/credentials.ts";
+import { migrateOffline } from "./lib/migrate.ts";
 
 refuseProviderKeys();
 const port = Number(process.env["VAULTBASE_PORT"] ?? 8091);
@@ -29,6 +31,7 @@ if (build.exitCode !== 0) process.exit(1);
 
 const { creds, created } = loadCredentials();
 await setupAdmin(bin, dataDir, HOOKS_DIR, creds.admin.email, creds.admin.password);
+for (const s of await migrateOffline({ bin, dataDir, admin: creds.admin })) console.log(`Migrated: ${s}`);
 const inst = await startInstance({
   bin, dataDir, hooksDir: HOOKS_DIR, port, snapshot: SNAPSHOT_PATH, host: process.env["VAULTBASE_HOST"] ?? "127.0.0.1",
   logFile: join(STATE_DIR, "vaultbase.log"), detached: true,

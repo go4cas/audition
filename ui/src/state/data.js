@@ -2,8 +2,8 @@
 // pages simply load what they need on arrival; nothing is cached across pages.
 import { custom, list } from "../api.js";
 
-const COLLECTIONS = ["workspaces", "stages", "roles", "tasks", "contenders", "connections", "runs", "castings"];
-const SORT = { stages: "order", runs: "created", castings: "-created" };
+const COLLECTIONS = ["workspaces", "groups", "roles", "tasks", "contenders", "connections", "runs", "castings"];
+const SORT = { groups: "order", runs: "created", castings: "-created" };
 
 /** Load whole collections: `const d = await load("roles", "tasks")` → d.roles, d.byId.roles.get(id). */
 export async function load(...names) {
@@ -28,7 +28,7 @@ export async function leaderboards(roleIds) {
 }
 
 export const sortRoles = (d, roles) => {
-  const order = (r) => (r.stage ? d.byId.stages.get(r.stage)?.order ?? 0 : 1e9);
+  const order = (r) => (r.group ? d.byId.groups.get(r.group)?.order ?? 0 : 1e9);
   return [...roles].sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
 };
 

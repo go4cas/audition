@@ -6,7 +6,7 @@ How to run Audition on your own machine, and the Phase 1 check with a real Anthr
 
 | What | How |
 | --- | --- |
-| Start | `bun run dev`. It is safe to run again: the seed only adds what is missing. |
+| Start | `bun run dev`. It is safe to run again: the seed only adds what is missing, and data from an older version is migrated first (it prints "Migrated: ..." when it renames something, such as stages to groups). |
 | Stop | `bun run stop` |
 | Open the app | The address `bun run dev` prints, normally <http://127.0.0.1:8091/api/custom/app/> |
 | Sign-ins | `.vaultbase/credentials.json` (owner, and the Vaultbase admin for `/_/`) |
@@ -78,7 +78,7 @@ The judge contender is locked once it has judged, like any contender that has be
 
 ### 4. Research role: one task, Opus 5.5 against Mock Steady
 
-1. **Start a run**. Role: **Researcher** (Software Factory, Research stage).
+1. **Start a run**. Role: **Researcher** (Software Factory, Research group).
 2. Tasks: tick one, "Compare three ways to store user settings in a small web app and recommend one".
 3. Contenders: `Opus 5.5, high effort` and `Mock Steady`.
 4. Who judges: **AI · Opus 5.5, high effort**.

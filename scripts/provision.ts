@@ -19,6 +19,7 @@
 import { SETTINGS, adminLogin, applySettings, call, ensureOwner, refuseProviderKeys } from "./lib/vaultbase.ts";
 import { seedReference } from "../seed/reference.ts";
 import { offsiteMain } from "./offsite.ts";
+import { migrateOffline } from "./lib/migrate.ts";
 
 /**
  * Vaultbase's own scheduled backups (Settings, Backups in the admin): a
@@ -63,6 +64,21 @@ if (import.meta.main && process.argv[2] === "settings") {
   if (!email || !password) { console.error("Set AUDITION_ADMIN_EMAIL and AUDITION_ADMIN_PASSWORD."); process.exit(2); }
   await applySettings(url, await adminLogin(url, email, password));
   console.log(`Settings applied: ${Object.keys(SETTINGS).join(", ")}`);
+  process.exit(0);
+}
+
+if (import.meta.main && process.argv[2] === "migrate") {
+  // `install.sh` upgrades run this while Audition is stopped, before the new
+  // release's schema is applied (scripts/lib/migrate.ts): renames the
+  // snapshot can't do, such as stages -> groups. Runs as the service user.
+  const bin = process.env["AUDITION_VAULTBASE_BIN"], dataDir = process.env["VAULTBASE_DATA_DIR"];
+  const email = process.env["AUDITION_ADMIN_EMAIL"], password = process.env["AUDITION_ADMIN_PASSWORD"];
+  if (!bin || !dataDir || !email || !password) {
+    console.error("Set AUDITION_VAULTBASE_BIN, VAULTBASE_DATA_DIR, AUDITION_ADMIN_EMAIL and AUDITION_ADMIN_PASSWORD.");
+    process.exit(2);
+  }
+  const done = await migrateOffline({ bin, dataDir, admin: { email, password } });
+  console.log(done.length ? done.map((s) => `Migrated: ${s}`).join("\n") : "Data: nothing to migrate.");
   process.exit(0);
 }
 

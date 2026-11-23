@@ -16,7 +16,7 @@ export default function newRun() {
   return page({
     screen: "new-run",
     load: async (s) => {
-      s.d = await load("workspaces", "stages", "roles", "tasks", "contenders", "connections");
+      s.d = await load("workspaces", "groups", "roles", "tasks", "contenders", "connections");
       const d = s.d;
       const roles = query.ws ? d.roles.filter((r) => r.workspace === query.ws) : d.roles;
       const role = d.byId.roles.get(query.role) || sortRoles(d, roles)[0] || null;
@@ -39,7 +39,7 @@ export default function newRun() {
       const ws = () => role() && d.byId.workspaces.get(role().workspace);
       const judge = () => ws()?.judge_contender && d.byId.contenders.get(ws().judge_contender);
       const contenders = d.contenders.filter((c) => c.enabled !== false && c.mode !== "runner" && !d.contenders.some((n) => n.previous_version === c.id));
-      const roleOpts = sortRoles(d, d.roles).map((r) => ({ value: r.id, label: r.name, icon: "rubric", group: d.byId.workspaces.get(r.workspace)?.name, desc: `${plural(latestTasks(d, r.id).length, "task")}${r.stage ? " · " + (d.byId.stages.get(r.stage)?.name || "") : ""}` }));
+      const roleOpts = sortRoles(d, d.roles).map((r) => ({ value: r.id, label: r.name, icon: "rubric", group: d.byId.workspaces.get(r.workspace)?.name, desc: `${plural(latestTasks(d, r.id).length, "task")}${r.group ? " · " + (d.byId.groups.get(r.group)?.name || "") : ""}` }));
       const toggle = (list, id, on) => { const i = list.indexOf(id); if (on && i < 0) list.push(id); if (!on && i >= 0) list.splice(i, 1); };
 
       // The summary: the server's preview when it answers, else the same sums locally (TECH-SPEC §8).

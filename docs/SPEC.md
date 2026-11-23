@@ -6,7 +6,7 @@ Nov 5, 2026 · Cas · updated with the interview decisions in `docs/NOTES.md`
 
 Audition is a self-hosted, domain-neutral platform that decides which AI contender is best for each role in a workflow, judged by your own standards. A contender is a model, an agent harness or an app, plus its exact configuration. The platform runs on **Vaultbase**, the single-binary backend (TypeScript on Bun), pinned to a tested version.
 
-How it works, in one line: create a workspace (for example Software Factory), define its stages, roles and tasks, pick contenders for a role, run the tasks, judge the outputs side by side without knowing who made them, and confirm the best contender per role.
+How it works, in one line: create a workspace (for example Software Factory), define its roles and tasks (sorted into groups if you like), pick contenders for a role, run the tasks, judge the outputs side by side without knowing who made them, and confirm the best contender per role.
 
 The output is a routing table: the current champion (casting) for each role, shown in the UI.
 
@@ -35,7 +35,7 @@ The core model uses ten domain-neutral terms. Nothing in the core mentions softw
 | Term | Meaning | Example |
 | --- | --- | --- |
 | Workspace | A workflow you want to staff with contenders | Software Factory, Travel Research |
-| Stage | Optional grouping of roles within a workspace | Research, Implementation |
+| Group | Optional grouping of roles within a workspace. Groups have no order and no dependencies between them; the order you give them is only how they are listed | Research, Implementation; Visa, Weather, Accommodation |
 | Role | A job a contender is cast into; owns the rubric | Back-end engineer, Copywriter |
 | Task | A fixed, repeatable test job for a role | "Build this settings screen from this spec" |
 | Connection | Where contenders run: a provider plus its encrypted key, or "Manual" for copy and paste | Anthropic API key; Manual |
@@ -45,7 +45,9 @@ The core model uses ten domain-neutral terms. Nothing in the core mentions softw
 | Verdict | Star ratings for one output, per rubric criterion | Accuracy ★★★★, Tone ★★★ → 3.6 |
 | Casting | The confirmed champion for a role | UI engineer → Contender X |
 
-How they relate: a workspace holds stages (optional), a stage holds roles, and a role owns the rubric and holds tasks. Separately, a connection holds contenders. Contenders are picked per run, not attached to tasks. A run creates one attempt per task × contender. Verdicts judge attempts, and the leaderboard rolls verdicts up per role × contender.
+How they relate: a workspace holds groups (optional), a group holds roles, and a role owns the rubric and holds tasks. Separately, a connection holds contenders. Contenders are picked per run, not attached to tasks. A run creates one attempt per task × contender. Verdicts judge attempts, and the leaderboard rolls verdicts up per role × contender.
+
+**Groups, not stages (Cas, Nov 23, 2026).** Groups were called stages until then. "Stage" suggested a sequence, but nothing runs in order between them: they only sort a workspace's roles. A Software Factory's Research, Spec, Back-end and UI may read as steps, while a Travel planner's Visa, Weather and Accommodation are just parts with no order and no dependencies. So the name changed everywhere, the schema included (collection `groups`, field `roles.group`), and the numbers in front of each group on the workspace page went. The order you give groups in workspace settings is only how they are listed. Existing data is renamed in place before the new schema applies (TECH-SPEC §1, "Data migrations"), so every group keeps its id, its dates and its roles.
 
 **Connections and contenders are global**, shared across all workspaces. Two settings are two contenders: "Opus 5.5 High 0.6" and "Opus 5.5 Medium 0.2" compete separately. Each contender has a friendly name, and the leaderboard can group rows by model.
 
@@ -59,8 +61,8 @@ Thirteen Vaultbase collections plus one view (T0 counted them against the built 
 | --- | --- | --- |
 | users | auth | The single owner account, with MFA available. No other logins in Phase 1. |
 | workspaces | base | name, description, judge_contender → contenders, default_judge (me / ai), default_method (rate / compare; default rate), min_outputs (default 5), trial_days (days a new champion is on trial before Home reminds you; default 3), fitness_weights (json: quality, tokens, time; default quality only), composer_contender → contenders (optional; the Composer) |
-| stages | base | workspace, name, order. Optional. |
-| roles | base | workspace, stage (optional), name, description, rubric (json: criteria with name, weight, guidance), pass_mark (stars, 1 to 5), default_output_type |
+| groups | base | workspace, name, order (display order only). Optional. Called stages until Nov 23, 2026 (see "Groups, not stages" under Concepts). |
+| roles | base | workspace, group (optional), name, description, rubric (json: criteria with name, weight, guidance), pass_mark (stars, 1 to 5), default_output_type |
 | tasks | base | role, title, prompt (editor), output_type (text / image / file / code), attachments (files), base_ref (repo + commit, coding tasks only), locked, previous_version → tasks, composed_prompt (the Composer's draft as the owner left it; when set, contenders get it instead of the generic prompt), compose (json: the Composer's status, error, tokens and cost; set only by Audition) |
 | connections | base | name, provider (anthropic / openai-compatible / mock / manual), base_url, has_key, notes |
 | connection_keys | base | connection, api_key (**encrypted**). The owner can write a key but never read it back; only server code reads it. |
@@ -240,7 +242,7 @@ Phase 1 proves the whole loop — tasks → runs → judging → casting — wit
 
 | Phase | Scope | Done when |
 | --- | --- | --- |
-| 1 — Core loop | Workspaces, stages, roles, tasks; connections and contenders; API mode and handoff by copy and paste with one generic template; star-rubric judging by Me or AI with owner override; Run again; leaderboard with tokens, time and optional cost; champion suggestion and casting; single owner | All four reference workspaces run end to end against the mock provider. Then Cas runs one real check with Anthropic on their own machine, outside any Claude session, after T5 merges. |
+| 1 — Core loop | Workspaces, groups, roles, tasks; connections and contenders; API mode and handoff by copy and paste with one generic template; star-rubric judging by Me or AI with owner override; Run again; leaderboard with tokens, time and optional cost; champion suggestion and casting; single owner | All four reference workspaces run end to end against the mock provider. Then Cas runs one real check with Anthropic on their own machine, outside any Claude session, after T5 merges. |
 | 2 — Living arena | Composer utility role; scheduled runs; outcome verdicts; push and email alerts; guest voters (built Nov 18, 2026, see "Guest voters" under Judging); vector match of new tasks to roles; Levare reads castings | A scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
 | 3 — Runners | Automated runners for harness contenders, with sandboxes outside Vaultbase reporting through signed webhooks | A coding task runs on two harnesses with no manual step |
 
@@ -293,7 +295,7 @@ Each thread is done only when its acceptance criteria pass on a fresh Vaultbase 
 | T1 API execution | Run → attempt fan-out (one per task × contender); queue worker; provider adapters (Anthropic, OpenAI-compatible, mock); max output tokens; measured tokens and time; cost from token prices; Run again; the call count for the spending guard; retries and failure handling | A run of 2 tasks × 3 contenders against the mock produces 6 submitted attempts with tokens and time. Run again produces 6 more and leaves the first 6 untouched. Each call is sent with the contender's max output tokens. Cost is derived when prices are set and empty when they are not. Injected failures are recorded as failed attempts and nothing crashes. |
 | T2 Handoff | The generic template; rendering once per task; manual submission (pasted text, uploads, optional tokens and time); upload type and size checks | A seeded task renders one prompt that is identical for every handoff contender in the run and contains the role, task, repo and commit (when set), rubric and return instructions. A pasted output submits exactly once; a second submission is rejected. Uploads of the wrong type or over 25 MB are rejected. |
 | T3 Judging and fitness | AI star judge through the mock (stars plus a reason per criterion); human verdict API; owner override; rubric snapshot on verdicts; blind payload; leaderboard view with confidence ranges; fitness with partial data; champion suggestion and confirmation; same-provider warning | Seeded results give a deterministic leaderboard. The blind endpoint never returns contender fields. An owner override replaces the AI's score in the leaderboard and the AI verdict stays in history. Fitness drops the tokens term when one contender lacks token data, and says so. A champion is suggested only at or above the minimum outputs and above the pass mark. |
-| T4 UI | Editors for workspaces, stages, roles (with rubric) and tasks, including "Duplicate and edit"; connection and contender setup; run builder with call count; live run view; handoff copy and paste screen; blind star-judging screen with image grid and override; Run again; leaderboard and casting | A browser walkthrough of all four reference workspaces against the mock works end to end, with no framework (Arrow.js core only), at desktop and phone width. |
+| T4 UI | Editors for workspaces, groups, roles (with rubric) and tasks, including "Duplicate and edit"; connection and contender setup; run builder with call count; live run view; handoff copy and paste screen; blind star-judging screen with image grid and override; Run again; leaderboard and casting | A browser walkthrough of all four reference workspaces against the mock works end to end, with no framework (Arrow.js core only), at desktop and phone width. |
 | T5 Integration | End-to-end runs of the four reference workspaces; README and operations notes, including the steps for Cas's local Anthropic check; fixes for gaps found | All four workspaces complete the loop (tasks → runs → judging → casting) with no special cases. |
 
 ## Orchestrator rules
@@ -317,8 +319,8 @@ Four seeded workspaces test that the model is generic. If all four run without s
 
 | Workspace | Shape | Contenders | Judging | Proves |
 | --- | --- | --- | --- | --- |
-| Software Factory | Multi-stage: research, spec, back-end, UI | API models, plus coding harnesses by copy and paste | Star rubric by AI, owner override; build and test results and screenshots arrive in the output | Stages, repo and commit in the prompt, results reported inside the output |
-| Marketing Pipeline | No stages: social posts, brand copy, images | API models for text; image contenders by upload (mock returns test images) | Star rubric by Me; images rated in a grid | Image output, the image grid |
+| Software Factory | Four groups: research, spec, back-end, UI | API models, plus coding harnesses by copy and paste | Star rubric by AI, owner override; build and test results and screenshots arrive in the output | Groups, repo and commit in the prompt, results reported inside the output |
+| Marketing Pipeline | No groups: social posts, brand copy, images | API models for text; image contenders by upload (mock returns test images) | Star rubric by Me; images rated in a grid | Image output, the image grid |
 | Stock Review | One role, one contender | One API model | Star rubric now; outcome verdict later (Phase 2) | The single-contender path, the pass mark |
 | Travel Research | One role, non-technical | ChatGPT and Perplexity by copy and paste | Star rubric by Me | Manual return, a non-technical user |
 
@@ -335,9 +337,9 @@ Draft seed content for Cas to review. T0 seeds it as written once approved. Weig
 
 ### Software Factory
 
-Stages: Research → Spec → Back-end → UI. Judge: AI ("Mock Judge"), owner can override. Fitness: quality 70, tokens 20, time 10. The coding tasks name a small demo repo and commit (see the open questions).
+Groups: Research, Spec, Back-end, UI. Judge: AI ("Mock Judge"), owner can override. Fitness: quality 70, tokens 20, time 10. The coding tasks name a small demo repo and commit (see the open questions).
 
-| Stage | Role | Criteria (weight) | Pass mark | Tasks |
+| Group | Role | Criteria (weight) | Pass mark | Tasks |
 | --- | --- | --- | --- | --- |
 | Research | Researcher: compares options and recommends one, with sources | Accuracy (40), Relevance to the question (25), Clear recommendation (20), Sources cited (15) | 3.5 | "Compare three ways to store user settings in a small web app and recommend one"; "Summarise the trade-offs of SQLite versus Postgres for a single-user app" |
 | Spec | Spec writer: turns a rough idea into a short, testable spec | Completeness (35), Testable acceptance criteria (30), Clarity (20), Scope discipline (15) | 3.5 | "Write a one-page spec for a settings screen with Profile, Notifications and Danger zone" |
@@ -348,7 +350,7 @@ Contenders in a typical run: "Mock Steady", "Mock Erratic" (API) and "Claude Cod
 
 ### Marketing Pipeline
 
-No stages. Judge: Me. Fitness: quality only.
+No groups. Judge: Me. Fitness: quality only.
 
 | Role | Criteria (weight) | Pass mark | Tasks |
 | --- | --- | --- | --- |
@@ -360,7 +362,7 @@ Contenders: "Mock Steady", "Mock Erratic" for text; "Mock Image" and "Midjourney
 
 ### Stock Review
 
-No stages, one role, one contender. Judge: AI ("Mock Judge"). Fitness: quality only. The outcome verdict ("was the call right four weeks later?") is Phase 2.
+No groups, one role, one contender. Judge: AI ("Mock Judge"). Fitness: quality only. The outcome verdict ("was the call right four weeks later?") is Phase 2.
 
 | Role | Criteria (weight) | Pass mark | Tasks |
 | --- | --- | --- | --- |
@@ -370,7 +372,7 @@ Contender: "Mock Steady". The task uses an attached, made-up summary, so no live
 
 ### Travel Research
 
-No stages, one role. Judge: Me. Fitness: quality only. Built for a non-technical user: copy, paste, rate.
+No groups, one role. Judge: Me. Fitness: quality only. Built for a non-technical user: copy, paste, rate.
 
 | Role | Criteria (weight) | Pass mark | Tasks |
 | --- | --- | --- | --- |

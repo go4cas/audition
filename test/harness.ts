@@ -87,15 +87,15 @@ export const RUBRIC = [
   { name: "Clarity", weight: 40, guidance: "Easy to read." },
 ];
 
-/** A small graph of records for tests: workspace, stage, role, task, connections, contenders. */
+/** A small graph of records for tests: workspace, group, role, task, connections, contenders. */
 export async function fixtures(h: Harness) {
   const workspace = await create(h, "workspaces", { name: `WS ${crypto.randomUUID().slice(0, 8)}` });
-  const stage = await create(h, "stages", { workspace: workspace.id, name: "Research", order: 1 });
-  const role = await create(h, "roles", { workspace: workspace.id, stage: stage.id, name: "Researcher", rubric: RUBRIC });
+  const group = await create(h, "groups", { workspace: workspace.id, name: "Research", order: 1 });
+  const role = await create(h, "roles", { workspace: workspace.id, group: group.id, name: "Researcher", rubric: RUBRIC });
   const task = await create(h, "tasks", { role: role.id, title: "Compare options", prompt: "<p>Compare three options.</p>" });
   const mock = await create(h, "connections", { name: `Mock ${crypto.randomUUID().slice(0, 8)}`, provider: "mock" });
   const manual = await create(h, "connections", { name: `Manual ${crypto.randomUUID().slice(0, 8)}`, provider: "manual" });
   const contender = await create(h, "contenders", { name: `Mock Steady ${crypto.randomUUID().slice(0, 8)}`, connection: mock.id, model: "mock-steady", config: { mock: { behaviour: "steady" } } });
   const handoff = await create(h, "contenders", { name: `Codex ${crypto.randomUUID().slice(0, 8)}`, connection: manual.id });
-  return { workspace, stage, role, task, mock, manual, contender, handoff };
+  return { workspace, group, role, task, mock, manual, contender, handoff };
 }

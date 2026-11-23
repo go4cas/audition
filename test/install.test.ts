@@ -124,3 +124,20 @@ test("install steps: admin through the setup key, then the compiled setup tool",
     s3.stop();
   }
 }, 120_000);
+
+test("install.sh migrate_data: the compiled tool migrates a stopped data folder", async () => {
+  // As an upgrade does: the service is stopped, then `audition-setup migrate`
+  // starts the binary on the data folder without schema or hooks. This data
+  // is already on the new schema, so there is nothing to do; test/migrate.test.ts
+  // covers a real migration.
+  await inst.stop();
+  const r = await run([join(app, "bin", "audition-setup"), "migrate"], {
+    AUDITION_VAULTBASE_BIN: await ensureBinary(), VAULTBASE_DATA_DIR: inst.dataDir,
+    AUDITION_ADMIN_EMAIL: "owner@install.local", AUDITION_ADMIN_PASSWORD: "Admin-install-pass-1-xyz",
+    HTTP_PROXY: "", HTTPS_PROXY: "", http_proxy: "", https_proxy: "",
+  });
+  expect(r.out).toContain("Data: nothing to migrate.");
+  expect(r.code).toBe(0);
+  const missing = await run([join(app, "bin", "audition-setup"), "migrate"], { AUDITION_VAULTBASE_BIN: "" });
+  expect(missing.code).toBe(2);
+}, 120_000);

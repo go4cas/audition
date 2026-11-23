@@ -101,6 +101,8 @@ These are the spec's first six open questions. T0 confirms the first four agains
 
 **Q1. How is the schema kept as code?** As a **snapshot file**, `schema/snapshot.json`, in Vaultbase's own snapshot format (`version: 1`, one entry per collection with fields, rules, indexes, `history_enabled`, and `view_query` for the view). The binary applies it at startup with `vaultbase --apply-snapshot schema/snapshot.json --snapshot-mode sync` (`src/index.ts`, `parseCliArgs`; `src/core/migrations.ts`, `applySnapshot`). `sync` updates existing collections to match; `additive` only creates missing ones. Rules left out of a snapshot entry mean "not specified", so every entry states all five rules explicitly. The same apply is reachable over HTTP (`POST /api/v1/admin/migrations/apply`) and can be checked with `POST /api/v1/admin/migrations/diff`, which the schema test uses to prove a fresh instance matches the file.
 
+**Data migrations (renames).** A snapshot can't rename: `applySnapshot` finds collections by name, so a renamed collection is created empty next to the old one, and in `sync` mode a renamed field is dropped with its data and added again empty. Renames therefore run first, through Vaultbase's own collection API, which keeps every record, id and date: `PATCH /api/v1/collections/:name { name }` renames the table and repoints every relation field that targeted it (`renameCollectionStorage`), and a field sent with `renamedFrom` renames its column (`alterUserTable`; Vaultbase strips `renamedFrom` when it saves, so the snapshot itself never carries it). `scripts/lib/migrate.ts` holds them, oldest first, each one checking before it acts, so a second run or a new install changes nothing. `migrateOffline` runs them on a stopped data folder: it starts the binary on it with no snapshot and no hooks (`VAULTBASE_HOOKS_DIR=off`) on a free local port, signs in as the admin, migrates and stops. `deploy/install.sh` runs it (`audition-setup migrate`, as the service user) on every upgrade, after the rollback copy and before the service starts on the new release; `bun run dev` runs it before starting Vaultbase. The first one is stages → groups (Nov 23, 2026). If a start skipped it, the next run still brings the groups back (it drops the empty `groups` the snapshot made, then renames), but the roles' links were lost in that start: roll back, or set them again. `test/migrate.test.ts` checks all three cases on data made with the old snapshot (`test/golden/snapshot-before-groups.json`).
+
 **Q2. Can Vaultbase serve the static UI?** Not as static files: there is no public-folder feature, and the server only answers `/_/` (the admin UI), the API and realtime. **But a custom route can return any `Response`** (`src/api/routes.ts`, `tryDispatchCustom`: "A handler that returns a Response… is answered with it as is"). Custom routes live under `/api/custom/…` (also `/api/v1/custom/…`, `src/core/api-paths.ts`). So T0 adds one route file, `vb_hooks/routes/app.ts`, `GET /app/*`, which serves the built UI from `ui/dist/` with the right MIME type and a strict Content-Security-Policy. The UI is reached at `http://localhost:8091/api/custom/app/`. One process, one origin, no CORS. In production the reverse proxy maps `/` to `/api/custom/app/` (Release thread). No Cloudflare Worker is needed. The UI is a **single-page app, rendered in the browser** (no server-side rendering). It is one `index.html` plus JS and CSS, with real path URLs (`/api/custom/app/runs/123`, quiver since Nov 11, 2026; hash routes before that, and old `#/` links redirect). The route serves files and answers `index.html` for any other path, so it needs no knowledge of screens. `index.html` links its assets by absolute path, because a relative one would resolve against the page's path and the CSP forbids `<base>`. `bun run build:ui` versions main.js, the stylesheets and the fonts as `?v=<content hash>` and lists main.js's static chunk imports as `<link rel="modulepreload">`, so the first-load files download together instead of one after another. The route serves `index.html` with `no-cache`, the hashed chunks and `?v=` files with a one-year `immutable` lifetime, and anything else for five minutes (`lib/static.ts` `cacheControl`, Lighthouse review Nov 23, 2026; Cloudflare must be set to respect these headers, RELEASE.md "Speed and Cloudflare settings"). Data comes from the REST API and the custom routes as JSON.
 
 **Q3. `@vaultbase/sdk` or plain `fetch`?** **Plain `fetch`.** The runtime dependencies are Arrow.js core and quiver (see Tech stack), and Phase 1 needs only a small slice of the API: sign-in, list, view, create, update, file upload and the custom routes. T4 writes `ui/src/api.js` (about 150 lines). Realtime isn't used in Phase 1 (see F1). Since B3 the run page uses the browser's own `WebSocket` on Vaultbase's `/realtime` (`ui/src/lib/realtime.js`, about 70 lines), still with no SDK.
@@ -250,13 +252,15 @@ Guest voters, §10b. `guests`: no extra fields; list and view `id = @request.aut
 
 Rules: all five are `OWNER`.
 
-### stages
+### groups
+
+Called `stages` until Nov 23, 2026. A group only sorts roles: groups have no sequence and no dependencies, so `order` is the display order and nothing else. The rename (collection and `roles.stage` → `roles.group`) is a data migration that runs before the schema, see "Data migrations" in §1.
 
 | Field | Type | Notes |
 | --- | --- | --- |
 | workspace | rel → workspaces, cascade, required | |
 | name | text, required | |
-| order | number | |
+| order | number | Display order in the workspace and its settings |
 
 Rules: all `OWNER`.
 
@@ -265,7 +269,7 @@ Rules: all `OWNER`.
 | Field | Type | Notes |
 | --- | --- | --- |
 | workspace | rel → workspaces, restrict, required | |
-| stage | rel → stages, setNull | Optional. The hook checks it belongs to the same workspace. |
+| group | rel → groups, setNull | Optional. The hook checks it belongs to the same workspace. |
 | name | text, required | |
 | description | text | |
 | rubric | json, required | `[{ "name": "Accuracy", "weight": 40, "guidance": "…" }]`. The hook checks 1 to 8 criteria, unique names, whole-number weights summing to 100. |
@@ -847,7 +851,7 @@ The spec's thread plan stands: T0 merges first, then T1 to T4 run in parallel, t
 
 1. A Playwright walkthrough (dev dependency; reason: browser tests) of all four reference workspaces against the mock completes:
    - sign in;
-   - edit a workspace, a stage, a role with its rubric, and a task, plus "Duplicate and edit" on a locked task;
+   - edit a workspace, a group, a role with its rubric, and a task, plus "Duplicate and edit" on a locked task;
    - add a connection with a key (the key is never shown again) and a contender;
    - build a run and see the call count;
    - watch the run live;

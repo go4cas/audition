@@ -61,7 +61,7 @@ export default function home() {
             ${() => upNext()}
             <div class="stack-sm">
               <div class="section-head"><h2>Workspaces</h2><a class="btn btn--sm btn--quiet" href="${APP + "/w/new"}">${icon("plus")}New workspace</a></div>
-              ${d.workspaces.length ? html`<div class="grid-cards stagger">${d.workspaces.map((w) => wsCard(d, w, cast))}</div>` : empty("workspaces", "No workspaces yet", "A workspace holds the stages and roles of one workflow.", html`<a class="btn btn--primary" href="${APP + "/w/new"}">${icon("plus")}New workspace</a>`)}
+              ${d.workspaces.length ? html`<div class="grid-cards stagger">${d.workspaces.map((w) => wsCard(d, w, cast))}</div>` : empty("workspaces", "No workspaces yet", "A workspace holds the roles of one workflow, sorted into groups if you like.", html`<a class="btn btn--primary" href="${APP + "/w/new"}">${icon("plus")}New workspace</a>`)}
             </div>
           </div>
           <aside class="home-rail">
@@ -96,7 +96,7 @@ function upNext() {
 
 function wsCard(d, w, cast) {
   const roles = cast.filter((x) => x.r.workspace === w.id);
-  const stages = d.stages.filter((s) => s.workspace === w.id);
+  const groups = d.groups.filter((g) => g.workspace === w.id);
   const done = roles.filter((x) => x.c).length;
   const runs = d.runs.filter((r) => r.workspace === w.id);
   const ids = [...new Set(runs.flatMap((r) => r.contenders || []))].slice(0, 5);
@@ -106,7 +106,7 @@ function wsCard(d, w, cast) {
     : roles.length && done === roles.length ? chip("champion", "Fully cast")
     : runs.length ? chip("draft", `${roles.length - done} to cast`) : chip("draft", "No runs yet");
   return html`<a class="ws-card" href="${APP + "/w/" + w.id}">
-    <div class="ws-card__top">${avatar(w.name, "lg")}<div class="grow"><h3>${w.name}</h3><span class="small muted">${stages.length ? plural(stages.length, "stage") + " · " : ""}${plural(roles.length, "role")}</span></div><span class="${"ring ring--sm" + (p === 100 ? " ring--gold" : "")}" style="${"--p:" + p}">${done}/${roles.length}</span></div>
+    <div class="ws-card__top">${avatar(w.name, "lg")}<div class="grow"><h3>${w.name}</h3><span class="small muted">${groups.length ? plural(groups.length, "group") + " · " : ""}${plural(roles.length, "role")}</span></div><span class="${"ring ring--sm" + (p === 100 ? " ring--gold" : "")}" style="${"--p:" + p}">${done}/${roles.length}</span></div>
     <div class="ws-card__foot"><span class="faces">${ids.map((id) => avatar(d.byId.contenders.get(id)?.name || "?"))}</span>${state}</div>
   </a>`;
 }

@@ -463,6 +463,7 @@ cmd_install() {
 
   step "Starting the service"
   write_unit
+  if [ "$reuse" = 1 ]; then migrate_data || die "migrating the kept data failed; Audition is not started."; fi
   systemctl enable --now audition >/dev/null 2>&1 || systemctl start audition
   wait_ready "$PORT" || die "Audition didn't start. See: journalctl -u audition -n 50"
   ok "audition.service is running"
@@ -503,6 +504,20 @@ cmd_install() {
   printf 'Upgrade later:  sudo bash install.sh --version <tag>   (or --bundle FILE on a server without GitHub access)\nRemove:         sudo bash install.sh uninstall\n'
 }
 
+# Renames the new release's schema can't do by itself (scripts/lib/migrate.ts,
+# such as stages -> groups in v0.6.0), done with Vaultbase's own collection API
+# while the service is stopped: the setup tool starts the new binary on the
+# data folder without the schema and without hooks, on a free local port,
+# migrates, and stops it. Then the service applies the new schema as usual.
+migrate_data() {
+  [ -x "$PREFIX/current/bin/audition-setup" ] && [ -f "$DATA/data.db" ] || return 0
+  [ -f "$ETC/admin-credentials" ] || { warn "no $ETC/admin-credentials, so the data can't be migrated"; return 1; }
+  runuser -u "$SVC_USER" -- env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY \
+    AUDITION_VAULTBASE_BIN="$PREFIX/bin/vaultbase" VAULTBASE_DATA_DIR="$DATA" \
+    AUDITION_ADMIN_EMAIL="$(admin_field email)" AUDITION_ADMIN_PASSWORD="$(admin_field password)" \
+    "$PREFIX/current/bin/audition-setup" migrate | sed 's/^/      /'
+}
+
 cmd_upgrade() {
   need_root; need_tools
   installed || die "Audition isn't installed here yet; run: sudo bash $0"
@@ -528,6 +543,7 @@ cmd_upgrade() {
   ln -sfn "$REL_DIR" "$PREFIX/current"
   ln -sfn "$VB_BIN" "$PREFIX/bin/vaultbase"
   write_unit
+  migrate_data || { warn "migrating the data for $VERSION failed; Audition is stopped. Roll back with: sudo bash $0 rollback"; die "nothing else was changed"; }
   systemctl start audition
   if ! wait_ready "$port"; then
     warn "Audition didn't come back on $VERSION. Roll back with: sudo bash $0 rollback"
