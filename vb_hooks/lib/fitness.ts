@@ -266,3 +266,17 @@ export async function roleBoard(deps: BoardDeps, roleId: string): Promise<RoleBo
   }
   return { ...board, suggested: held ? null : board.suggested, casting, history, previous: previousChampion(history), held_back: held };
 }
+
+/**
+ * Every role's leaderboard in one go (Home, the workspace page), keyed by role
+ * id; only one workspace's roles when `workspaceId` is given. One request
+ * instead of one per role (NOTES H1).
+ */
+export async function roleBoards(deps: BoardDeps, workspaceId?: string | null): Promise<Record<string, RoleBoard>> {
+  if (workspaceId && !ID.test(workspaceId)) return {};
+  const roles = await deps.query("roles", { ...(workspaceId ? { filter: `workspace = "${workspaceId}"` } : {}), perPage: 500 });
+  const boards = await Promise.all(roles.data.map((r) => roleBoard(deps, String(r["id"]))));
+  const out: Record<string, RoleBoard> = {};
+  roles.data.forEach((r, i) => { if (boards[i]) out[String(r["id"])] = boards[i]!; });
+  return out;
+}

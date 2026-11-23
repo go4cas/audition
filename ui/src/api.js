@@ -115,6 +115,7 @@ export const custom = {
   handoff: async (runId, taskId) => data(await request("GET", C(`/handoff/${runId}/${taskId}`))),
   judging: async (runId, taskId) => data(await request("GET", C(`/judging/${runId}/${taskId}`))),
   leaderboard: async (roleId) => data(await request("GET", C(`/leaderboard/${roleId}`))),
+  leaderboards: async (workspace) => data(await request("GET", C("/leaderboards" + (workspace ? `?workspace=${encodeURIComponent(workspace)}` : "")))),
   cast: async (body) => data(await request("POST", C("/castings"), body)),
   keepChampion: async (role) => data(await request("POST", C(`/champion/${role}/keep`))),
   restoreChampion: async (role, rationale) => data(await request("POST", C(`/champion/${role}/restore`), { rationale })),

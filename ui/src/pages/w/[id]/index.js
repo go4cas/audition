@@ -12,10 +12,10 @@ export default function workspace() {
   return page({
     screen: "workspace",
     load: async (s) => {
-      s.d = await load();
+      // Both at once: the boards don't need the collections first.
+      [s.d, s.lb] = await Promise.all([load(), leaderboards(params.id)]);
       s.ws = s.d.byId.workspaces.get(params.id);
       if (!s.ws) throw new Error("This workspace doesn't exist any more.");
-      s.lb = await leaderboards(s.d.roles.filter((r) => r.workspace === params.id).map((r) => r.id));
     },
     body: (s) => {
       const { d, ws } = s;

@@ -50,7 +50,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
 .i--xl { width: 2.5rem; height: 2.5rem; }
 
 /* ---------- Screen enter ---------- */
-[data-screen]:not([hidden]) { animation: screen-in var(--t-slow) var(--ease-out); }
+html[data-entered] [data-screen]:not([hidden]) { animation: screen-in var(--t-slow) var(--ease-out); }
 @keyframes screen-in { from { opacity: 0; transform: translateY(8px); } }
 .stagger > * { animation: rise-in var(--t-slow) var(--ease-out) both; }
 .stagger > *:nth-child(2) { animation-delay: 40ms; }

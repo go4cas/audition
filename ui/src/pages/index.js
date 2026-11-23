@@ -16,46 +16,23 @@ export const meta = { title: "Workspaces · Audition", nav: { label: "Workspaces
 export default function home() {
   return page({
     screen: "home",
+    // The page draws as soon as the collections are in; the leaderboards
+    // (suggested champions, output counts) fill their reserved slots after,
+    // so the heading isn't held back by them (NOTES H1).
     load: async (s) => {
+      s.boards = leaderboards();
       s.d = await load();
-      s.lb = await leaderboards(s.d.roles.map((r) => r.id));
     },
+    shell: () => html`${hero(null)}${homeSkeleton()}`,
     body: (s) => {
       const d = s.d;
       const roles = sortRoles(d, d.roles);
-      const cast = roles.map((r) => ({ r, c: championOf(d, r.id), lb: s.lb.get(r.id) }));
-      const champions = cast.filter((x) => x.c);
-      const suggested = cast.filter((x) => !x.c && x.lb?.suggested);
-      const active = d.runs.filter((r) => r.status !== "done");
-      const pct = roles.length ? Math.round((champions.length / roles.length) * 100) : 0;
-      const name = ownerName();
+      const cast = roles.map((r) => ({ r, c: championOf(d, r.id) }));
+      fillBoards(s, cast);
       // "Waiting for you" (top bar, phone nav) opens Home at its "Up next" list.
       if (currentQuery().waiting) requestAnimationFrame(() => document.getElementById("up-next")?.scrollIntoView({ block: "start" }));
       return html`
-        <div class="home-hero">
-          <div class="stack hero-copy">
-            <span class="eyebrow">${icon("sun")}${today()}</span>
-            <h1>${greeting()}${name ? ", " + name : ""}.<br>${() => (inbox.count ? "Your next audition is ready." : "Nothing is waiting for you.")}</h1>
-            <p class="lede">${() => `${inbox.count ? plural(inbox.count, "thing") + (inbox.count === 1 ? " is" : " are") + " waiting for you" : "You're all caught up"}, and ${plural(active.length, "run")} ${active.length === 1 ? "is" : "are"} working in the background.`}</p>
-            <div class="row">
-              ${() => (inbox.items.length ? html`<a class="btn btn--primary btn--lg" href="${itemHref(inbox.items[0])}">${icon("play")}Pick up where you left off</a>` : "")}
-              <a class="btn btn--lg" href="${APP + "/runs/new"}">${icon("plus")}Start a run</a>
-            </div>
-          </div>
-          <div class="hero-cast">
-            <div class="row-between"><span class="eyebrow">${icon("champion", "gold")}Your cast</span></div>
-            <div class="row hero-cast__row">
-              <div class="hero-cast__stack" aria-label="Champions">
-                ${champions.slice(0, 3).map((x) => { const c = d.byId.contenders.get(x.c.contender); return html`<span class="avatar" style="${"--h:" + hueOf(c?.name)}" data-tip="${(c?.name || "") + " · " + x.r.name}">${initialsOf(c?.name)}${icon("champion", "crown")}</span>`; })}
-                ${roles.length - champions.length > 0 ? html`<span class="avatar is-empty" data-tip="${plural(roles.length - champions.length, "role") + " still auditioning"}">+${roles.length - champions.length}</span>` : ""}
-              </div>
-              <div class="stack-sm hero-cast__count"><strong class="num hero-num">${champions.length} of ${roles.length}</strong><span class="small muted">roles have a champion</span></div>
-              <span class="ring ring--gold ring--end" style="${"--p:" + pct}">${pct}%</span>
-            </div>
-            ${suggested.length ? html`<div class="notice notice--tight" data-state="warning">${icon("sparkle")}<div class="small"><strong>${suggested[0].r.name}</strong> has a suggested champion. <a href="${APP + "/leaderboard/" + suggested[0].r.id}">Confirm it</a></div></div>` : ""}
-          </div>
-        </div>
-
+        ${hero({ d, roles, cast, gen: s.gen })}
         <div class="home-grid">
           <div class="home-main">
             ${() => upNext()}
@@ -67,7 +44,7 @@ export default function home() {
           <aside class="home-rail">
             <div class="panel">
               <div class="panel__head"><h2>${icon("champion", "gold")}Who plays which role</h2></div>
-              <ul class="cast-list">${cast.map((x) => castRow(d, x))}</ul>
+              <ul class="cast-list">${cast.map((x) => castRow(d, s, x))}</ul>
             </div>
             ${feed(d)}
           </aside>
@@ -76,6 +53,47 @@ export default function home() {
   });
 }
 
+
+/**
+ * The hero. With no data (`h` null) it's the loading shell: the heading and
+ * buttons as they will be, the numbers as placeholders of the same size, so
+ * the heading (the page's largest paint) shows before any data arrives.
+ */
+function hero(h) {
+  const name = ownerName();
+  const roles = h?.roles || [];
+  const champions = h ? h.cast.filter((x) => x.c) : [];
+  const active = h ? h.d.runs.filter((r) => r.status !== "done") : null;
+  const open = roles.length - champions.length;
+  const pct = roles.length ? Math.round((champions.length / roles.length) * 100) : 0;
+  const runs = () => (active ? `${plural(active.length, "run")} ${active.length === 1 ? "is" : "are"} working in the background` : "your runs are loading");
+  return html`<div class="home-hero">
+      <div class="stack hero-copy">
+        <span class="eyebrow">${icon("sun")}${today()}</span>
+        <h1>${greeting()}${name ? ", " + name : ""}.<br>${() => (inbox.count ? "Your next audition is ready." : "Nothing is waiting for you.")}</h1>
+        <p class="lede">${() => `${inbox.count ? plural(inbox.count, "thing") + (inbox.count === 1 ? " is" : " are") + " waiting for you" : "You're all caught up"}, and ${runs()}.`}</p>
+        <div class="row">
+          ${() => (inbox.items.length ? html`<a class="btn btn--primary btn--lg" href="${itemHref(inbox.items[0])}">${icon("play")}Pick up where you left off</a>` : "")}
+          <a class="btn btn--lg" href="${APP + "/runs/new"}">${icon("plus")}Start a run</a>
+        </div>
+      </div>
+      <div class="hero-cast">
+        <div class="row-between"><span class="eyebrow">${icon("champion", "gold")}Your cast</span></div>
+        <div class="row hero-cast__row">
+          <div class="hero-cast__stack" aria-label="Champions">
+            ${h ? champions.slice(0, 3).map((x) => { const c = h.d.byId.contenders.get(x.c.contender); return html`<span class="avatar" style="${"--h:" + hueOf(c?.name)}" data-tip="${(c?.name || "") + " · " + x.r.name}">${initialsOf(c?.name)}${icon("champion", "crown")}</span>`; }) : html`<span class="avatar is-empty" aria-label="Loading"></span>`}
+            ${open > 0 ? html`<span class="avatar is-empty" data-tip="${plural(open, "role") + " still auditioning"}">+${open}</span>` : ""}
+          </div>
+          <div class="stack-sm hero-cast__count"><strong class="num hero-num">${h ? `${champions.length} of ${roles.length}` : "–"}</strong><span class="small muted">roles have a champion</span></div>
+          <span class="ring ring--gold ring--end" style="${"--p:" + pct}">${h ? pct + "%" : ""}</span>
+        </div>
+        ${!h || roles.length ? html`<div class="hero-cast__note" id="${"hero-note-" + (h?.gen ?? 0)}">${h ? castNote(open) : html`<div class="notice notice--tight">${icon("play")}<div class="small">Loading your cast…</div></div>`}</div>` : ""}
+      </div>
+    </div>`;
+}
+
+/** Below the hero while loading. */
+const homeSkeleton = () => html`<div class="home-grid" aria-busy="true" aria-label="Loading"><div class="home-main"><div class="skeleton skeleton--title"></div><div class="panel"><div class="panel__body"><div class="skeleton skeleton--w60"></div><div class="skeleton skeleton--w85"></div><div class="skeleton skeleton--w40"></div></div></div></div><aside class="home-rail"><div class="panel"><div class="panel__body"><div class="skeleton skeleton--w85"></div><div class="skeleton skeleton--w60"></div></div></div></aside></div>`;
 
 function upNext() {
   if (!inbox.items.length) return html`<div class="stack-sm" id="up-next"><div class="section-head"><h2>Up next</h2></div>${empty("inbox-duo", "Nothing waiting for you", "Start a run and the replies to paste and outputs to judge show up here.")}</div>`;
@@ -111,18 +129,58 @@ function wsCard(d, w, cast) {
   </a>`;
 }
 
-function castRow(d, { r, c, lb }) {
+/**
+ * When the leaderboards arrive, fill the slots the body reserved for them: the
+ * hero's note and each uncast role's right-hand side. Drawn by hand into the
+ * slots (like the page body, NOTES U3/G9), and only into this mount's slots.
+ */
+function fillBoards(s, cast) {
+  const gen = (s.gen = (s.gen || 0) + 1);
+  let left = false;
+  s.onLeave(() => { left = true; });
+  const into = (el, tpl) => { el.replaceChildren(); tpl(el); };
+  s.boards.then((lb) => {
+    let tries = 0;
+    const go = () => {
+      if (left || s.gen !== gen) return;
+      const note = document.getElementById("hero-note-" + gen);
+      const rows = cast.filter((x) => !x.c);
+      if (!note && rows.length && tries++ < 120) { requestAnimationFrame(go); return; }
+      const suggested = rows.find((x) => lb.get(x.r.id)?.suggested);
+      if (note && suggested) into(note, html`<div class="notice notice--tight" data-state="warning">${icon("sparkle")}<div class="small"><strong>${suggested.r.name}</strong> has a suggested champion. <a href="${APP + "/leaderboard/" + suggested.r.id}">Confirm it</a></div></div>`);
+      for (const x of rows) {
+        const el = document.getElementById(`cast-${gen}-${x.r.id}`);
+        if (el) into(el, uncastRight(s.d, x.r, lb.get(x.r.id)));
+      }
+    };
+    go();
+  });
+}
+
+/** The hero note before (and unless) a suggestion arrives; same one-line height. */
+const castNote = (open) => open
+  ? html`<div class="notice notice--tight">${icon("play")}<div class="small">${plural(open, "role")} still auditioning. <a href="${APP + "/runs/new"}">Start a run</a></div></div>`
+  : html`<div class="notice notice--tight" data-state="done">${icon("champion")}<div class="small">Every role has a champion.</div></div>`;
+
+function castRow(d, s, { r, c }) {
   const ws = d.byId.workspaces.get(r.workspace)?.name;
+  const right = c
+    ? html`<span class="who">${avatar(d.byId.contenders.get(c.contender)?.name, "sm")}${d.byId.contenders.get(c.contender)?.name}${c.trial ? html`<a class="link-plain" href="${APP + "/leaderboard/" + r.id}">${chip("waiting", "On trial")}</a>` : icon("champion", "crown")}</span>`
+    : html`<span class="cast-slot" id="${"cast-" + s.gen + "-" + r.id}"><span class="skeleton skeleton--ring" aria-label="Loading"></span></span>`;
+  return html`<li><div><div class="role">${r.name}</div><div class="ws">${ws}</div></div>${right}</li>`;
+}
+
+/** An uncast role's right-hand side, from its leaderboard. */
+function uncastRight(d, r, lb) {
   let right;
-  if (c) right = html`<span class="who">${avatar(d.byId.contenders.get(c.contender)?.name, "sm")}${d.byId.contenders.get(c.contender)?.name}${c.trial ? html`<a class="link-plain" href="${APP + "/leaderboard/" + r.id}">${chip("waiting", "On trial")}</a>` : icon("champion", "crown")}</span>`;
-  else if (lb?.suggested) right = html`<a class="state link-plain" data-state="warning" href="${APP + "/leaderboard/" + r.id}">${icon("sparkle")}Confirm ${d.byId.contenders.get(lb.suggested)?.name || "the suggestion"}</a>`;
+  if (lb?.suggested) right = html`<a class="state link-plain" data-state="warning" href="${APP + "/leaderboard/" + r.id}">${icon("sparkle")}Confirm ${d.byId.contenders.get(lb.suggested)?.name || "the suggestion"}</a>`;
   else {
     const ws_ = d.byId.workspaces.get(r.workspace);
     const n = Math.max(0, ...(lb?.rows || []).map((x) => x.n));
     const min = ws_?.min_outputs || 5;
     right = n ? html`<span class="row-tight small muted"><span class="ring ring--sm" style="${"--p:" + Math.min(100, Math.round((n / min) * 100))}">${Math.min(n, min)}/${min}</span>outputs</span>` : html`<a class="small" href="${APP + "/runs/new?role=" + r.id}">Start a run</a>`;
   }
-  return html`<li><div><div class="role">${r.name}</div><div class="ws">${ws}</div></div>${right}</li>`;
+  return right;
 }
 
 function feed(d) {
