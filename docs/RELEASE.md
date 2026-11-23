@@ -204,10 +204,10 @@ Owner uploads still go through Audition's own route (`POST /api/custom/files/:co
 
 ```sh
 curl -fsSLO https://github.com/go4cas/audition/releases/latest/download/install.sh
-sudo bash install.sh --version v0.5.0      # the release tag
+sudo bash install.sh --version v0.6.0      # the release tag
 ```
 
-Fetch the new `install.sh` first, so the upgrade runs the release's own installer. This matters for the release that renames stages to groups: an older installer skips the data migration, and the new schema then starts without the roles' links to their groups (`rollback` brings them back). On a server that can't reach GitHub, copy the new bundle up and run `sudo bash install.sh --bundle audition-<tag>-linux-x64.tar.gz` instead (see [Install](#install)).
+Fetch the new `install.sh` first, so the upgrade runs the release's own installer. This matters for v0.6.0, the release that renames stages to groups: an older installer skips the data migration, and the new schema then starts without the roles' links to their groups (`rollback` brings them back). On a server that can't reach GitHub, copy the new bundle up and run `sudo bash install.sh --bundle audition-<tag>-linux-x64.tar.gz` instead (see [Install](#install)).
 
 Running the installer again on a server that has Audition upgrades it. It downloads and checks the new bundle (and the new Vaultbase binary, when the pin changed), stops the service, takes a **cold copy of the whole data folder** into `/var/lib/audition-rollback` (the database, the files and both keys), switches `/opt/audition/current` and the binary symlink, **migrates the data** for the new release while the service is still stopped (`audition-setup migrate`: renames the schema can't do, such as stages → groups; TECH-SPEC §1, "Data migrations"; it prints "Data: nothing to migrate." when there are none), starts the service, and applies Audition's Vaultbase settings again (signed in as the admin from `/etc/audition/admin-credentials`), so a setting a release adds takes effect (guest voters, v0.5.0: anonymous sessions and rate limits). Vaultbase upgrades its data folder when it starts and can't downgrade, so that copy is the rollback, not a Vaultbase backup. Then run the smoke test. Hook files only change while the service is stopped.
 
