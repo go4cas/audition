@@ -20,6 +20,7 @@ The same moments as the emails. Each email now also goes through `helpers.notify
 | Champion change | In the run-finished alert | "… The leaderboard suggests a new champion." | The leaderboard |
 | Repeat skipped | A scheduled repeat can't start | "A repeat of Researcher was skipped" | The run |
 | Outcome checks due | Daily at 07:00 UTC | "2 outcome checks due" | Outcome checks |
+| Trial over (Nov 23, 2026) | Daily at 07:05 UTC, once, the day a new champion's trial ends (the workspace's `trial_days`) | "GPT's trial as Coder is over" | The leaderboard, to keep it or restore the one before |
 
 Email and push are independent. Either can be off, and neither ever fails a run: a failed or skipped send writes one line to the hook log.
 

@@ -165,8 +165,73 @@ export interface BoardDeps {
   query(collection: string, opts: { filter?: string; sort?: string; perPage?: number }): Promise<{ data: Rec[] }>;
 }
 
+/** One champion change for a role: each Make champion or Restore adds a casting (TECH-SPEC §11a). */
+export interface CastingInfo {
+  id: string;
+  role: string;
+  contender: string;
+  since: number;
+  rationale: string;
+  suggested_by: string;
+  trial: boolean;
+  restored: boolean;
+  confirmed: boolean;
+}
+
 export interface RoleBoard extends Board {
-  casting: { contender: string; since: number } | null;
+  /** The current champion: the newest confirmed casting. */
+  casting: CastingInfo | null;
+  /** Every champion change, newest first (the current one first). */
+  history: CastingInfo[];
+  /** The champion before the current one, by contender: who Restore brings back. */
+  previous: string | null;
+  /** Set while the leaderboard holds back a suggestion just after a restore. */
+  held_back: { contender: string; since: number } | null;
+}
+
+const yes = (v: unknown) => v === true || v === 1 || v === "1" || v === "true";
+
+/** Seconds from a record's created value (unix seconds, unix ms or an ISO date). */
+export function toSeconds(v: unknown): number {
+  if (typeof v === "number") return v > 1e11 ? Math.floor(v / 1000) : v;
+  const n = Number(v);
+  if (Number.isFinite(n) && String(v).trim() !== "") return n > 1e11 ? Math.floor(n / 1000) : n;
+  const t = Date.parse(String(v));
+  return Number.isFinite(t) ? Math.floor(t / 1000) : 0;
+}
+
+export function castingInfo(r: Rec): CastingInfo {
+  return {
+    id: String(r["id"]),
+    role: String(r["role"]),
+    contender: String(r["contender"]),
+    since: Number(r["since"]),
+    rationale: String(r["rationale"] ?? ""),
+    suggested_by: String(r["suggested_by"] ?? ""),
+    trial: yes(r["trial"]),
+    restored: yes(r["restored"]),
+    confirmed: yes(r["confirmed"]),
+  };
+}
+
+/** The champion before the current one: the newest earlier casting of a different contender. */
+export function previousChampion(history: CastingInfo[]): string | null {
+  const now = history[0];
+  return now ? history.find((c) => c.contender !== now.contender)?.contender ?? null : null;
+}
+
+/**
+ * Right after a restore, the contender it replaced is not suggested again
+ * until a run for the role starts after the restore: the owner's real-world
+ * verdict stands until there is new evidence.
+ */
+export function heldBack(history: CastingInfo[], suggested: string | null, newestRunAt: number | null): { contender: string; since: number } | null {
+  const now = history[0];
+  if (!now?.restored || !suggested) return null;
+  const dropped = history[1]?.contender;
+  if (!dropped || dropped !== suggested) return null;
+  if (newestRunAt != null && newestRunAt > now.since) return null;
+  return { contender: dropped, since: now.since };
 }
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -191,8 +256,13 @@ export async function roleBoard(deps: BoardDeps, roleId: string): Promise<RoleBo
   }
   const board = leaderboard(raw, { weights, minOutputs, passMark });
 
-  const casts = await deps.query("castings", { filter: `role = "${roleId}" && confirmed = true`, sort: "-since,-created", perPage: 1 });
-  const top = casts.data[0];
-  const casting = top ? { contender: String(top["contender"]), since: Number(top["since"]) } : null;
-  return { ...board, casting };
+  const casts = await deps.query("castings", { filter: `role = "${roleId}" && confirmed = true`, sort: "-created", perPage: 50 });
+  const history = casts.data.map(castingInfo);
+  const casting = history[0] ?? null;
+  let held: RoleBoard["held_back"] = null;
+  if (casting?.restored) {
+    const runs = await deps.query("runs", { filter: `role = "${roleId}"`, sort: "-created", perPage: 1 });
+    held = heldBack(history, board.suggested, runs.data[0] ? toSeconds(runs.data[0]["created"]) : null);
+  }
+  return { ...board, suggested: held ? null : board.suggested, casting, history, previous: previousChampion(history), held_back: held };
 }

@@ -512,6 +512,14 @@ Cas approved on Nov 19, 2026 the move from 0.46.0 to **0.47.0** (tag commit `7a7
 - **V5. Also new:** an admin **Schema** page that maps collections and their relations (read-only). Nothing for Audition to change.
 - **V6. Server upgrade.** No setting, schema, env or service change, and the saved OneSignal key keeps working. The live server moves to 0.47.0 with the next Audition release (`install.sh --version <tag>`); `rollback` returns to 0.46.0 with the old release.
 
+## Champion on trial, keep and restore (Nov 23, 2026)
+
+- **CT1. The current champion is now the newest casting by `created`, not by `since`.** `lib/fitness.ts` sorted by `-since,-created`. Both are set at the same moment by the castings route, so nothing changes for real data, but `created` can't be edited, which keeps the order honest (the trial-nudge test moves `since` back four days).
+- **CT2. Restore skips the qualify check.** The owner restores because of real-world use, which the leaderboard can't see. The leaderboard then holds back the replaced contender until a run for the role starts after the restore, so the run-finished email doesn't keep suggesting it.
+- **CT4. The browser walkthrough hit Vaultbase's `/api/*` rate limit (300 per 10 s) about half the time** once the inbox also loaded castings: `429 {"error":"Rate limit exceeded (rule: /api/*)"}` on the test's own owner GETs and on page loads. It passed 3 of 3 on main, so the extra request tipped it. Fix: the app retries a 429 after Retry-After (`ui/src/api.js`), `refreshInbox` coalesces overlapping calls, and the test's GET helper waits out a 429 as `test/e2e.test.ts` already does. Six clean runs after.
+- **CT5. Trial-over alert** (Cas, Nov 23, 2026): one push and email from the daily job `champion-trials-ended` on the day the trial ends.
+- **CT3. Reminder delay is a workspace setting** (Cas, Nov 23, 2026): `workspaces.trial_days`, 1 to 90, default 3. Older workspaces have it empty, which reads as 3.
+
 ## Lighthouse review of the live app (Nov 23, 2026)
 
 Cas ran Lighthouse (mobile, signed in, home page) on audition.go4cas.com at v0.5.1: Performance 76, Accessibility 95, Best practices 73, SEO 91.

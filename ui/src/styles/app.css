@@ -717,3 +717,11 @@ tr.is-suggested td { background: color-mix(in srgb, var(--gold-soft) 70%, transp
 .brand:hover .lg-star, .logo-card:hover .logo-stage .lg-star { transform: translateY(-2px) rotate(36deg) scale(1.12); }
 .lg--round { border-radius: 50%; overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .lg .lg-star { transition: none; } }
+
+/* Champion on trial, keep and restore (TECH-SPEC §11a) */
+.champion--quiet { background: var(--surface); box-shadow: none; border-color: var(--line); }
+.champion--quiet .champion__crown { width: 40px; height: 40px; }
+.champion--quiet .champion__crown .i { width: 22px; height: 22px; }
+.champion--quiet .champion__name { font-size: 1.15rem; }
+.champion__actions { flex-basis: 100%; flex-wrap: wrap; }
+.champion > .notice { flex-basis: 100%; }

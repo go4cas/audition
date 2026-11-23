@@ -3,7 +3,7 @@
 // these. They take the hook context, so this file never imports "vaultbase".
 import { isTrusted, updateRecord, type Records, type Sql } from "./store.ts";
 import {
-  DEFAULT_FITNESS_WEIGHTS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_MIN_OUTPUTS, DEFAULT_PASS_MARK,
+  DEFAULT_FITNESS_WEIGHTS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_MIN_OUTPUTS, DEFAULT_TRIAL_DAYS, DEFAULT_PASS_MARK,
   fitnessWeightsError, normaliseContenderConfig, parseJson, requiredMode, rubricError, type Provider,
 } from "./validation.ts";
 
@@ -35,6 +35,7 @@ export function workspaceBeforeWrite(ctx: Ctx): void {
     if (empty(r["default_judge"])) r["default_judge"] = "me";
     if (empty(r["default_method"])) r["default_method"] = "rate";
     if (empty(r["min_outputs"])) r["min_outputs"] = DEFAULT_MIN_OUTPUTS;
+    if (empty(r["trial_days"])) r["trial_days"] = DEFAULT_TRIAL_DAYS;
     if (empty(r["fitness_weights"])) r["fitness_weights"] = DEFAULT_FITNESS_WEIGHTS;
   }
   const m = merged(ctx);

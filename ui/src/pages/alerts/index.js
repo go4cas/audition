@@ -11,7 +11,7 @@ import { push, turnOffPush, turnOnPush } from "../../lib/push.js";
 
 export const meta = { title: "Alerts · Audition" };
 
-const ICON = { "run-finished": "done", "repeat-skipped": "warning", "outcomes-due": "time" };
+const ICON = { "run-finished": "done", "repeat-skipped": "warning", "outcomes-due": "time", "trial-ended": "champion" };
 
 export default function alertsPage() {
   return page({
