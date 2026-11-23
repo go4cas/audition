@@ -511,3 +511,14 @@ Cas approved on Nov 19, 2026 the move from 0.46.0 to **0.47.0** (tag commit `7a7
 - **V4. Still not in Vaultbase 0.47:** per-collection MCP token scopes (`collection:x:read` is still only reserved in `core/api-tokens.ts`, so the read-only MCP for castings keeps waiting), a raw-bytes reply on `helpers.http` (I1, discussion #17, Replicate keeps waiting), a static folder mountable at the root (hiding `/api/custom/`, discussion #15), a file save helper (#11), more upload MIME types (#12) and conditions on `helpers.records.update/delete` (#13).
 - **V5. Also new:** an admin **Schema** page that maps collections and their relations (read-only). Nothing for Audition to change.
 - **V6. Server upgrade.** No setting, schema, env or service change, and the saved OneSignal key keeps working. The live server moves to 0.47.0 with the next Audition release (`install.sh --version <tag>`); `rollback` returns to 0.46.0 with the old release.
+
+## Lighthouse review of the live app (Nov 23, 2026)
+
+Cas ran Lighthouse (mobile, signed in, home page) on audition.go4cas.com at v0.5.1: Performance 76, Accessibility 95, Best practices 73, SEO 91.
+
+- **L1. LCP 4.6 s, 2.7 s of it render delay.** The first-load files arrived one after another (page, main.js, shared chunk, page chunk, then data). The build now lists main.js's static chunk imports as `modulepreload` in `index.html` and preloads the heading font (Bricolage Grotesque) with the body font.
+- **L2. CLS 0.12, all from the versions footer.** It sat near the top of the empty page and was pushed down when the content arrived. `#main` now keeps at least one screen of height while the chrome is shown.
+- **L3. Colour contrast.** Avatar monograms on some hues were 3.8 to 4.3:1 in light mode and down to 2.7:1 in dark mode. The text is now half hue, half text colour: at least 4.9:1 on every hue in both themes (checked for hues 0 to 357 in steps of 3).
+- **L4. Missing meta description.** Added.
+- **L5. Cache lifetimes.** Hashed chunks and `?v=` files are now served for a year (`immutable`); the fonts get `?v=` too. The report showed 4 hours for everything: Cloudflare's Browser Cache TTL overrides our headers until it is set to "Respect existing headers" (RELEASE.md "Speed and Cloudflare settings").
+- **L6. Not app-side.** Both console errors are Cloudflare Web Analytics' injected script, blocked by our CSP (turn its automatic setup off for the host). The six third-party cookies are OneSignal's SDK (push alerts). 500 KB of "unused JavaScript" was the Adobe Acrobat extension in the test browser. About 12 KB of unused CSS belongs to other pages and is left as is. The home page also loads one leaderboard per role (about ten small requests in parallel); not a bottleneck here, left for later.
