@@ -892,6 +892,14 @@
         {
           "name": "confirmed",
           "type": "bool"
+        },
+        {
+          "name": "trial",
+          "type": "bool"
+        },
+        {
+          "name": "restored",
+          "type": "bool"
         }
       ],
       "list_rule": "@request.auth.id != \"\" && @request.auth.collectionName = \"users\"",

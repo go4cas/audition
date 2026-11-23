@@ -57,7 +57,7 @@ function roleCard(d, ws, r, lb) {
   const scored = (lb?.rows || []).reduce((n, x) => n + (x.n || 0), 0);
   const name = (id) => d.byId.contenders.get(id)?.name || "?";
   let cast, state;
-  if (c) { cast = html`<div class="cast">${avatar(name(c.contender), "sm")}<strong>${name(c.contender)}</strong></div>`; state = chip("champion", `Champion since ${date(c.since || c.created)}`, "self-start"); }
+  if (c) { cast = html`<div class="cast">${avatar(name(c.contender), "sm")}<strong>${name(c.contender)}</strong></div>`; state = c.trial ? chip("waiting", `On trial since ${date(c.since || c.created)}`, "self-start") : chip("champion", `Champion since ${date(c.since || c.created)}`, "self-start"); }
   else if (lb?.suggested) { cast = html`<div class="cast">${avatar(name(lb.suggested), "sm")}<strong>${name(lb.suggested)}</strong></div>`; state = chip("warning", "Suggested, confirm it", "self-start"); }
   else { cast = html`<div class="cast muted">${icon("draft")}${runs.length ? "No champion yet" : "No runs yet"}</div>`; state = runs.length ? "" : html`<span class="btn btn--sm self-start">${icon("play")}Start the first run</span>`; }
   if (live) state = chip("active", `${runLabel(d, live)} in progress`, "self-start");

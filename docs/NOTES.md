@@ -511,3 +511,9 @@ Cas approved on Nov 19, 2026 the move from 0.46.0 to **0.47.0** (tag commit `7a7
 - **V4. Still not in Vaultbase 0.47:** per-collection MCP token scopes (`collection:x:read` is still only reserved in `core/api-tokens.ts`, so the read-only MCP for castings keeps waiting), a raw-bytes reply on `helpers.http` (I1, discussion #17, Replicate keeps waiting), a static folder mountable at the root (hiding `/api/custom/`, discussion #15), a file save helper (#11), more upload MIME types (#12) and conditions on `helpers.records.update/delete` (#13).
 - **V5. Also new:** an admin **Schema** page that maps collections and their relations (read-only). Nothing for Audition to change.
 - **V6. Server upgrade.** No setting, schema, env or service change, and the saved OneSignal key keeps working. The live server moves to 0.47.0 with the next Audition release (`install.sh --version <tag>`); `rollback` returns to 0.46.0 with the old release.
+
+## Champion on trial, keep and restore (Nov 23, 2026)
+
+- **CT1. The current champion is now the newest casting by `created`, not by `since`.** `lib/fitness.ts` sorted by `-since,-created`. Both are set at the same moment by the castings route, so nothing changes for real data, but `created` can't be edited, which keeps the order honest (the trial-nudge test moves `since` back four days).
+- **CT2. Restore skips the qualify check.** The owner restores because of real-world use, which the leaderboard can't see. The leaderboard then holds back the replaced contender until a run for the role starts after the restore, so the run-finished email doesn't keep suggesting it.
+- **CT3. Open:** the "Waiting for you" nudge comes after 3 days on trial (`TRIAL_NUDGE_DAYS` in `ui/src/state/inbox.js`). It could be a workspace setting if 3 days doesn't fit every role.

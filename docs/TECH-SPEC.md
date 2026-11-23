@@ -423,8 +423,10 @@ The `beforeCreate` hook forces `judge_kind = human`, and the run's method decide
 | rationale | text | |
 | suggested_by | select `system`, `human` | |
 | confirmed | bool | |
+| trial | bool | Added Nov 23, 2026 (§11a). True while a champion that replaced another is on trial; Keep sets it false. |
+| restored | bool | Added Nov 23, 2026 (§11a). True on a casting made by Restore, which brought back an earlier champion. |
 
-Rules: list and view `OWNER` · create, update and delete `—` (casting goes through a route). The current casting for a role is its newest confirmed casting, and older ones stay as history.
+Rules: list and view `OWNER` · create, update and delete `—` (casting goes through a route). The current casting for a role is its newest confirmed casting (by `created`), and older ones stay as history.
 
 ### leaderboard (view)
 
@@ -480,8 +482,10 @@ All routes need the owner (`requireAuth: true`, plus a check that the caller is 
 | `GET /runs/:id` | T1 | `{ run, counts: { queued, in_progress, waiting, submitted, judged, failed }, attempts: [{ id, task, contender, mode, status, tokens_in, tokens_out, duration_ms, provider_calls, cost, finish_reason, error }], guests: [{ id, token, active, counts, expires_at, max_guests, created, guests, votes, state }] }`, for the live view to poll. Not blind. |
 | `GET /handoff/:runId/:taskId` | T2 | `{ prompt, attachments: [{ name, url }], waiting: [{ attempt, contender_name }] }`. The prompt is the stored `prompt_sent`. |
 | `GET /judging/:runId/:taskId` | T3 | The blind payload (§10). Each output also has `guests: { votes, score, counts } \| null` (§10b). |
-| `GET /leaderboard/:roleId` | T3 | `{ terms_used: ["quality", "tokens"], dropped: [{ term: "time", reason: "Codex (manual) has no time data" }], rows: [{ contender, name, group, n, mean_score, ci_low, ci_high, mean_tokens, mean_time_ms, mean_cost, fitness, n_outcome, mean_outcome, n_guest, qualifies, enough_data }], suggested: contenderId \| null, casting: { contender, since } \| null }` |
-| `POST /castings` | T3 | `{ role, contender, rationale? }`. Refuses unless the contender qualifies (§11). Creates a confirmed casting with `suggested_by` set to `system` if it was the suggestion, otherwise `human`. |
+| `GET /leaderboard/:roleId` | T3 | `{ terms_used: ["quality", "tokens"], dropped: [{ term: "time", reason: "Codex (manual) has no time data" }], rows: [{ contender, name, group, n, mean_score, ci_low, ci_high, mean_tokens, mean_time_ms, mean_cost, fitness, n_outcome, mean_outcome, n_guest, qualifies, enough_data }], suggested: contenderId \| null, casting: { id, role, contender, since, rationale, suggested_by, trial, restored, confirmed } \| null, history: [casting, …], previous: contenderId \| null, held_back: { contender, since } \| null }` (history, previous and held_back since Nov 23, 2026, §11a) |
+| `POST /castings` | T3 | `{ role, contender, rationale? }`. Refuses unless the contender qualifies (§11). Creates a confirmed casting with `suggested_by` set to `system` if it was the suggestion, otherwise `human`, and `trial` true when it replaces another champion (§11a). |
+| `POST /champion/:roleId/keep` | Nov 23, 2026 | Ends the current champion's trial (`trial` → false, an update through `helpers.records`). 422 when the role has no champion or it isn't on trial. |
+| `POST /champion/:roleId/restore` | Nov 23, 2026 | `{ rationale? }`. Brings back the previous champion as a new casting with `restored` true and `suggested_by` `human`. No qualify check. 422 when there is no earlier champion. |
 | `POST /tasks/:id/compose` | Composer | Checks the task is unlocked and not already composing and that the workspace's Composer is an enabled `api` contender, sets `tasks.compose` to `composing`, enqueues `compose` with `{ task }`, and returns `{ task }` at once (§9a). |
 | `GET /guest/:token` | Guest voters | A guest's blind ballot (§10b). Guest sessions only. |
 | `POST /guest/:token/votes` | Guest voters | `{ task, label, stars }` or `{ task, left, right, pick }`. One vote per guest per output or pair. |
@@ -662,6 +666,18 @@ Added Nov 18, 2026. Cas approved the schema (`guests`, `guest_links`, `guest_vot
 - **Confidence range.** For `n ≥ 2`: `sd = √((sum_sq − n·mean²) / (n − 1))` and `half = t(0.975, n − 1) · sd / √n`. The range is `[mean − half, mean + half]`, clamped to the 1 to 5 scale. `lib/fitness.ts` has a t-table for 1 to 30 degrees of freedom and uses 1.96 above that. For `n < 2` there is no range.
 - **Qualifies.** `n ≥ min_outputs` and `mean_score > pass_mark` (strictly above, as the spec says).
 - **Suggested champion.** The qualifying row with the highest fitness. Ties go to the higher mean score, then more outputs, then the contender name. When nothing qualifies, `suggested` is null and the rows below the minimum show "not enough data yet". This covers the single-contender path in Stock Review: one contender with at least 5 outputs above 3.5 is suggested.
+
+## 11a. A new champion on trial, keep and restore
+
+Added Nov 23, 2026, in place of the feature-flag contender rollout (SPEC, "A new champion on trial"). The code is `lib/castings.ts` (crown, keep, restore) and the history and hold-back parts of `lib/fitness.ts`; the routes are `routes/castings.ts`, `routes/champion-keep.ts` and `routes/champion-restore.ts`.
+
+- **History is the castings collection.** Every Make champion and Restore inserts a casting through `helpers.records`; nothing is overwritten. Keep is the one update, and record history (on for castings) keeps it. No new collection and no audit-log use.
+- **Trial.** `crown` sets `trial` when the role already has a champion of a different contender. A role's first champion is never on trial.
+- **Previous champion.** The newest earlier casting whose contender differs from the current one. `restore` creates a casting for it (`restored` true, `trial` false, note in `rationale`).
+- **Hold-back.** When the current casting is a restore and the leaderboard would suggest the contender it replaced, `roleBoard` answers `suggested: null` and `held_back: { contender, since }`, until a run for the role is created after the restore. The run-finished email's champion line (`lib/arena.ts`) reads the same board, so it is held back too.
+- **Leaderboard response.** `GET /leaderboard/:roleId` adds `casting` (now `{ id, role, contender, since, rationale, suggested_by, trial, restored, confirmed }`), `history` (up to 50 confirmed castings, newest first), `previous` (a contender id or null) and `held_back`.
+- **UI.** The leaderboard's champion box shows the On trial chip (the violet "your turn" state), Keep as champion, Restore *previous* (with an optional note) and Run again with new settings (`/runs/new?role=`); a Champion history panel lists the castings. The workspace and Home pages show the trial chip, and `state/inbox.js` adds a "Keep or restore" item to "Waiting for you" once a champion has been on trial for `TRIAL_NUDGE_DAYS` (3).
+- **Tests.** `test/champion.test.ts` (routes, hold-back, record history) and `test/ui-champion.test.ts` (the browser flow, with screenshots).
 
 ## 12. Provider adapters
 

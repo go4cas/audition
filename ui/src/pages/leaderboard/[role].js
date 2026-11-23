@@ -1,5 +1,6 @@
 // 14. Leaderboard: every scored output for a role, with the likely range,
 // fitness, and the suggested champion (GET /leaderboard/:role, TECH-SPEC §11).
+// The champion box also keeps or restores a champion on trial (§11a).
 import { html, reactive } from "@arrow-js/core";
 import { custom } from "../../api.js";
 import { busy, crumbs, empty, page } from "../../components/page.js";
@@ -23,7 +24,7 @@ export default function leaderboard() {
       s.role = d.byId.roles.get(params.role);
       if (!s.role) throw new Error("This role doesn't exist any more.");
       s.ws = d.byId.workspaces.get(s.role.workspace);
-      s.ui = reactive({ group: false });
+      s.ui = reactive({ group: false, restoring: false, note: "" });
     },
     body: (s) => {
       const { d, lb, role, ws, ui } = s;
@@ -49,23 +50,59 @@ export default function leaderboard() {
         } catch (err) { errorToast(err); }
       });
 
+      const keepChampion = (e) => busy(e, async () => {
+        try {
+          await custom.keepChampion(role.id);
+          toast(`${name(cast.contender)} stays the ${role.name} champion`, "champion", "champion");
+          setTimeout(() => s.reload({ quiet: true }), 600);
+        } catch (err) { errorToast(err); }
+      });
+      const restoreChampion = (e) => busy(e, async () => {
+        try {
+          await custom.restoreChampion(role.id, ui.note);
+          toast(`${name(lb.previous)} is the ${role.name} champion again`, "champion", "champion");
+          setTimeout(() => s.reload({ quiet: true }), 600);
+        } catch (err) { errorToast(err); }
+      });
+
+      const suggestBox = () => {
+        const r = rows.find((x) => x.contender === suggestion);
+        return html`<div class="champion" id="champ-box"><div class="row gap-4"><span class="champion__crown">${icon("champion")}</span><div class="stack-sm gap-1">
+            <span class="eyebrow">${icon("sparkle", "gold")}Suggested champion</span><span class="champion__name">${name(suggestion)}</span>
+            <span class="small text-2 row-tight"><span class="score">${icon("star")}${stars1(r?.mean_score)}</span> over ${plural(r?.n || 0, "output")} · highest fitness of those that qualify</span>
+            ${cast ? html`<span class="xs muted">Current champion: ${name(cast.contender)}, since ${date(cast.since)}${cast.trial ? " (on trial)" : ""}</span>` : ""}
+          </div></div>
+          <div class="row"><button class="btn btn--gold btn--lg" type="button" @click="${makeChampion(suggestion)}">${icon("champion")}Make champion</button></div></div>`;
+      };
+      // The current champion, with Keep (on trial), Restore and Run again with new settings.
+      const currentBox = () => {
+        const prev = lb.previous ? name(lb.previous) : null;
+        const restoreForm = () => (ui.restoring ? html`<div class="notice" data-state="warning" id="restore-form">${icon("history")}<div class="grow stack-sm">
+            <p class="small"><strong>Bring back ${prev} as the ${role.name} champion?</strong> ${name(cast.contender)} stays on the leaderboard, but Audition won't suggest it again until you start a new run for this role.</p>
+            <div class="field"><label for="restore-note">Why? (optional)</label><textarea class="textarea" id="restore-note" rows="2" placeholder="For example: weak on real refactors" @input="${(e) => { ui.note = e.target.value; }}"></textarea></div>
+            <div class="row"><button class="btn btn--primary" type="button" @click="${restoreChampion}">${icon("history")}Restore ${prev}</button><button class="btn btn--quiet" type="button" @click="${() => { ui.restoring = false; }}">Cancel</button></div>
+          </div></div>` : "");
+        return html`<div class="${"champion" + (suggestion ? " champion--quiet" : "")}" id="${suggestion ? "champ-current" : "champ-box"}"><div class="row gap-4"><span class="champion__crown">${icon("champion")}</span><div class="stack-sm gap-1">
+            <span class="eyebrow">${icon(cast.trial ? "time" : "confirmed")}${cast.restored ? "Restored" : "Champion"} since ${date(cast.since)}</span><span class="champion__name">${name(cast.contender)}</span>
+            <span class="small text-2">${cast.trial ? html`On trial: use it for a few real tasks, then keep it or go back to ${prev}.` : `The one to use for ${role.name}.`}</span>
+            ${cast.rationale ? html`<span class="xs muted">“${cast.rationale}”</span>` : ""}
+          </div></div>
+          <div class="row">${cast.trial ? chip("waiting", "On trial") : chip("champion", "Champion")}</div>
+          <div class="row champion__actions">
+            ${cast.trial ? html`<button class="btn btn--gold" type="button" @click="${keepChampion}">${icon("check")}Keep as champion</button>` : ""}
+            ${prev ? html`<button class="btn" type="button" @click="${() => { ui.restoring = true; setTimeout(() => document.getElementById("restore-note")?.focus(), 0); }}">${icon("history")}Restore ${prev}</button>` : ""}
+            <a class="btn btn--quiet" href="${APP + "/runs/new?role=" + role.id}">${icon("again", "i--spin-on-hover")}Run again with new settings</a>
+          </div>
+          ${() => restoreForm()}</div>`;
+      };
       const champBox = () => {
-        if (suggestion) {
-          const r = rows.find((x) => x.contender === suggestion);
-          return html`<div class="champion" id="champ-box"><div class="row gap-4"><span class="champion__crown">${icon("champion")}</span><div class="stack-sm gap-1">
-              <span class="eyebrow">${icon("sparkle", "gold")}Suggested champion</span><span class="champion__name">${name(suggestion)}</span>
-              <span class="small text-2 row-tight"><span class="score">${icon("star")}${stars1(r?.mean_score)}</span> over ${plural(r?.n || 0, "output")} · highest fitness of those that qualify</span>
-              ${cast ? html`<span class="xs muted">Current champion: ${name(cast.contender)}, since ${date(cast.since)}</span>` : ""}
-            </div></div>
-            <div class="row"><button class="btn btn--gold btn--lg" type="button" @click="${makeChampion(suggestion)}">${icon("champion")}Make champion</button></div></div>`;
-        }
-        if (cast) {
-          return html`<div class="champion" id="champ-box"><div class="row gap-4"><span class="champion__crown">${icon("champion")}</span><div class="stack-sm gap-1">
-            <span class="eyebrow">${icon("confirmed")}Champion since ${date(cast.since)}</span><span class="champion__name">${name(cast.contender)}</span>
-            <span class="small text-2">The one to use for ${role.name}.</span></div></div>${chip("champion", "Champion")}</div>`;
-        }
+        if (suggestion || cast) return html`${suggestion ? suggestBox() : ""}${cast ? currentBox() : ""}${lb.held_back ? html`<p class="xs muted" id="held-back">${icon("info")}${name(lb.held_back.contender)} has the best scores, but you restored ${name(cast.contender)}, so it isn't suggested again until you start a new run for this role.</p>` : ""}`;
         return html`<div class="notice">${icon("info-fill")}<div class="small"><strong>No champion yet.</strong> A contender needs ${plural(min, "scored output")} and an average above ${role.pass_mark} stars. Use Run again to collect more.</div></div>`;
       };
+      // Every champion change, newest first: each one is a casting record.
+      const history = () => ((lb.history || []).length < 2 ? "" : html`<div class="panel" id="champ-history"><div class="panel__head"><h2 class="h-md">${icon("history")}Champion history</h2></div><ol class="feed">
+          ${lb.history.map((c, i) => html`<li><span class="feed__icon" data-state="${c.restored ? "draft" : "champion"}">${icon(c.restored ? "history" : "champion")}</span><span><strong>${name(c.contender)}</strong> ${c.restored ? "restored" : c.suggested_by === "system" ? "crowned, as suggested" : "crowned"}${i === 0 && c.trial ? ", on trial" : ""}${c.rationale ? html`: “${c.rationale}”` : ""}<time>${date(c.since)}</time></span></li>`)}
+        </ol></div>`);
 
       // Phase 2a: outcome checks, in their own column, never in quality or fitness.
       const outcomeCol = !!role.outcome_after_days || rows.some((r) => r.n_outcome);
@@ -115,6 +152,7 @@ export default function leaderboard() {
             <tbody>${() => (ui.group ? groups().map(([g, rs]) => html`<tr class="group-row"><td colspan="9"><span class="eyebrow">${g}</span></td></tr>${rs.map(row)}`) : rows.map(row))}</tbody>
           </table></div>` : empty("leaderboard", "No scored outputs yet", "Judge some outputs and they show up here.")}
         </div>
+        ${history()}
         ${(lb.dropped || []).map((x) => html`<div class="notice" data-state="warning">${icon("info-fill")}<div class="small"><strong>${TERM[x.term] || x.term} ${x.term === "tokens" ? "were" : "was"} left out of fitness</strong> because ${x.reason.replace(/^./, (c) => c.toLowerCase())}.</div></div>`)}
         <div class="pop" id="${rangePop}" popover><div class="pop__head">${icon("shuffle")}Likely range</div><div class="pop__body"><p>Where the true average probably sits. A narrow bar means the contender is consistent; a wide one means more runs would help.</p><p class="row-tight xs"><span class="range range--sm"><span class="range__band range__band--demo"></span><span class="range__pass range__pass--demo"></span><span class="range__dot range__dot--demo"></span></span> dot = average, line = pass mark</p></div></div>`;
     },
