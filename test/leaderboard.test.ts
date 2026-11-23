@@ -142,3 +142,22 @@ test("a role with no scored outputs has an empty board; only the owner; unknown 
   expect((await board("nope")).status).toBe(404);
   expect((await board('x" || role != "')).status).toBe(404);
 });
+
+test("GET /leaderboards answers every role's board in one request, or one workspace's; only the owner", async () => {
+  const a = await seedRole({
+    weights: { quality: 100, tokens: 0, time: 0 }, minOutputs: 5, passMark: 3.5,
+    contenders: [{ name: `Mock Steady ${sfx()}`, scores: [4, 4, 3.6, 4, 4] }],
+  });
+  const b = await seedRole({ weights: { quality: 100, tokens: 0, time: 0 }, minOutputs: 5, passMark: 3.5, contenders: [] });
+  const all = await unwrap(h.api("owner", "GET", "/api/custom/leaderboards"));
+  expect(all.status).toBe(200);
+  // The same board as the one-role route.
+  expect(all.body[a.role.id]).toEqual((await board(a.role.id)).body);
+  expect(all.body[b.role.id]).toEqual((await board(b.role.id)).body);
+  expect(all.body[a.role.id].suggested).toBe(Object.values(a.ids)[0]);
+  const one = await unwrap(h.api("owner", "GET", `/api/custom/leaderboards?workspace=${a.workspace.id}`));
+  expect(Object.keys(one.body)).toEqual([a.role.id]);
+  expect((await unwrap(h.api("owner", "GET", `/api/custom/leaderboards?workspace=${encodeURIComponent('x" || id != "')}`))).body).toEqual({});
+  expect((await h.api("anon", "GET", "/api/custom/leaderboards")).status).toBeOneOf([401, 403]);
+  expect((await h.api("admin", "GET", "/api/custom/leaderboards")).status).toBe(403);
+});

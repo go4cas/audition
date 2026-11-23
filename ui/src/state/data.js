@@ -20,11 +20,12 @@ export const runLabel = (d, run) => `Run ${d.runNo?.get(run.id) ?? "?"}`;
 /** The confirmed casting for a role: its newest confirmed casting (TECH-SPEC §6). */
 export const championOf = (d, roleId) => d.castings.find((c) => c.role === roleId && c.confirmed);
 
-/** Leaderboards for several roles; a role whose route fails just has none. */
-export async function leaderboards(roleIds) {
-  const out = new Map();
-  await Promise.all(roleIds.map(async (id) => { try { out.set(id, await custom.leaderboard(id)); } catch { /* none yet */ } }));
-  return out;
+/**
+ * Every role's leaderboard (or one workspace's) as a Map by role id, in one
+ * request (GET /leaderboards). If it fails the pages just show no boards.
+ */
+export async function leaderboards(workspace) {
+  try { return new Map(Object.entries((await custom.leaderboards(workspace)) || {})); } catch { return new Map(); }
 }
 
 export const sortRoles = (d, roles) => {

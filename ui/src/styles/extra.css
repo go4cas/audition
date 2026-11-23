@@ -170,3 +170,9 @@ button.alert-item__link { width: 100%; font: inherit; text-align: left; cursor: 
 @media (max-width: 40rem) {
   .guest-link { flex-direction: column; align-items: stretch; }
 }
+
+/* Home: slots the leaderboards fill after the page draws (NOTES H1). One line
+   each and a fixed size, so filling them never moves the page. */
+.hero-cast__note .notice > div { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cast-slot { display: inline-flex; align-items: center; min-height: 30px; }
+.skeleton--ring { width: 30px; height: 30px; border-radius: 50%; }

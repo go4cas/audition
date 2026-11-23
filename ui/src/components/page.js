@@ -8,7 +8,10 @@ let seq = 0;
 /**
  * page({ load, body, narrow, screen }):
  *   load(state) → Promise, fills state;
- *   body(state) → template, rendered once loading is done.
+ *   body(state) → template, rendered once loading is done;
+ *   shell(state) → optional template shown while loading instead of the
+ *   skeleton: the parts that need no data (Home's heading, NOTES H1). Keep its
+ *   layout the same size as the body's, so the swap doesn't move the page.
  * The body is mounted outside any reactive expression on purpose: reads of
  * reactive state while building it must not re-render the whole page (and
  * steal focus from inputs). Pieces that should update use `${() => …}`.
@@ -16,7 +19,7 @@ let seq = 0;
  * state.onLeave(fn) runs fn when the page is left (quiver's page cleanup
  * scope), or at once if the page was already left while it was loading.
  */
-export function page({ load, body, narrow = false, screen = "page", init = {} }) {
+export function page({ load, body, shell = null, narrow = false, screen = "page", init = {} }) {
   const s = { ...init }; // plain: loaded data holds Maps; pages make their own reactive form state
   let left = false;
   const leaveFns = [];
@@ -42,7 +45,7 @@ export function page({ load, body, narrow = false, screen = "page", init = {} })
   };
   const show = (tpl) => { pending = tpl; if (!waiting) flush(); };
   s.reload = async ({ quiet = false } = {}) => {
-    if (!quiet) show(skeleton());
+    if (!quiet) show(shell ? shell(s) : skeleton());
     try { await load(s); } catch (e) { show(errorBox(e.message || String(e), () => s.reload())); return; }
     show(body(s));
   };

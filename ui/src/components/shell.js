@@ -29,6 +29,8 @@ const countBadge = () => (inbox.count ? html`<span class="count" data-inbox-coun
 
 const link = (n) => html`<a href="${href(n.to)}" aria-current="${current(n.to)}">${icon(ICONS[n.to] || "arrow-right")}${n.label}</a>`;
 
+let firstPath = null;
+
 export function mountShell(root, nav = []) {
   const route = useRoute();
   // Keep the last chrome while the next page loads, so sign-in doesn't flash the top bar.
@@ -39,6 +41,11 @@ export function mountShell(root, nav = []) {
     shell.bare = !!meta.bare;
     const path = route.path();
     shell.section = path === "/alerts" ? "/alerts" : sectionOf(path, nav);
+    // The first screen of a visit appears without the screen-enter fade: a
+    // page fading in from opacity 0 holds back its largest paint (LCP) until
+    // the fade ends (NOTES H1). Screens after it fade in as before.
+    if (firstPath === null) firstPath = path;
+    else if (path !== firstPath) document.documentElement.dataset.entered = "";
     // Versions are for signed-in people only (the chrome is hidden on sign-in).
     if (!shell.bare) loadVaultbaseVersion();
   });
