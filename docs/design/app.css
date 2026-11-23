@@ -516,12 +516,11 @@ tr.is-suggested td { background: color-mix(in srgb, var(--gold-soft) 70%, transp
 .fitness-bar__fill { display: block; height: 100%; background: var(--accent); border-radius: 3px; animation: grow-x 900ms var(--ease-out) both; transform-origin: left; }
 
 /* ---------- Workspace map ---------- */
-.stages { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); counter-reset: stage; }
-.stage { display: flex; flex-direction: column; gap: 10px; }
-.stage__name { display: flex; align-items: center; gap: 8px; }
-.stage__name::before { counter-increment: stage; content: counter(stage); width: 22px; height: 22px; border-radius: var(--r-sm); display: grid; place-items: center; background: var(--bg-sunk); border: 1px solid var(--line); font-size: var(--fs-xs); font-weight: 700; color: var(--text-2); }
-.stage__name::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-.stage > .role-card { flex: 1; }
+.groups { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+.group { display: flex; flex-direction: column; gap: 10px; }
+.group__name { display: flex; align-items: center; gap: 8px; }
+.group__name::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.group > .role-card { flex: 1; }
 .role-card > :last-child { margin-top: auto; }
 .role-card .cast { font-size: var(--fs-sm); display: flex; align-items: center; gap: 8px; }
 

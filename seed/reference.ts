@@ -17,10 +17,10 @@ type Rec = Record<string, unknown> & { id: string };
 type Criterion = [name: string, weight: number, guidance: string];
 
 interface TaskDef { title: string; prompt: string; output_type?: string; base_ref?: boolean; attachments?: string[] }
-interface RoleDef { stage?: string; name: string; description: string; rubric: Criterion[]; pass_mark: number; output_type: string; outcome_after_days?: number; tasks: TaskDef[] }
+interface RoleDef { group?: string; name: string; description: string; rubric: Criterion[]; pass_mark: number; output_type: string; outcome_after_days?: number; tasks: TaskDef[] }
 interface WorkspaceDef {
   name: string; description: string; judge: "me" | "ai"; weights: { quality: number; tokens: number; time: number };
-  stages: string[]; roles: RoleDef[];
+  groups: string[]; roles: RoleDef[];
   /** The contenders the SPEC's "Reference workspaces" table names for this workspace, when it names them. Not seeded as data; the end-to-end test runs them as-is. */
   contenders?: string[];
 }
@@ -78,10 +78,10 @@ export const WORKSPACES: WorkspaceDef[] = [
     description: "Research, spec, back-end and UI work on a small demo app. Coding outputs report their own build and test results.",
     judge: "ai",
     weights: { quality: 70, tokens: 20, time: 10 },
-    stages: ["Research", "Spec", "Back-end", "UI"],
+    groups: ["Research", "Spec", "Back-end", "UI"],
     roles: [
       {
-        stage: "Research", name: "Researcher", description: "Compares options and recommends one, with sources.", pass_mark: 3.5, output_type: "text",
+        group: "Research", name: "Researcher", description: "Compares options and recommends one, with sources.", pass_mark: 3.5, output_type: "text",
         rubric: [["Accuracy", 40, g("Facts are correct and current.")], ["Relevance to the question", 25, g("Answers what was asked, nothing padded.")], ["Clear recommendation", 20, g("Ends with one recommendation and why.")], ["Sources cited", 15, g("Names where each claim comes from.")]],
         tasks: [
           { title: "Compare three ways to store user settings in a small web app and recommend one", prompt: "<p>Compare three ways to store user settings in a small web app and recommend one.</p>" },
@@ -89,21 +89,21 @@ export const WORKSPACES: WorkspaceDef[] = [
         ],
       },
       {
-        stage: "Spec", name: "Spec writer", description: "Turns a rough idea into a short, testable spec.", pass_mark: 3.5, output_type: "text",
+        group: "Spec", name: "Spec writer", description: "Turns a rough idea into a short, testable spec.", pass_mark: 3.5, output_type: "text",
         rubric: [["Completeness", 35, g("Covers every part of the idea.")], ["Testable acceptance criteria", 30, g("Each criterion can be checked as pass or fail.")], ["Clarity", 20, g("Plain words, no ambiguity.")], ["Scope discipline", 15, g("Adds nothing that wasn't asked for.")]],
         tasks: [
           { title: "Write a one-page spec for a settings screen with Profile, Notifications and Danger zone", prompt: "<p>Write a one-page spec for a settings screen with three sections: Profile, Notifications and Danger zone.</p>" },
         ],
       },
       {
-        stage: "Back-end", name: "Back-end engineer", description: "Builds small, tested server features.", pass_mark: 3.5, output_type: "code",
+        group: "Back-end", name: "Back-end engineer", description: "Builds small, tested server features.", pass_mark: 3.5, output_type: "code",
         rubric: [["Correctness", 40, g("Does what the task asks, including edge cases.")], ["Tests included and passing", 25, g("New tests cover the change and pass.")], ["Code quality", 20, g("Readable, small, consistent with the repo.")], ["Error handling", 15, g("Bad input gets a clear error, not a crash.")]],
         tasks: [
           { title: "Add a REST endpoint that saves and reads user settings, with tests", prompt: "<p>Add a REST endpoint that saves and reads user settings (<code>PUT</code> and <code>GET /api/settings</code>), with tests.</p>", base_ref: true },
         ],
       },
       {
-        stage: "UI", name: "UI engineer", description: "Builds accessible, responsive screens from a spec.", pass_mark: 3.5, output_type: "code",
+        group: "UI", name: "UI engineer", description: "Builds accessible, responsive screens from a spec.", pass_mark: 3.5, output_type: "code",
         rubric: [["Matches the spec", 40, g("Every section and behaviour in the spec is there.")], ["Code quality", 30, g("Readable vanilla JS and CSS.")], ["Accessibility", 20, g("Labels, keyboard use and contrast.")], ["Responsiveness", 10, g("Works at 375 px with no sideways scroll.")]],
         tasks: [
           { title: "Build the settings screen from settings-spec.md and mockup.png, vanilla JS and CSS, usable at 375 px", prompt: "<p>Build the settings screen described in <code>settings-spec.md</code>, laid out as in <code>mockup.png</code>. Use vanilla JS and CSS. It must be usable at 375 px wide.</p>", base_ref: true, attachments: ["settings-spec.md", "mockup.png"] },
@@ -116,7 +116,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     description: "Social posts, brand copy and images for small brands.",
     judge: "me",
     weights: { quality: 100, tokens: 0, time: 0 },
-    stages: [],
+    groups: [],
     roles: [
       {
         name: "Social post writer", description: "Short posts for a given channel and audience.", pass_mark: 3.5, output_type: "text",
@@ -148,7 +148,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     judge: "ai",
     contenders: ["Mock Steady"],
     weights: { quality: 100, tokens: 0, time: 0 },
-    stages: [],
+    groups: [],
     roles: [
       {
         name: "Stock analyst", description: "A short, balanced review of one listed company.", pass_mark: 3.5, output_type: "text",
@@ -167,7 +167,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     judge: "me",
     contenders: ["ChatGPT (manual)", "Perplexity (manual)"],
     weights: { quality: 100, tokens: 0, time: 0 },
-    stages: [],
+    groups: [],
     roles: [
       {
         name: "Trip researcher", description: "Practical travel plans with real places.", pass_mark: 3.5, output_type: "text",
@@ -234,13 +234,13 @@ export async function seedReference(base: string, adminToken: string): Promise<S
       name: w.name, description: w.description, default_judge: w.judge, min_outputs: 5, fitness_weights: w.weights,
       ...(w.judge === "ai" ? { judge_contender: contenders.get("Mock Judge")!.id } : {}),
     }, w.name);
-    const stages = new Map<string, Rec>();
-    for (const [i, name] of w.stages.entries()) {
-      stages.set(name, await ensure("stages", `workspace = "${ws.id}" && name = "${q(name)}"`, { workspace: ws.id, name, order: i + 1 }, `${w.name} / ${name}`));
+    const groups = new Map<string, Rec>();
+    for (const [i, name] of w.groups.entries()) {
+      groups.set(name, await ensure("groups", `workspace = "${ws.id}" && name = "${q(name)}"`, { workspace: ws.id, name, order: i + 1 }, `${w.name} / ${name}`));
     }
     for (const r of w.roles) {
       const role = await ensure("roles", `workspace = "${ws.id}" && name = "${q(r.name)}"`, {
-        workspace: ws.id, stage: r.stage ? stages.get(r.stage)!.id : null, name: r.name, description: r.description,
+        workspace: ws.id, group: r.group ? groups.get(r.group)!.id : null, name: r.name, description: r.description,
         rubric: r.rubric.map(([name, weight, guidance]) => ({ name, weight, guidance })),
         pass_mark: r.pass_mark, default_output_type: r.output_type,
         ...(r.outcome_after_days ? { outcome_after_days: r.outcome_after_days } : {}),

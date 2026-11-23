@@ -60,10 +60,10 @@ export async function roleBeforeWrite(ctx: Ctx): Promise<void> {
     const err = rubricError(m["rubric"]);
     if (err) ctx.helpers.abort(err);
   }
-  if ((has(r, "stage") || has(r, "workspace")) && !empty(m["stage"])) {
-    const stage = await ctx.helpers.find("stages", String(m["stage"]));
-    if (!stage) ctx.helpers.abort("That stage does not exist.");
-    if (stage!["workspace"] !== m["workspace"]) ctx.helpers.abort("The stage belongs to another workspace.");
+  if ((has(r, "group") || has(r, "workspace")) && !empty(m["group"])) {
+    const group = await ctx.helpers.find("groups", String(m["group"]));
+    if (!group) ctx.helpers.abort("That group does not exist.");
+    if (group!["workspace"] !== m["workspace"]) ctx.helpers.abort("The group belongs to another workspace.");
   }
 }
 

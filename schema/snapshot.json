@@ -277,7 +277,7 @@
       "history_enabled": false
     },
     {
-      "name": "stages",
+      "name": "groups",
       "type": "base",
       "fields": [
         {
@@ -320,9 +320,9 @@
           }
         },
         {
-          "name": "stage",
+          "name": "group",
           "type": "relation",
-          "collection": "stages",
+          "collection": "groups",
           "options": {
             "cascade": "setNull"
           }

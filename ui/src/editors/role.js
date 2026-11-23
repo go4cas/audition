@@ -1,4 +1,4 @@
-// 5. Role and rubric (and "Add role"): name, stage, description, the rubric
+// 5. Role and rubric (and "Add role"): name, group, description, the rubric
 // with a live weight bar, pass mark, usual output type, and the role's tasks.
 import { html, reactive } from "@arrow-js/core";
 import { create, remove, update } from "../api.js";
@@ -26,14 +26,14 @@ export default function role({ params, query }) {
   return page({
     screen: "role",
     load: async (s) => {
-      s.d = await load("workspaces", "stages", "roles", "tasks", "runs");
+      s.d = await load("workspaces", "groups", "roles", "tasks", "runs");
       const r = isNew ? null : s.d.byId.roles.get(params.id);
       if (!isNew && !r) throw new Error("This role doesn't exist any more.");
       s.r = r;
       s.ws = s.d.byId.workspaces.get(isNew ? params.ws : r.workspace);
       if (!s.ws) throw new Error("This workspace doesn't exist any more.");
       s.f = reactive({
-        name: r?.name || "", description: r?.description || "", stage: r ? r.stage : query.stage || null,
+        name: r?.name || "", description: r?.description || "", group: r ? r.group : query.group || null,
         pass_mark: r?.pass_mark ?? 3.5, default_output_type: r?.default_output_type || "text",
         outcome_after_days: r?.outcome_after_days || null,
         rubric: (r?.rubric || [{ name: "", weight: 100, guidance: "" }]).map((c) => ({ ...c })),
@@ -41,8 +41,8 @@ export default function role({ params, query }) {
     },
     body: (s) => {
       const { d, ws, f, r } = s;
-      const stages = d.stages.filter((x) => x.workspace === ws.id);
-      const stageOpts = [...stages.map((x) => ({ value: x.id, label: x.name, icon: "stage" })), { value: null, label: "No stage", icon: "draft", desc: "Sits on its own, outside the stages" }];
+      const groups = d.groups.filter((x) => x.workspace === ws.id);
+      const groupOpts = [...groups.map((x) => ({ value: x.id, label: x.name, icon: "group" })), { value: null, label: "No group", icon: "draft", desc: "Sits on its own, outside the groups" }];
       const outcomeOpts = OUTCOME.some((o) => o.value === f.outcome_after_days) ? OUTCOME : [...OUTCOME, { value: f.outcome_after_days, label: `After ${f.outcome_after_days} days`, icon: "time" }];
       const weights = () => f.rubric.map((c) => c.weight);
       const tasks = r ? d.tasks.filter((t) => t.role === r.id && !d.tasks.some((n) => n.previous_version === t.id)) : [];
@@ -51,7 +51,7 @@ export default function role({ params, query }) {
         e.preventDefault();
         const rubric = f.rubric.map((c) => ({ name: c.name.trim(), weight: Number(c.weight) || 0, guidance: c.guidance.trim() })).filter((c) => c.name);
         if (rubric.reduce((a, c) => a + c.weight, 0) !== 100) { toast("Rubric weights need to add up to 100", "error", "warning"); return; }
-        const body = { workspace: ws.id, name: f.name.trim(), description: f.description.trim(), stage: f.stage || null, pass_mark: Number(f.pass_mark), default_output_type: f.default_output_type, outcome_after_days: f.outcome_after_days || null, rubric };
+        const body = { workspace: ws.id, name: f.name.trim(), description: f.description.trim(), group: f.group || null, pass_mark: Number(f.pass_mark), default_output_type: f.default_output_type, outcome_after_days: f.outcome_after_days || null, rubric };
         try {
           const saved = isNew ? await create("roles", body) : await update("roles", r.id, body);
           toast(isNew ? "Role added" : "Role saved. Old scores keep their rubric.");
@@ -63,7 +63,7 @@ export default function role({ params, query }) {
         try { for (const t of d.tasks.filter((t) => t.role === r.id)) await remove("tasks", t.id); await remove("roles", r.id); toast("Role deleted"); go("/w/" + ws.id); } catch (err) { errorToast(err); }
       });
       return html`
-        ${crumbs([["Workspaces", APP + "/"], [ws.name, APP + "/w/" + ws.id], r ? (d.byId.stages.get(r.stage)?.name || "No stage") : "New role"])}
+        ${crumbs([["Workspaces", APP + "/"], [ws.name, APP + "/w/" + ws.id], r ? (d.byId.groups.get(r.group)?.name || "No group") : "New role"])}
         <div class="page-head">
           <div><h1>${r ? r.name : "Add a role"}</h1><p class="lede">${r ? r.description || "What this role does goes at the top of every prompt." : "A role is one job in this workflow. Contenders audition for it."}</p></div>
           ${r ? html`<div class="row"><a class="btn" href="${APP + "/leaderboard/" + r.id}">${icon("leaderboard")}Leaderboard</a><a class="btn btn--primary" href="${APP + "/runs/new?role=" + r.id}">${icon("play")}Start a run</a></div>` : ""}
@@ -72,7 +72,7 @@ export default function role({ params, query }) {
           <div class="panel"><div class="panel__body">
             <div class="fields-2">
               <div class="field"><label for="ro-name">Role name</label><input class="input" id="ro-name" required value="${f.name}" @input="${(e) => { f.name = e.target.value; }}" placeholder="UI engineer"></div>
-              <div class="field"><label for="ro-stage">Stage</label>${dropdown({ id: "ro-stage", label: "Stage", options: () => stageOpts, value: () => f.stage, onChange: (v) => { f.stage = v; } })}</div>
+              <div class="field"><label for="ro-group">Group</label>${dropdown({ id: "ro-group", label: "Group", options: () => groupOpts, value: () => f.group, onChange: (v) => { f.group = v; } })}</div>
             </div>
             <div class="field"><label for="ro-desc">What this role does</label><input class="input" id="ro-desc" value="${f.description}" @input="${(e) => { f.description = e.target.value; }}" placeholder="Builds accessible, responsive screens from a spec."><span class="hint">Goes at the top of every prompt, so contenders know the job.</span></div>
           </div></div>

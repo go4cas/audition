@@ -22,7 +22,7 @@ beforeAll(async () => {
   const key = (await h.api("admin", "GET", "/api/v1/connection_keys")).body.data[0].id;
   const owner = (await h.api("owner", "GET", "/api/v1/users")).body.data[0].id;
   ids = {
-    users: owner, workspaces: f.workspace.id, stages: f.stage.id, roles: f.role.id, tasks: f.task.id,
+    users: owner, workspaces: f.workspace.id, groups: f.group.id, roles: f.role.id, tasks: f.task.id,
     connections: f.mock.id, connection_keys: key, contenders: f.contender.id, handoff_templates: template,
     runs: run, attempts: attempt, verdicts: verdict, castings: casting,
   };
@@ -30,7 +30,7 @@ beforeAll(async () => {
   bodies = {
     users: { create: { email: `x${u()}@test.local`, password: "Pass-word-123!", passwordConfirm: "Pass-word-123!" }, update: { name: "New name" } },
     workspaces: { create: { name: `W ${u()}` }, update: { description: "d" } },
-    stages: { create: { workspace: f.workspace.id, name: "S" }, update: { order: 2 } },
+    groups: { create: { workspace: f.workspace.id, name: "S" }, update: { order: 2 } },
     roles: { create: { workspace: f.workspace.id, name: "R", rubric: [{ name: "A", weight: 100 }] }, update: { description: "d" } },
     tasks: { create: { role: f.role.id, title: "T", prompt: "<p>p</p>" }, update: { title: "T2" } },
     connections: { create: { name: `C ${u()}`, provider: "mock" }, update: { notes: "n" } },
@@ -52,7 +52,7 @@ const READ: Access = { list: true, view: true, create: false, update: false, del
 // TECH-SPEC §6, as the owner sees it.
 const OWNER_ACCESS: Record<string, Access> = {
   users: { list: true, view: true, create: false, update: true, delete: false },
-  workspaces: ALL, stages: ALL, roles: ALL, tasks: ALL, connections: ALL, contenders: ALL,
+  workspaces: ALL, groups: ALL, roles: ALL, tasks: ALL, connections: ALL, contenders: ALL,
   connection_keys: { list: false, view: false, create: true, update: true, delete: true },
   handoff_templates: { list: true, view: true, create: false, update: true, delete: false },
   runs: READ, castings: READ,

@@ -61,12 +61,12 @@ describe("hooks on a running instance", () => {
     expect((await h.api("owner", "PATCH", `/api/v1/workspaces/${f.workspace.id}`, { fitness_weights: { quality: 80, tokens: 0, time: 0 } })).status).toBe(422);
   });
 
-  test("role defaults and stage check", async () => {
+  test("role defaults and group check", async () => {
     expect(f.role.pass_mark).toBe(3.5);
     expect(f.role.default_output_type).toBe("text");
     const other = await create(h, "workspaces", { name: "Other ws" });
-    const otherStage = await create(h, "stages", { workspace: other.id, name: "Elsewhere" });
-    const r = await h.api("owner", "POST", "/api/v1/roles", { workspace: f.workspace.id, stage: otherStage.id, name: "X", rubric: RUBRIC });
+    const otherGroup = await create(h, "groups", { workspace: other.id, name: "Elsewhere" });
+    const r = await h.api("owner", "POST", "/api/v1/roles", { workspace: f.workspace.id, group: otherGroup.id, name: "X", rubric: RUBRIC });
     expect(r.status).toBe(422);
     expect(JSON.stringify(r.body)).toContain("another workspace");
   });

@@ -1,6 +1,6 @@
 # Audition
 
-Audition is a self-hosted tool for deciding which AI contender is best for each role in a workflow. A contender is a model, an agent harness or an app, plus its settings. Audition calls Anthropic and OpenAI-compatible models directly, image models such as gpt-image included; anything else works by copy and paste. You set up workspaces with roles and tasks, run the same task through several contenders, judge the outputs blind with a star rubric or by comparing two at a time (yourself or with an AI judge), and confirm a champion per role from the leaderboard. To get more opinions, share a guest link: anyone can rate the outputs blind, without an account, and you decide whether their votes count (together they count as one more judge). An optional Composer (any API contender) can first rewrite a task into a sharper prompt that you review, so every contender gets the best version of the task.
+Audition is a self-hosted tool for deciding which AI contender is best for each role in a workflow. A contender is a model, an agent harness or an app, plus its settings. Audition calls Anthropic and OpenAI-compatible models directly, image models such as gpt-image included; anything else works by copy and paste. You set up workspaces with roles and tasks (sorted into groups if you like, such as Visa and Weather in a travel planner), run the same task through several contenders, judge the outputs blind with a star rubric or by comparing two at a time (yourself or with an AI judge), and confirm a champion per role from the leaderboard. To get more opinions, share a guest link: anyone can rate the outputs blind, without an account, and you decide whether their votes count (together they count as one more judge). An optional Composer (any API contender) can first rewrite a task into a sharper prompt that you review, so every contender gets the best version of the task.
 
 It runs on [Vaultbase](https://github.com/vaultbase-sh/vaultbase) 0.47.0, pinned and checksum-verified. The source of truth for what it does is [docs/SPEC.md](docs/SPEC.md); how it is built is in [docs/TECH-SPEC.md](docs/TECH-SPEC.md).
 
@@ -17,7 +17,7 @@ bun run dev
 
 `bun run dev` downloads Vaultbase and checks its checksum, builds the UI, starts the server, creates your sign-ins and seeds four example workspaces. On the first run it prints the owner's email and password (also saved in `.vaultbase/credentials.json`, which only you can read) and the address to open, normally <http://127.0.0.1:8091/api/custom/app/>.
 
-`bun run stop` stops the server. Your data stays in `.vaultbase/data` for the next `bun run dev`.
+`bun run stop` stops the server. Your data stays in `.vaultbase/data` for the next `bun run dev`, which first migrates it when a new version renames something (for example stages became groups on Nov 23, 2026).
 
 To choose your own owner sign-in, set `AUDITION_OWNER_EMAIL` and `AUDITION_OWNER_PASSWORD` before `bun run dev`. To use another port, set `VAULTBASE_PORT`.
 

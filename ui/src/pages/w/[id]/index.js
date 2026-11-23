@@ -1,4 +1,4 @@
-// 3. Workspace: numbered stages with role cards (the routing table), recent runs.
+// 3. Workspace: role cards sorted into groups (the routing table), recent runs.
 import { html } from "@arrow-js/core";
 import { crumbs, empty, page } from "../../../components/page.js";
 import { avatar, chip, date, icon, plural } from "../../../lib/ui.js";
@@ -19,10 +19,10 @@ export default function workspace() {
     },
     body: (s) => {
       const { d, ws } = s;
-      const stages = d.stages.filter((x) => x.workspace === ws.id);
+      const groups = d.groups.filter((x) => x.workspace === ws.id);
       const roles = sortRoles(d, d.roles.filter((r) => r.workspace === ws.id));
       const runs = d.runs.filter((r) => r.workspace === ws.id).reverse();
-      const groups = [...stages.map((st) => ({ st, roles: roles.filter((r) => r.stage === st.id) })), { st: null, roles: roles.filter((r) => !r.stage) }].filter((g) => g.st || g.roles.length);
+      const sections = [...groups.map((g) => ({ g, roles: roles.filter((r) => r.group === g.id) })), { g: null, roles: roles.filter((r) => !r.group) }].filter((x) => x.g || x.roles.length);
       return html`
         ${crumbs([["Workspaces", APP + "/"]])}
         <div class="page-head">
@@ -33,9 +33,9 @@ export default function workspace() {
             <a class="btn btn--primary" href="${APP + "/runs/new?ws=" + ws.id}">${icon("play")}Start a run</a>
           </div>
         </div>
-        ${roles.length ? html`<div class="stages stagger">${groups.map((g) => html`<div class="stage">
-            <div class="stage__name"><span class="eyebrow">${g.st ? g.st.name : "No stage"}</span></div>
-            ${g.roles.length ? g.roles.map((r) => roleCard(d, ws, r, s.lb.get(r.id))) : html`<a class="card-link role-card role-card--empty" href="${APP + "/w/" + ws.id + "/roles/new?stage=" + g.st.id}"><span class="muted small">No role in this stage yet</span><span class="btn btn--sm self-start">${icon("plus")}Add a role</span></a>`}
+        ${roles.length ? html`<div class="groups stagger">${sections.map((x) => html`<div class="group">
+            <div class="group__name"><span class="eyebrow">${x.g ? x.g.name : "No group"}</span></div>
+            ${x.roles.length ? x.roles.map((r) => roleCard(d, ws, r, s.lb.get(r.id))) : html`<a class="card-link role-card role-card--empty" href="${APP + "/w/" + ws.id + "/roles/new?group=" + x.g.id}"><span class="muted small">No role in this group yet</span><span class="btn btn--sm self-start">${icon("plus")}Add a role</span></a>`}
           </div>`)}</div>`
           : html`<div class="panel">${empty("rubric", "No roles yet", "A role is a job in this workflow, with a rubric that says what good looks like.", html`<a class="btn btn--primary" href="${APP + "/w/" + ws.id + "/roles/new"}">${icon("plus")}Add role</a>`)}</div>`}
         <div class="panel">

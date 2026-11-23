@@ -1,4 +1,4 @@
-// 4. Workspace settings (and "New workspace"): name, stages, judging, and
+// 4. Workspace settings (and "New workspace"): name, groups, judging, and
 // what makes a champion (fitness weights, which must add up to 100).
 import { html, reactive } from "@arrow-js/core";
 import { create, remove, update } from "../api.js";
@@ -14,7 +14,7 @@ export default function workspaceSettings({ params }) {
   return page({
     narrow: true, screen: "workspace-settings",
     load: async (s) => {
-      s.d = await load("workspaces", "stages", "contenders", "connections");
+      s.d = await load("workspaces", "groups", "contenders", "connections");
       const ws = isNew ? null : s.d.byId.workspaces.get(params.id);
       if (!isNew && !ws) throw new Error("This workspace doesn't exist any more.");
       const w = ws?.fitness_weights || { quality: 100, tokens: 0, time: 0 };
@@ -23,7 +23,7 @@ export default function workspaceSettings({ params }) {
         default_method: ws?.default_method || "rate",
         judge_contender: ws?.judge_contender || null, composer_contender: ws?.composer_contender || null, min_outputs: ws?.min_outputs ?? 5,
         q: w.quality, t: w.tokens, dt: w.time,
-        stages: (isNew ? [] : s.d.stages.filter((x) => x.workspace === params.id)).map((x) => ({ id: x.id, name: x.name })),
+        groups: (isNew ? [] : s.d.groups.filter((x) => x.workspace === params.id)).map((x) => ({ id: x.id, name: x.name })),
         removed: [],
       });
       s.ws = ws;
@@ -34,7 +34,7 @@ export default function workspaceSettings({ params }) {
       // The Composer is optional: "No Composer" keeps every task on the generic prompt.
       const composers = [{ value: "", label: "No Composer", icon: "close", desc: "Every task uses the plain prompt" }, ...judges];
       const weights = () => [f.q, f.t, f.dt];
-      const move = (i, dir) => { const j = i + dir; if (j < 0 || j >= f.stages.length) return; const a = [...f.stages]; [a[i], a[j]] = [a[j], a[i]]; f.stages = a; };
+      const move = (i, dir) => { const j = i + dir; if (j < 0 || j >= f.groups.length) return; const a = [...f.groups]; [a[i], a[j]] = [a[j], a[i]]; f.groups = a; };
       const save = (e) => busy(e, async () => {
         e.preventDefault();
         const total = weights().reduce((a, b) => a + (Number(b) || 0), 0);
@@ -47,12 +47,12 @@ export default function workspaceSettings({ params }) {
         };
         try {
           const ws = isNew ? await create("workspaces", body) : await update("workspaces", params.id, body);
-          for (const id of f.removed) await remove("stages", id);
+          for (const id of f.removed) await remove("groups", id);
           let order = 1;
-          for (const st of f.stages) {
-            if (!st.name.trim()) continue;
-            if (st.id) await update("stages", st.id, { name: st.name.trim(), order });
-            else await create("stages", { workspace: ws.id, name: st.name.trim(), order });
+          for (const g of f.groups) {
+            if (!g.name.trim()) continue;
+            if (g.id) await update("groups", g.id, { name: g.name.trim(), order });
+            else await create("groups", { workspace: ws.id, name: g.name.trim(), order });
             order++;
           }
           toast(isNew ? "Workspace created" : "Settings saved");
@@ -69,14 +69,14 @@ export default function workspaceSettings({ params }) {
           </div></div>
 
           <div class="panel">
-            <div class="panel__head"><h2>${icon("stage")}Stages</h2><span class="muted small">Optional. The order work flows in.</span></div>
-            <ul class="list list--hover">${() => f.stages.map((st, i) => html`<li>
-              <input class="input input--bare grow" aria-label="${"Stage " + (i + 1)}" value="${() => st.name}" @input="${(e) => { st.name = e.target.value; }}" placeholder="Stage name">
-              <button class="icon-btn" type="button" data-tip="Move up" aria-label="${"Move stage " + (i + 1) + " up"}" disabled="${i === 0}" @click="${() => move(i, -1)}">${icon("arrow-up")}</button>
-              <button class="icon-btn" type="button" data-tip="Move down" aria-label="${"Move stage " + (i + 1) + " down"}" disabled="${i === f.stages.length - 1}" @click="${() => move(i, 1)}">${icon("arrow-down")}</button>
-              <button class="icon-btn" type="button" data-tip="Remove" aria-label="${"Remove stage " + (i + 1)}" @click="${() => { if (st.id) f.removed.push(st.id); f.stages.splice(i, 1); }}">${icon("trash")}</button>
+            <div class="panel__head"><h2>${icon("group")}Groups</h2><span class="muted small">Optional. The order is only how they are listed.</span></div>
+            <ul class="list list--hover">${() => f.groups.map((g, i) => html`<li>
+              <input class="input input--bare grow" aria-label="${"Group " + (i + 1)}" value="${() => g.name}" @input="${(e) => { g.name = e.target.value; }}" placeholder="Group name">
+              <button class="icon-btn" type="button" data-tip="Move up" aria-label="${"Move group " + (i + 1) + " up"}" disabled="${i === 0}" @click="${() => move(i, -1)}">${icon("arrow-up")}</button>
+              <button class="icon-btn" type="button" data-tip="Move down" aria-label="${"Move group " + (i + 1) + " down"}" disabled="${i === f.groups.length - 1}" @click="${() => move(i, 1)}">${icon("arrow-down")}</button>
+              <button class="icon-btn" type="button" data-tip="Remove" aria-label="${"Remove group " + (i + 1)}" @click="${() => { if (g.id) f.removed.push(g.id); f.groups.splice(i, 1); }}">${icon("trash")}</button>
             </li>`)}</ul>
-            <div class="panel__body panel__body--tight"><button class="btn btn--ghost self-start" type="button" @click="${() => f.stages.push({ id: null, name: "" })}">${icon("plus")}Add stage</button></div>
+            <div class="panel__body panel__body--tight"><button class="btn btn--ghost self-start" type="button" @click="${() => f.groups.push({ id: null, name: "" })}">${icon("plus")}Add group</button></div>
           </div>
 
           <div class="panel"><div class="panel__head"><h2>${icon("judge")}Judging</h2></div><div class="panel__body">

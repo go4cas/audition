@@ -66,7 +66,7 @@ describe("guest sessions", () => {
   test("a guest can't read or write any collection, nor reach the owner's routes", async () => {
     const g = await guest();
     const lk = await link(rateRun);
-    for (const c of ["users", "workspaces", "stages", "roles", "tasks", "connections", "contenders", "handoff_templates", "runs", "attempts", "verdicts", "castings", "leaderboard", "guest_links", "guest_votes"]) {
+    for (const c of ["users", "workspaces", "groups", "roles", "tasks", "connections", "contenders", "handoff_templates", "runs", "attempts", "verdicts", "castings", "leaderboard", "guest_links", "guest_votes"]) {
       const r = await as(g.token, "GET", `/api/v1/${c}`);
       expect(r.status === 200 ? r.body.data.length : 0, `${c} list`).toBe(0);
     }

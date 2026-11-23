@@ -150,7 +150,7 @@
         <div class="section-head"><h2>Workspaces</h2><button class="btn btn--sm btn--quiet" type="button" data-toast="Wireframe: opens the new workspace form"><i data-i="plus"></i>New workspace</button></div>
         <div class="grid-cards stagger">
           <a class="ws-card" href="#workspace">
-            <div class="ws-card__top"><span class="avatar avatar--lg" style="--h:230">SF</span><div class="grow"><h3>Software Factory</h3><span class="small muted">4 stages · 4 roles</span></div><span class="ring ring--sm" style="--p:25">1/4</span></div>
+            <div class="ws-card__top"><span class="avatar avatar--lg" style="--h:230">SF</span><div class="grow"><h3>Software Factory</h3><span class="small muted">4 groups · 4 roles</span></div><span class="ring ring--sm" style="--p:25">1/4</span></div>
             <div class="ws-card__foot"><span class="faces"><span class="avatar" style="--h:200">MS</span><span class="avatar" style="--h:280">ME</span><span class="avatar" style="--h:20">CC</span><span class="avatar" style="--h:140">CX</span></span><span class="state" data-state="active"><i data-i="spinner"></i>Run 9 live</span></div>
           </a>
           <a class="ws-card" href="#workspace">
@@ -209,9 +209,9 @@
     </div>
   </div>
 
-  <div class="stages stagger">
-    <div class="stage">
-      <div class="stage__name"><span class="eyebrow">Research</span></div>
+  <div class="groups stagger">
+    <div class="group">
+      <div class="group__name"><span class="eyebrow">Research</span></div>
       <a class="card-link role-card" href="#role">
         <div class="row-tight"><h3>Researcher</h3><i data-i="arrow-right" class="go"></i></div>
         <div class="cast muted"><i data-i="draft"></i>No champion yet</div>
@@ -219,16 +219,16 @@
         <div class="muted xs num">2 tasks · 3 of 5 outputs scored</div>
       </a>
     </div>
-    <div class="stage">
-      <div class="stage__name"><span class="eyebrow">Spec</span></div>
+    <div class="group">
+      <div class="group__name"><span class="eyebrow">Spec</span></div>
       <a class="card-link role-card" href="#new-run">
         <div class="row-tight"><h3>Spec writer</h3><i data-i="arrow-right" class="go"></i></div>
         <div class="cast muted"><i data-i="draft"></i>No runs yet</div>
         <span class="btn btn--sm" style="align-self:flex-start"><i data-i="play"></i>Start the first run</span>
       </a>
     </div>
-    <div class="stage">
-      <div class="stage__name"><span class="eyebrow">Back-end</span></div>
+    <div class="group">
+      <div class="group__name"><span class="eyebrow">Back-end</span></div>
       <a class="card-link role-card" href="#leaderboard">
         <div class="row-tight"><h3>Back-end engineer</h3><i data-i="arrow-right" class="go"></i></div>
         <div class="cast"><span class="avatar avatar--sm" style="--h:200">MS</span><strong>Mock Steady</strong></div>
@@ -236,8 +236,8 @@
         <div class="muted xs num">1 task · 10 outputs scored</div>
       </a>
     </div>
-    <div class="stage">
-      <div class="stage__name"><span class="eyebrow">UI</span></div>
+    <div class="group">
+      <div class="group__name"><span class="eyebrow">UI</span></div>
       <a class="card-link role-card" href="#leaderboard">
         <div class="row-tight"><h3>UI engineer</h3><i data-i="arrow-right" class="go"></i></div>
         <div class="cast"><span class="avatar avatar--sm" style="--h:20">CC</span><strong>Claude Code (manual)</strong></div>
@@ -274,8 +274,8 @@
     </div></div>
 
     <div class="panel">
-      <div class="panel__head"><h2><i data-i="stage"></i>Stages</h2><span class="muted small">Optional. The order work flows in.</span></div>
-      <ul class="list list--hover" id="stage-list">
+      <div class="panel__head"><h2><i data-i="group"></i>Groups</h2><span class="muted small">Optional. The order is only how they are listed.</span></div>
+      <ul class="list list--hover" id="group-list">
         <li><span class="grow">Research</span><button class="icon-btn" type="button" data-move="up" data-tip="Move up" aria-label="Move Research up" disabled style="opacity:.3"><i data-i="arrow-up"></i></button><button class="icon-btn" type="button" data-move="down" data-tip="Move down" aria-label="Move Research down"><i data-i="arrow-down"></i></button></li>
         <li><span class="grow">Spec</span><button class="icon-btn" type="button" data-move="up" data-tip="Move up" aria-label="Move Spec up"><i data-i="arrow-up"></i></button><button class="icon-btn" type="button" data-move="down" data-tip="Move down" aria-label="Move Spec down"><i data-i="arrow-down"></i></button></li>
         <li><span class="grow">Back-end</span><button class="icon-btn" type="button" data-move="up" data-tip="Move up" aria-label="Move Back-end up"><i data-i="arrow-up"></i></button><button class="icon-btn" type="button" data-move="down" data-tip="Move down" aria-label="Move Back-end down"><i data-i="arrow-down"></i></button></li>
@@ -334,7 +334,7 @@
     <div class="panel"><div class="panel__body">
       <div class="fields-2">
         <div class="field"><label for="ro-name">Role name</label><input class="input" id="ro-name" value="UI engineer"></div>
-        <div class="field"><label for="ro-stage">Stage</label><select class="select" id="ro-stage"><option data-icon="stage">Research</option><option data-icon="stage">Spec</option><option data-icon="stage">Back-end</option><option data-icon="stage" selected>UI</option><option data-icon="draft" data-desc="Sits on its own, outside the stages">No stage</option></select></div>
+        <div class="field"><label for="ro-group">Group</label><select class="select" id="ro-group"><option data-icon="group">Research</option><option data-icon="group">Spec</option><option data-icon="group">Back-end</option><option data-icon="group" selected>UI</option><option data-icon="draft" data-desc="Sits on its own, outside the groups">No group</option></select></div>
       </div>
       <div class="field"><label for="ro-desc">What this role does</label><input class="input" id="ro-desc" value="Builds accessible, responsive screens from a spec."><span class="hint">Goes at the top of every prompt, so contenders know the job.</span></div>
     </div></div>

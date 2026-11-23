@@ -20,7 +20,7 @@ if (!pkg) { console.error("Pass the path to the unpacked @phosphor-icons/core pa
 const ICONS = [
   // Navigation and objects
   ["regular", "house", "home"], ["regular", "squares-four", "workspaces"], ["regular", "users-three", "contenders"],
-  ["regular", "tray", "inbox"], ["regular", "gear-six", "settings"], ["regular", "stack", "stage"],
+  ["regular", "tray", "inbox"], ["regular", "gear-six", "settings"], ["regular", "stack", "group"],
   ["regular", "list-checks", "rubric"], ["regular", "target", "pass-mark"], ["regular", "chart-bar", "leaderboard"],
   ["regular", "plug", "connection"], ["regular", "key", "key"], ["regular", "sliders-horizontal", "sliders"],
   ["regular", "file-text", "file"], ["regular", "image", "image"], ["regular", "code", "code"], ["regular", "text-aa", "text"],

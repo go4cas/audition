@@ -15,14 +15,14 @@ const all = async (c: string, filter = "") =>
 test("the first seed creates everything", () => {
   const roles = WORKSPACES.reduce((n, w) => n + w.roles.length, 0);
   const tasks = WORKSPACES.reduce((n, w) => n + w.roles.reduce((m, r) => m + r.tasks.length, 0), 0);
-  const stages = WORKSPACES.reduce((n, w) => n + w.stages.length, 0);
-  expect(first.created.length).toBe(1 + 2 + CONTENDERS.length + WORKSPACES.length + stages + roles + tasks);
+  const groups = WORKSPACES.reduce((n, w) => n + w.groups.length, 0);
+  expect(first.created.length).toBe(1 + 2 + CONTENDERS.length + WORKSPACES.length + groups + roles + tasks);
   expect(first.existing).toBe(0);
 });
 
 test("seeding twice creates nothing new", async () => {
   const counts = async () => Object.fromEntries(await Promise.all(
-    ["workspaces", "stages", "roles", "tasks", "connections", "contenders", "handoff_templates"].map(async (c) => [c, (await all(c)).length] as const)));
+    ["workspaces", "groups", "roles", "tasks", "connections", "contenders", "handoff_templates"].map(async (c) => [c, (await all(c)).length] as const)));
   const before = await counts();
   const again = await seedReference(h.url, h.adminToken);
   expect(again.created).toEqual([]);
@@ -45,12 +45,12 @@ test("four workspaces with the spec's judges and fitness weights", async () => {
   expect(by["Travel Research"]!.fitness_weights).toEqual({ quality: 100, tokens: 0, time: 0 });
 });
 
-test("Software Factory has four stages in order, one role each", async () => {
+test("Software Factory has four groups, listed in order, one role each", async () => {
   const sf = (await all("workspaces", 'name = "Software Factory"'))[0]!;
-  const stages = (await all("stages", `workspace = "${sf.id}"`)).sort((a, b) => a.order - b.order);
-  expect(stages.map((s) => s.name)).toEqual(["Research", "Spec", "Back-end", "UI"]);
+  const groups = (await all("groups", `workspace = "${sf.id}"`)).sort((a, b) => a.order - b.order);
+  expect(groups.map((g) => g.name)).toEqual(["Research", "Spec", "Back-end", "UI"]);
   const roles = await all("roles", `workspace = "${sf.id}"`);
-  for (const s of stages) expect(roles.filter((r) => r.stage === s.id).length).toBe(1);
+  for (const g of groups) expect(roles.filter((r) => r.group === g.id).length).toBe(1);
 });
 
 test("every role's rubric sums to 100 and matches the spec", async () => {

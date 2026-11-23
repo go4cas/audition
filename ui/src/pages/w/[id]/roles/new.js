@@ -1,4 +1,4 @@
-// "Add role" in a workspace (?stage=<id> preselects the stage).
+// "Add role" in a workspace (?group=<id> preselects the group).
 import role from "../../../../editors/role.js";
 import { routeArgs } from "../../../../lib/nav.js";
 

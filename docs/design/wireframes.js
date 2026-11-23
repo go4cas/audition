@@ -563,8 +563,8 @@
   wireWeights($$("[data-weight]"), $("#fw-bar"), $("#fw-total"), "Adds up to 100");
   wireWeights($$("[data-rb]"), $("#rb-bar"), $("#rb-total"), "Weights add up to 100%");
 
-  // Stage reordering with a little slide.
-  $("#stage-list").addEventListener("click", function (e) {
+  // Group reordering (display order only) with a little slide.
+  $("#group-list").addEventListener("click", function (e) {
     var b = e.target.closest("[data-move]");
     if (!b) return;
     var li = b.closest("li");
