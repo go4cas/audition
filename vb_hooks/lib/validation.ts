@@ -6,6 +6,7 @@ export interface FitnessWeights { quality: number; tokens: number; time: number 
 
 export const DEFAULT_FITNESS_WEIGHTS: FitnessWeights = { quality: 100, tokens: 0, time: 0 };
 export const DEFAULT_MIN_OUTPUTS = 5;
+export const DEFAULT_TRIAL_DAYS = 3;
 export const DEFAULT_PASS_MARK = 3.5;
 export const DEFAULT_MAX_OUTPUT_TOKENS = 16000;
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;

@@ -58,7 +58,7 @@ Thirteen Vaultbase collections plus one view (T0 counted them against the built 
 | Collection | Kind | Key fields |
 | --- | --- | --- |
 | users | auth | The single owner account, with MFA available. No other logins in Phase 1. |
-| workspaces | base | name, description, judge_contender → contenders, default_judge (me / ai), default_method (rate / compare; default rate), min_outputs (default 5), fitness_weights (json: quality, tokens, time; default quality only), composer_contender → contenders (optional; the Composer) |
+| workspaces | base | name, description, judge_contender → contenders, default_judge (me / ai), default_method (rate / compare; default rate), min_outputs (default 5), trial_days (days a new champion is on trial before Home reminds you; default 3), fitness_weights (json: quality, tokens, time; default quality only), composer_contender → contenders (optional; the Composer) |
 | stages | base | workspace, name, order. Optional. |
 | roles | base | workspace, stage (optional), name, description, rubric (json: criteria with name, weight, guidance), pass_mark (stars, 1 to 5), default_output_type |
 | tasks | base | role, title, prompt (editor), output_type (text / image / file / code), attachments (files), base_ref (repo + commit, coding tasks only), locked, previous_version → tasks, composed_prompt (the Composer's draft as the owner left it; when set, contenders get it instead of the generic prompt), compose (json: the Composer's status, error, tokens and cost; set only by Audition) |
@@ -186,7 +186,7 @@ A tokens or time term applies only when every contender in the role has that dat
 - **Restore the previous champion.** It didn't, so the one before comes back, with an optional note on why. This skips the qualify check, because your real-world verdict is the reason. Afterwards the leaderboard doesn't suggest the contender you dropped again until you start a new run for the role, so no "champion change" email nags you about it.
 - **Run again with new settings.** It didn't, but you want to try something else first: this opens Start a run with the role picked.
 
-After three days on trial, the champion also shows in "Waiting for you" on Home, as a nudge to keep it or restore. A **Champion history** list on the leaderboard shows every change: who was crowned, kept on trial or restored, when, and the note. Each change is a casting record, so the history is Audition's own records plus Vaultbase's record history, with no separate log. This replaced the idea of a gradual (20%) feature-flag rollout of a new champion, which Cas dropped on Nov 23, 2026 as more complex than it helps a single owner who judges the champion in real use.
+When the trial ends, after a set number of days (a workspace setting, default 3), Audition sends one push alert and email ("GPT's trial as Coder is over") and lists the champion in "Waiting for you" on Home, as a nudge to keep it or restore. A **Champion history** list on the leaderboard shows every change: who was crowned, kept on trial or restored, when, and the note. Each change is a casting record, so the history is Audition's own records plus Vaultbase's record history, with no separate log. This replaced the idea of a gradual (20%) feature-flag rollout of a new champion, which Cas dropped on Nov 23, 2026 as more complex than it helps a single owner who judges the champion in real use.
 
 ## Vaultbase platform
 
@@ -208,7 +208,7 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 | Routing table for agents | MCP with scoped, read-only tokens | Later |
 | Stale-attempt sweep | Cron | Later |
 | Scheduled runs, outcome verdicts | Cron | 2 |
-| Run-complete and casting alerts | Push and email | 2 |
+| Run-complete, casting and trial-over alerts | Push and email | 2 |
 | Guest voters (built Nov 18, 2026) | Anonymous sessions, rate limits | 2 |
 | Match a new task to a role | Vector search | 2 |
 | Trying a new champion | Records and record history (trial, keep, restore; added Nov 23, 2026). Feature flags: Cas is reviewing them for another use | 2 |

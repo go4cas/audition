@@ -6,6 +6,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { boot, create, RUBRIC, type Harness } from "./harness.ts";
 import { sfx } from "./t3-helpers.ts";
+import { startSink, type Sink } from "./smtp-sink.ts";
+import { trialAlert } from "../vb_hooks/lib/castings.ts";
 import { heldBack, previousChampion, toSeconds, type CastingInfo } from "../vb_hooks/lib/fitness.ts";
 
 describe("pure parts", () => {
@@ -33,8 +35,16 @@ describe("pure parts", () => {
 });
 
 let h: Harness;
-beforeAll(async () => { h = await boot(); });
-afterAll(async () => { await h?.cleanup(); });
+let sink: Sink;
+beforeAll(async () => {
+  sink = startSink();
+  h = await boot();
+  await h.api("admin", "PATCH", "/api/v1/admin/settings", {
+    "smtp.enabled": "true", "smtp.host": "127.0.0.1", "smtp.port": String(sink.port), "smtp.secure": "false",
+    "smtp.from": "audition@test.local", "app.url": "https://audition.test",
+  });
+});
+afterAll(async () => { await h?.cleanup(); sink?.stop(); });
 
 const unwrap = async (p: Promise<any>) => { const r = await p; return r.status === 200 ? { ...r, body: r.body.data } : r; };
 const board = (role: string) => unwrap(h.api("owner", "GET", `/api/custom/leaderboard/${role}`));
@@ -115,6 +125,51 @@ test("Restore brings back the earlier champion with a note, and holds back the r
   b = (await board(s.role.id)).body;
   expect(b.suggested).toBe(s.newC.id);
   expect(b.held_back).toBeNull();
+});
+
+test("a new workspace keeps a champion on trial 3 days before the reminder, and the owner can change it", async () => {
+  const ws = await create(h, "workspaces", { name: `WS ${sfx()}` });
+  expect(ws.trial_days).toBe(3);
+  const set = await h.api("owner", "PATCH", `/api/v1/workspaces/${ws.id}`, { trial_days: 7 });
+  expect(set.status).toBe(200);
+  expect((await h.api("owner", "PATCH", `/api/v1/workspaces/${ws.id}`, { trial_days: 0 })).status).toBe(422);
+});
+
+test("the daily job alerts once when a trial ends (the workspace's trial_days)", async () => {
+  const s = await seed();
+  await h.api("owner", "PATCH", `/api/v1/workspaces/${s.workspace.id}`, { trial_days: 5 });
+  await post("/castings", { role: s.role.id, contender: s.oldC.id });
+  await s.score(s.newC.id, 5); await s.score(s.newC.id, 5);
+  await Bun.sleep(1100);
+  const c = (await post("/castings", { role: s.role.id, contender: s.newC.id })).body.casting;
+  const jobs = (await h.api("admin", "GET", "/api/v1/admin/jobs")).body as any;
+  const id = (Array.isArray(jobs) ? jobs : jobs.data).find((x: any) => x.name === "champion-trials-ended")?.id;
+  expect(id).toBeTruthy();
+  const subject = `Audition: ${s.newC.name}'s trial as Coder is over`;
+  const count = () => sink.mails.filter((m) => m.subject === subject).length;
+  const now = Math.floor(Date.now() / 1000);
+  // Four days in: not over yet.
+  await h.store("update", "castings", { since: now - 4 * 86400 }, c.id);
+  await h.api("admin", "POST", `/api/v1/admin/jobs/${id}/run`);
+  await Bun.sleep(1000);
+  expect(count()).toBe(0);
+  // Ended an hour ago: one alert, with a link to the leaderboard.
+  await h.store("update", "castings", { since: now - 5 * 86400 - 3600 }, c.id);
+  expect((await h.api("admin", "POST", `/api/v1/admin/jobs/${id}/run`)).status).toBe(200);
+  const mail = await sink.waitFor((m) => m.subject === subject);
+  expect(mail.body).toContain(`on trial for 5 days`);
+  expect(mail.body).toContain(`https://audition.test/api/custom/app/leaderboard/${s.role.id}`);
+  // Ended two days ago: it was in an earlier alert, so not again.
+  await h.store("update", "castings", { since: now - 7 * 86400 }, c.id);
+  await h.api("admin", "POST", `/api/v1/admin/jobs/${id}/run`);
+  await Bun.sleep(1000);
+  expect(count()).toBe(1);
+}, 60_000);
+
+test("the trial alert's push opens the leaderboard", () => {
+  const a = trialAlert({ role: "r1", role_name: "Coder", contender_name: "GPT", since: 0, days: 1 }, "https://x/lb");
+  expect(a).toMatchObject({ type: "trial-ended", subject: "Audition: GPT's trial as Coder is over", push: { page: "/leaderboard/r1" } });
+  expect(a.body).toContain("for 1 day.");
 });
 
 test("only the owner; unknown role is 404", async () => {

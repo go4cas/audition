@@ -31,7 +31,15 @@ async function request(method, path, body, { raw = false } = {}) {
   let payload;
   if (body instanceof FormData) payload = body;
   else if (body !== undefined) { headers["content-type"] = "application/json"; payload = JSON.stringify(body); }
-  const res = await fetch(path, { method, headers, body: payload });
+  let res = await fetch(path, { method, headers, body: payload });
+  // Vaultbase's rate limit (300 requests per 10 s on /api/*, NOTES RF2) answers
+  // 429 before doing anything, so the same request is safe to send again once
+  // it says so: wait Retry-After (at most 5 s), up to three times.
+  for (let i = 0; res.status === 429 && i < 3; i++) {
+    const wait = Math.min(5, Number(res.headers.get("retry-after")) || 1);
+    await new Promise((r) => setTimeout(r, wait * 1000));
+    res = await fetch(path, { method, headers, body: payload });
+  }
   if (raw) {
     if (!res.ok) throw new ApiError(res.status, null);
     return res;

@@ -8,10 +8,26 @@ import { APP } from "../lib/nav.js";
 
 export const inbox = reactive({ count: 0, items: [], loaded: false });
 
-/** A new champion shows up in "Waiting for you" once it has been on trial this long. */
-export const TRIAL_NUDGE_DAYS = 3;
+/** A new champion shows up in "Waiting for you" once it has been on trial for its workspace's trial_days (default 3). */
+export const DEFAULT_TRIAL_DAYS = 3;
 
-export async function refreshInbox() {
+/**
+ * Reload the list. Calls that arrive while one is loading share it, plus one
+ * more load at the end, so a burst of changes (a run page's live counts, a
+ * route change) costs two loads, not one per call: the list makes eight
+ * requests, and Vaultbase rate-limits /api/* (RF2).
+ */
+let loading = null;
+let again = false;
+export function refreshInbox() {
+  if (loading) { again = true; return loading; }
+  loading = (async () => {
+    try { do { again = false; await loadInbox(); } while (again); } finally { loading = null; }
+  })();
+  return loading;
+}
+
+async function loadInbox() {
   try {
     const [d, attempts, outcomes] = await Promise.all([
       load("runs", "tasks", "roles", "workspaces", "contenders", "castings"),
@@ -53,7 +69,8 @@ export async function refreshInbox() {
     const nowS = Date.now() / 1000;
     for (const role of d.roles) {
       const c = d.castings.find((x) => x.role === role.id && x.confirmed);
-      if (!c?.trial || nowS - Number(c.since) < TRIAL_NUDGE_DAYS * 86400) continue;
+      const days = Number(d.byId.workspaces.get(role.workspace)?.trial_days) || DEFAULT_TRIAL_DAYS;
+      if (!c?.trial || nowS - Number(c.since) < days * 86400) continue;
       items.push({ kind: "trial", roleId: role.id, role: role.name, workspace: d.byId.workspaces.get(role.workspace)?.name, runLabel: "Champion", taskTitle: d.byId.contenders.get(c.contender)?.name || "The new champion" });
     }
     inbox.items = items;

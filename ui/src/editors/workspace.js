@@ -21,7 +21,7 @@ export default function workspaceSettings({ params }) {
       s.f = reactive({
         name: ws?.name || "", description: ws?.description || "", default_judge: ws?.default_judge || "me",
         default_method: ws?.default_method || "rate",
-        judge_contender: ws?.judge_contender || null, composer_contender: ws?.composer_contender || null, min_outputs: ws?.min_outputs ?? 5,
+        judge_contender: ws?.judge_contender || null, composer_contender: ws?.composer_contender || null, min_outputs: ws?.min_outputs ?? 5, trial_days: ws?.trial_days ?? 3,
         q: w.quality, t: w.tokens, dt: w.time,
         stages: (isNew ? [] : s.d.stages.filter((x) => x.workspace === params.id)).map((x) => ({ id: x.id, name: x.name })),
         removed: [],
@@ -42,7 +42,7 @@ export default function workspaceSettings({ params }) {
         if (f.default_judge === "ai" && !f.judge_contender) { toast("Pick an AI judge, or let yourself judge", "error", "warning"); return; }
         const body = {
           name: f.name.trim(), description: f.description.trim(), default_judge: f.default_judge, default_method: f.default_method,
-          judge_contender: f.judge_contender || null, composer_contender: f.composer_contender || null, min_outputs: Number(f.min_outputs) || 1,
+          judge_contender: f.judge_contender || null, composer_contender: f.composer_contender || null, min_outputs: Number(f.min_outputs) || 1, trial_days: Math.min(90, Math.max(1, Math.round(Number(f.trial_days) || 3))),
           fitness_weights: { quality: Number(f.q) || 0, tokens: Number(f.t) || 0, time: Number(f.dt) || 0 },
         };
         try {
@@ -97,6 +97,10 @@ export default function workspaceSettings({ params }) {
             <div class="field"><label for="ws-min">Outputs needed before suggesting a champion
               <button class="info-btn" type="button" popovertarget="${minPop}" aria-label="Why a minimum?">${icon("help")}</button></label>
               <input class="input num input--short" id="ws-min" type="number" min="1" value="${f.min_outputs}" @input="${(e) => { f.min_outputs = e.target.value; }}">
+            </div>
+            <div class="field"><label for="ws-trial">Days on trial before a reminder</label>
+              <input class="input num input--short" id="ws-trial" type="number" min="1" max="90" value="${f.trial_days}" @input="${(e) => { f.trial_days = e.target.value; }}">
+              <span class="hint">A new champion that replaces another starts on trial. After this many days, Home reminds you to keep it or bring back the one before.</span>
             </div>
             <div class="pop" id="${minPop}" popover><div class="pop__head">${icon("shuffle")}Why a minimum?</div><div class="pop__body"><p>One great answer can be luck. Five or more outputs show whether a contender is good every time. Use <strong>Run again</strong> to collect more without changing anything.</p></div></div>
           </div></div>

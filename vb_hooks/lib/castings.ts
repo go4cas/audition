@@ -74,3 +74,42 @@ export async function restore(deps: CastDeps, roleId: string, body: { rationale?
     suggested_by: "human", trial: false, restored: true,
   });
 }
+
+// ── Trial-ended alert (daily job, jobs/trials.ts) ────────────────────────────
+
+export const DAY_S = 86400;
+import { DEFAULT_TRIAL_DAYS } from "./validation.ts";
+
+export interface TrialDue { role: string; role_name: string; contender_name: string; since: number; days: number }
+
+type SqlLike = { query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]> };
+
+/**
+ * Current champions on trial whose trial (the workspace's trial_days) ended
+ * in the day before `now`. The job runs once a day, so each trial is alerted
+ * once; Home keeps listing it until the owner keeps or restores.
+ */
+export async function trialsEnded(sql: SqlLike, now: number): Promise<TrialDue[]> {
+  const rows = await sql.query<{ role: string; role_name: string; contender_name: string | null; since: number; trial_days: number | null }>(
+    `SELECT c.role AS role, r.name AS role_name, k.name AS contender_name, c.since AS since, w.trial_days AS trial_days
+       FROM vb_castings c
+       JOIN vb_roles r ON r.id = c.role
+       JOIN vb_workspaces w ON w.id = r.workspace
+       LEFT JOIN vb_contenders k ON k.id = c.contender
+      WHERE c.trial = 1 AND c.confirmed = 1
+        AND c.created_at = (SELECT MAX(x.created_at) FROM vb_castings x WHERE x.role = c.role AND x.confirmed = 1)`);
+  return rows
+    .map((r) => ({ role: r.role, role_name: r.role_name, contender_name: r.contender_name ?? "The new champion", since: Number(r.since), days: Number(r.trial_days) || DEFAULT_TRIAL_DAYS }))
+    .filter((t) => { const end = t.since + t.days * DAY_S; return end <= now && end > now - DAY_S; });
+}
+
+/** The alert for one trial that ended. */
+export function trialAlert(t: TrialDue, link: string) {
+  const title = `${t.contender_name}'s trial as ${t.role_name} is over`;
+  return {
+    type: "trial-ended" as const,
+    subject: `Audition: ${title}`,
+    body: `${t.contender_name} has been the ${t.role_name} champion on trial for ${t.days} day${t.days === 1 ? "" : "s"}.\n\nHow did it do in real work? Keep it, restore the champion before it, or run again with new settings:\n${link}\n`,
+    push: { title, body: "Keep it, or restore the one before?", page: `/leaderboard/${t.role}` },
+  };
+}

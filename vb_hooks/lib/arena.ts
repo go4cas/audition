@@ -20,7 +20,7 @@ export interface Mailer {
 
 /** What one alert says: the email's subject and text, and a short push version. */
 export interface Alert {
-  type: "run-finished" | "repeat-skipped" | "outcomes-due";
+  type: "run-finished" | "repeat-skipped" | "outcomes-due" | "trial-ended";
   subject: string;
   body: string;
   push: { title: string; body: string; page: string };

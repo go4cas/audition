@@ -135,9 +135,18 @@ test("crown GPT again by hand; after a few days on trial Home nudges; keep it", 
   await row.getByRole("button", { name: "Make champion" }).click();
   await toastSays(/GPT is now the Coder champion/);
   await p.locator("#champ-box").getByRole("button", { name: "Keep as champion" }).waitFor();
-  // Four days on trial.
+  // The workspace waits 5 days: after 4 there is no reminder yet, after 6 there is.
+  await p.goto(app(`/w/${S.ws.id}/settings`)); await settle();
+  await p.fill("#ws-trial", "5");
+  await shot("champion-workspace-setting");
+  await p.click("button[type=submit]");
+  await toastSays("Settings saved");
+  expect((await h.api("owner", "GET", `/api/v1/workspaces/${S.ws.id}`)).body.data.trial_days).toBe(5);
   const cur = (await castings())[0];
   await h.store("update", "castings", { since: cur.since - 4 * 86400 }, cur.id);
+  await go("/");
+  expect(await p.getByText("Keep or restore: GPT is on trial").count()).toBe(0);
+  await h.store("update", "castings", { since: cur.since - 6 * 86400 }, cur.id);
   await go("/");
   await p.getByText("Keep or restore: GPT is on trial").first().waitFor();
   await shot("champion-trial-home");

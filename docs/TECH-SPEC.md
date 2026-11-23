@@ -244,6 +244,7 @@ Guest voters, §10b. `guests`: no extra fields; list and view `id = @request.aut
 | judge_contender | rel → contenders, setNull | The AI judge. Required when `default_judge = ai` (hook). |
 | default_method | select `rate`, `compare` | default `rate`. Which judging method "Start a run" preselects (§10a, Nov 18, 2026). |
 | min_outputs | number, min 1 | default 5 |
+| trial_days | number, 1 to 90 | default 3 (hook). Days a champion is on trial before "Waiting for you" lists it (§11a, Nov 23, 2026). Empty on older workspaces reads as 3. |
 | fitness_weights | json | `{ "quality": 100, "tokens": 0, "time": 0 }`, percentages summing to 100 (hook) |
 | composer_contender | rel → contenders, setNull | The Composer (§9a). Optional. Must be an enabled `api` contender (checked when composing). |
 
@@ -676,7 +677,9 @@ Added Nov 23, 2026, in place of the feature-flag contender rollout (SPEC, "A new
 - **Previous champion.** The newest earlier casting whose contender differs from the current one. `restore` creates a casting for it (`restored` true, `trial` false, note in `rationale`).
 - **Hold-back.** When the current casting is a restore and the leaderboard would suggest the contender it replaced, `roleBoard` answers `suggested: null` and `held_back: { contender, since }`, until a run for the role is created after the restore. The run-finished email's champion line (`lib/arena.ts`) reads the same board, so it is held back too.
 - **Leaderboard response.** `GET /leaderboard/:roleId` adds `casting` (now `{ id, role, contender, since, rationale, suggested_by, trial, restored, confirmed }`), `history` (up to 50 confirmed castings, newest first), `previous` (a contender id or null) and `held_back`.
-- **UI.** The leaderboard's champion box shows the On trial chip (the violet "your turn" state), Keep as champion, Restore *previous* (with an optional note) and Run again with new settings (`/runs/new?role=`); a Champion history panel lists the castings. The workspace and Home pages show the trial chip, and `state/inbox.js` adds a "Keep or restore" item to "Waiting for you" once a champion has been on trial for `TRIAL_NUDGE_DAYS` (3).
+- **UI.** The leaderboard's champion box shows the On trial chip (the violet "your turn" state), Keep as champion, Restore *previous* (with an optional note) and Run again with new settings (`/runs/new?role=`); a Champion history panel lists the castings. The workspace and Home pages show the trial chip, and `state/inbox.js` adds a "Keep or restore" item to "Waiting for you" once a champion has been on trial for the workspace's `trial_days` (default 3, set in workspace settings).
+- **Trial-over alert.** The daily job `jobs/trials.ts` (`champion-trials-ended`, 07:05 UTC) finds current champions on trial whose trial ended in the last day (`trialsEnded` in `lib/castings.ts`, SQL over castings, roles and workspaces) and sends each one push and email through `alertOwner` (type `trial-ended`, opens the leaderboard). The one-day window means one alert per trial with no extra field; a day the server is down is missed, and Home still lists it.
+- **Rate limit.** `ui/src/api.js` now waits out a 429 from Vaultbase's `/api/*` limit (Retry-After, at most 5 s, three tries), and `refreshInbox` folds overlapping calls into one more load. The inbox load gained one request (castings), which pushed the browser walkthrough over the limit now and then (NOTES CT4).
 - **Tests.** `test/champion.test.ts` (routes, hold-back, record history) and `test/ui-champion.test.ts` (the browser flow, with screenshots).
 
 ## 12. Provider adapters
