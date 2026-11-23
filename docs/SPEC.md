@@ -58,7 +58,7 @@ Thirteen Vaultbase collections plus one view (T0 counted them against the built 
 | Collection | Kind | Key fields |
 | --- | --- | --- |
 | users | auth | The single owner account, with MFA available. No other logins in Phase 1. |
-| workspaces | base | name, description, judge_contender → contenders, default_judge (me / ai), default_method (rate / compare; default rate), min_outputs (default 5), fitness_weights (json: quality, tokens, time; default quality only), composer_contender → contenders (optional; the Composer) |
+| workspaces | base | name, description, judge_contender → contenders, default_judge (me / ai), default_method (rate / compare; default rate), min_outputs (default 5), trial_days (days a new champion is on trial before Home reminds you; default 3), fitness_weights (json: quality, tokens, time; default quality only), composer_contender → contenders (optional; the Composer) |
 | stages | base | workspace, name, order. Optional. |
 | roles | base | workspace, stage (optional), name, description, rubric (json: criteria with name, weight, guidance), pass_mark (stars, 1 to 5), default_output_type |
 | tasks | base | role, title, prompt (editor), output_type (text / image / file / code), attachments (files), base_ref (repo + commit, coding tasks only), locked, previous_version → tasks, composed_prompt (the Composer's draft as the owner left it; when set, contenders get it instead of the generic prompt), compose (json: the Composer's status, error, tokens and cost; set only by Audition) |
@@ -69,7 +69,7 @@ Thirteen Vaultbase collections plus one view (T0 counted them against the built 
 | runs | base | workspace, role, tasks (list of ids), contenders (list of ids), judge (me / ai), method (rate / compare; empty means rate), both_orders (Compare with the AI judge: ask each pair both ways), judge_contender, rerun_of → runs (optional), status, call_count, schedule (cron, *later*) |
 | attempts | base | run, task, contender, mode, status, prompt_sent, output, output_files, tokens_in, tokens_out, duration_ms, provider_calls (retries included), cost (derived, empty when unknown), metrics_source (measured / manual), finish_reason, error, submitted_at |
 | verdicts | base | attempt, run, method (rubric, pairwise for Compare picks, outcome for outcome checks), judge_kind (human / ai), judge_contender, scores (json: stars and a one-line reason per criterion; for a pick, the reason only), rubric_snapshot (json), score (weighted, 1 to 5; empty for a pick), status (active / overridden), opponent and winner (this / opponent / tie; Compare picks only), due_at (outcome checks only) |
-| castings | base | role, contender, since, rationale, suggested_by (system / human), confirmed |
+| castings | base | role, contender, since, rationale, suggested_by (system / human), confirmed, trial (a new champion that replaced another, until kept), restored (brought back an earlier champion) |
 | leaderboard | view | SQL over attempts and verdicts, per role × contender: outputs scored, mean score, confidence range, mean tokens, mean time, mean cost (or N/A), fitness |
 
 Three rules hold throughout.
@@ -180,6 +180,14 @@ A tokens or time term applies only when every contender in the role has that dat
 
 **Champion suggestion.** A contender qualifies when it has at least the workspace's minimum number of scored outputs (default 5) and its mean score is above the role's pass mark. The qualifying contender with the highest fitness is marked "Suggested champion", and you confirm it to create the casting. Below the minimum, the leaderboard shows "not enough data yet".
 
+**A new champion on trial (added Nov 23, 2026).** The leaderboard picks a champion from test runs, but the real test is using it. When a contender replaces a role's champion, it starts **On trial** (a role's first champion doesn't, as there is nothing to go back to). The champion box on the role's leaderboard then offers three things, one for each way real use can go:
+
+- **Keep as champion.** It did well in real work, so the trial ends.
+- **Restore the previous champion.** It didn't, so the one before comes back, with an optional note on why. This skips the qualify check, because your real-world verdict is the reason. Afterwards the leaderboard doesn't suggest the contender you dropped again until you start a new run for the role, so no "champion change" email nags you about it.
+- **Run again with new settings.** It didn't, but you want to try something else first: this opens Start a run with the role picked.
+
+When the trial ends, after a set number of days (a workspace setting, default 3), Audition sends one push alert and email ("GPT's trial as Coder is over") and lists the champion in "Waiting for you" on Home, as a nudge to keep it or restore. A **Champion history** list on the leaderboard shows every change: who was crowned, kept on trial or restored, when, and the note. Each change is a casting record, so the history is Audition's own records plus Vaultbase's record history, with no separate log. This replaced the idea of a gradual (20%) feature-flag rollout of a new champion, which Cas dropped on Nov 23, 2026 as more complex than it helps a single owner who judges the champion in real use.
+
 ## Vaultbase platform
 
 Audition is built entirely on Vaultbase. It needs no other backend service, only the binary, a data folder and a reverse proxy in production.
@@ -200,10 +208,10 @@ Audition is built entirely on Vaultbase. It needs no other backend service, only
 | Routing table for agents | MCP with scoped, read-only tokens | Later |
 | Stale-attempt sweep | Cron | Later |
 | Scheduled runs, outcome verdicts | Cron | 2 |
-| Run-complete and casting alerts | Push and email | 2 |
+| Run-complete, casting and trial-over alerts | Push and email | 2 |
 | Guest voters (built Nov 18, 2026) | Anonymous sessions, rate limits | 2 |
 | Match a new task to a role | Vector search | 2 |
-| Contender rollout | Feature flags | 2 |
+| Trying a new champion | Records and record history (trial, keep, restore; added Nov 23, 2026). Feature flags: Cas is reviewing them for another use | 2 |
 | Runner callbacks | HMAC-signed webhooks | 3 |
 
 **Conventions**
@@ -248,9 +256,9 @@ Approved by Cas on Nov 11, 2026. Each step is its own thread and PR, in this ord
 | --- | --- | --- | --- |
 | 1 — Wrap-up | Realtime run page (part B3 of `docs/PLATFORM-UPGRADES.md`), with polling kept as the fallback when the connection drops. One combined request to the Vaultbase author: text/markdown, zip and csv on the upload allowlist (NOTES W1), a server-side file helper (Q2) and an "only if" condition on `helpers.records.update` (Q3). Tag v0.2.0 and deploy it by `docs/RELEASE.md`; Cas runs the server steps and the real Anthropic check. | Realtime | The run page updates without polling, and v0.2.0 runs on Cas's server |
 | 2 — Phase 2a, living arena lite | Scheduled runs of a role, using the existing `runs.schedule` field. A stale-attempt sweep. Outcome verdicts that come due on a set date, starting with Stock Review ("was the call right four weeks later?"), using the existing `verdicts.due_at` field. An email to the owner when a run finishes or a role's champion changes. | Cron, email | The Phase 2 Done-when: a scheduled role reruns unattended and a delayed outcome verdict lands on its due date |
-| Later, phase not set | MCP read-only access to castings; the Composer utility role (built Nov 18, 2026, see "The Composer"); guest voters (built Nov 18, 2026); vector match of new tasks to roles; pairwise judging (done Nov 18, 2026: Compare (A vs B), see Judging); API adapters for image models (OpenAI-compatible Images API built Nov 18, 2026, see "Image models"; Replicate waits on Vaultbase); push alerts (built, docs/PUSH-ALERTS.md); contender rollout by feature flags; Levare reading castings. (Outline chips: done Nov 13 2026. Off-server R2 copy of backups: built Nov 18 2026, Vaultbase's own S3 backup copy, docs/RELEASE.md "Off-server copy".) Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, feature flags | Each is picked and scoped with Cas before its thread starts |
+| Later, phase not set | MCP read-only access to castings; the Composer utility role (built Nov 18, 2026, see "The Composer"); guest voters (built Nov 18, 2026); vector match of new tasks to roles; pairwise judging (done Nov 18, 2026: Compare (A vs B), see Judging); API adapters for image models (OpenAI-compatible Images API built Nov 18, 2026, see "Image models"; Replicate waits on Vaultbase); push alerts (built, docs/PUSH-ALERTS.md); a new champion on trial, with keep and restore (built Nov 23, 2026, replacing the feature-flag rollout; see "A new champion on trial"); a use for Vaultbase feature flags (Cas is reviewing them); Levare reading castings. (Outline chips: done Nov 13 2026. Off-server R2 copy of backups: built Nov 18 2026, Vaultbase's own S3 backup copy, docs/RELEASE.md "Off-server copy".) Phase 3 runners stay as planned. | MCP, anonymous sessions, vector search, push, record history, feature flags (use to be decided) | Each is picked and scoped with Cas before its thread starts |
 
-**Order for the open items (Cas, Nov 18, 2026):** contender rollout by Vaultbase feature flags, then vector match of new tasks to roles, then Phase 3 runners. MCP is parked until Vaultbase has per-collection token scopes.
+**Order for the open items (Cas, Nov 18, 2026; updated Nov 23):** the trial, keep and restore of a new champion (in place of the feature-flag contender rollout, which Cas dropped on Nov 23, 2026; Cas is reviewing Vaultbase feature flags for another use), then vector match of new tasks to roles, then Phase 3 runners. MCP is parked until Vaultbase has per-collection token scopes.
 
 #### Waiting on Vaultbase
 

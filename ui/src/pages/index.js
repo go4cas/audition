@@ -83,7 +83,7 @@ function upNext() {
   return html`<div class="stack-sm" id="up-next">
       <div class="section-head"><h2>Up next</h2><span class="small muted">1 of ${inbox.items.length} waiting</span></div>
       <div class="up-next">
-        ${first.kind === "paste" ? avatar(first.names[0], "") : html`<span class="letter-tile">A–Z</span>`}
+        ${first.kind === "paste" ? avatar(first.names[0], "") : first.kind === "trial" ? avatar(first.taskTitle, "") : html`<span class="letter-tile">A–Z</span>`}
         <div class="minw0">
           <div class="up-next__title">${itemTitle(first)}</div>
           <div class="up-next__meta"><span>${icon("workspaces")}${first.workspace}</span><span>${icon(itemKind(first)[1])}${itemKind(first)[0]}</span><span>${icon("history")}${first.runLabel} · ${first.role}</span></div>
@@ -91,7 +91,7 @@ function upNext() {
         <a class="btn btn--primary btn--lg" href="${itemHref(first)}">Start${icon("arrow-right", "i--nudge")}</a>
       </div>
     </div>
-    ${rest.length ? html`<div class="stack-sm"><div class="section-head"><h2>Also waiting</h2></div><div class="queue stagger">${rest.slice(0, 6).map((g) => html`<a href="${itemHref(g)}">${g.kind === "paste" ? avatar(g.names[0], "") : html`<span class="letter-tile letter-tile--sm">A–Z</span>`}<span><strong>${itemTitle(g)}</strong><br><span class="small muted">${g.workspace} · ${g.role} · ${g.runLabel}</span></span>${chip("waiting", g.kind === "paste" ? plural(g.attempts.length, "to paste", "to paste") : g.kind === "outcome" ? "Check" : "Judge")}${icon("arrow-right", "go")}</a>`)}</div></div>` : ""}`;
+    ${rest.length ? html`<div class="stack-sm"><div class="section-head"><h2>Also waiting</h2></div><div class="queue stagger">${rest.slice(0, 6).map((g) => html`<a href="${itemHref(g)}">${g.kind === "paste" ? avatar(g.names[0], "") : g.kind === "trial" ? avatar(g.taskTitle, "") : html`<span class="letter-tile letter-tile--sm">A–Z</span>`}<span><strong>${itemTitle(g)}</strong><br><span class="small muted">${g.workspace} · ${g.role} · ${g.runLabel}</span></span>${chip("waiting", g.kind === "paste" ? plural(g.attempts.length, "to paste", "to paste") : g.kind === "outcome" ? "Check" : g.kind === "trial" ? "Decide" : "Judge")}${icon("arrow-right", "go")}</a>`)}</div></div>` : ""}`;
 }
 
 function wsCard(d, w, cast) {
@@ -114,7 +114,7 @@ function wsCard(d, w, cast) {
 function castRow(d, { r, c, lb }) {
   const ws = d.byId.workspaces.get(r.workspace)?.name;
   let right;
-  if (c) right = html`<span class="who">${avatar(d.byId.contenders.get(c.contender)?.name, "sm")}${d.byId.contenders.get(c.contender)?.name}${icon("champion", "crown")}</span>`;
+  if (c) right = html`<span class="who">${avatar(d.byId.contenders.get(c.contender)?.name, "sm")}${d.byId.contenders.get(c.contender)?.name}${c.trial ? html`<a class="link-plain" href="${APP + "/leaderboard/" + r.id}">${chip("waiting", "On trial")}</a>` : icon("champion", "crown")}</span>`;
   else if (lb?.suggested) right = html`<a class="state link-plain" data-state="warning" href="${APP + "/leaderboard/" + r.id}">${icon("sparkle")}Confirm ${d.byId.contenders.get(lb.suggested)?.name || "the suggestion"}</a>`;
   else {
     const ws_ = d.byId.workspaces.get(r.workspace);
@@ -128,7 +128,7 @@ function castRow(d, { r, c, lb }) {
 function feed(d) {
   const items = [
     ...d.runs.map((r) => ({ at: r.created, state: r.status === "done" ? "done" : "active", icon: "play", text: html`You started <strong>${runLabel(d, r)}</strong> for ${d.byId.roles.get(r.role)?.name}` })),
-    ...d.castings.filter((c) => c.confirmed).map((c) => ({ at: c.created, state: "champion", icon: "champion", text: html`<strong>${d.byId.contenders.get(c.contender)?.name}</strong> became ${d.byId.roles.get(c.role)?.name} champion` })),
+    ...d.castings.filter((c) => c.confirmed).map((c) => ({ at: c.created, state: "champion", icon: "champion", text: html`<strong>${d.byId.contenders.get(c.contender)?.name}</strong> ${c.restored ? "was restored as" : "became"} ${d.byId.roles.get(c.role)?.name} champion${c.trial ? ", on trial" : ""}` })),
   ].sort((a, b) => b.at - a.at).slice(0, 6);
   if (!items.length) return "";
   return html`<div class="panel"><div class="panel__head"><h2>${icon("history")}Latest</h2></div><ol class="feed">${items.map((i) => html`<li><span class="feed__icon" data-state="${i.state}">${icon(i.icon)}</span><span>${i.text}<time title="${date(i.at)}">${ago(i.at)}</time></span></li>`)}</ol></div>`;

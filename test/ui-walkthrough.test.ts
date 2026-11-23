@@ -83,8 +83,16 @@ async function shot(name: string) {
   await p.setViewportSize({ width: 1280, height: 900 });
   await p.evaluate(() => { document.getElementById("toaster")!.style.visibility = ""; });
 }
+/** An owner GET that waits out Vaultbase's /api/* rate limit, as the app does (ui/src/api.js). */
+async function get(path: string) {
+  for (let i = 0; ; i++) {
+    const r = await h.api("owner", "GET", path);
+    if (r.status !== 429 || i >= 5) return r;
+    await Bun.sleep(1000);
+  }
+}
 const ids = async (collection: string, filter: string) =>
-  (await h.api("owner", "GET", `/api/v1/${collection}?perPage=500&filter=${encodeURIComponent(filter)}`)).body.data as any[];
+  (await get(`/api/v1/${collection}?perPage=500&filter=${encodeURIComponent(filter)}`)).body.data as any[];
 const one = async (collection: string, filter: string) => (await ids(collection, filter))[0];
 
 async function startRun(role: string, contenders: string[], judge: "Me" | RegExp | null, calls: number) {
@@ -104,8 +112,8 @@ const waitFor = async (fn: () => Promise<boolean>, what: string, ms = 60_000) =>
   while (Date.now() < end) { if (await fn()) return; await Bun.sleep(300); }
   throw new Error("Timed out waiting for " + what);
 };
-const runStatus = async (id: string) => (await h.api("owner", "GET", `/api/v1/runs/${id}`)).body.data.status as string;
-const counts = async (id: string) => (await h.api("owner", "GET", `/api/custom/runs/${id}`)).body.data?.counts ?? (await h.api("owner", "GET", `/api/custom/runs/${id}`)).body.counts;
+const runStatus = async (id: string) => (await get(`/api/v1/runs/${id}`)).body.data.status as string;
+const counts = async (id: string) => { const b = (await get(`/api/custom/runs/${id}`)).body; return b?.data?.counts ?? b?.counts; };
 
 /** Copy the prompt, paste a reply (and files) for the contender shown, submit. */
 async function paste(runId: string, taskId: string, reply: string, attach?: string) {

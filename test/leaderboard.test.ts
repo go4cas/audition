@@ -54,8 +54,8 @@ test("Done-when 2: seeded verdicts give the golden leaderboard: means, ranges, f
   const s = await seedRole({ weights: WEIGHTS, minOutputs: MIN_OUTPUTS, passMark: PASS_MARK, contenders: CONTENDERS });
   const r = await board(s.role.id);
   expect(r.status).toBe(200);
-  const { casting, ...rest } = r.body;
-  expect(casting).toBeNull();
+  const { casting, history, previous, held_back, ...rest } = r.body;
+  expect([casting, history, previous, held_back]).toEqual([null, [], null, null]);
   expect(byName(rest, s.names)).toEqual(golden);
 });
 
@@ -111,7 +111,9 @@ test("Done-when 6: a champion only at min_outputs and strictly above the pass ma
 
   // The newest confirmed casting is current; older ones stay as history.
   const after = (await board(s.role.id)).body;
-  expect(after.casting).toEqual({ contender: good, since: system.body.casting.since });
+  expect(after.casting).toMatchObject({ contender: good, since: system.body.casting.since, trial: true, restored: false });
+  expect(after.history.map((c: any) => c.contender)).toEqual([good, fine]);
+  expect(after.previous).toBe(fine);
   const all = (await h.api("owner", "GET", `/api/v1/castings?filter=${encodeURIComponent(`role = "${s.role.id}"`)}`)).body.data;
   expect(all.length).toBe(2);
   // The owner can't write castings directly.
@@ -134,7 +136,7 @@ test("Done-when 6: Stock Review's single contender is suggested with five output
 
 test("a role with no scored outputs has an empty board; only the owner; unknown role is 404", async () => {
   const s = await seedRole({ weights: { quality: 100, tokens: 0, time: 0 }, minOutputs: 5, passMark: 3.5, contenders: [] });
-  expect((await board(s.role.id)).body).toEqual({ terms_used: ["quality"], dropped: [], rows: [], suggested: null, casting: null });
+  expect((await board(s.role.id)).body).toEqual({ terms_used: ["quality"], dropped: [], rows: [], suggested: null, casting: null, history: [], previous: null, held_back: null });
   expect((await board(s.role.id, "anon")).status).toBeOneOf([401, 403]);
   expect((await board(s.role.id, "admin")).status).toBe(403);
   expect((await board("nope")).status).toBe(404);

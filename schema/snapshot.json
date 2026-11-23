@@ -257,6 +257,14 @@
           }
         },
         {
+          "name": "trial_days",
+          "type": "number",
+          "options": {
+            "min": 1,
+            "max": 90
+          }
+        },
+        {
           "name": "fitness_weights",
           "type": "json"
         },
@@ -891,6 +899,14 @@
         },
         {
           "name": "confirmed",
+          "type": "bool"
+        },
+        {
+          "name": "trial",
+          "type": "bool"
+        },
+        {
+          "name": "restored",
           "type": "bool"
         }
       ],
