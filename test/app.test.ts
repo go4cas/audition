@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { boot, type Harness } from "./harness.ts";
 import { ROOT } from "../scripts/lib/vaultbase.ts";
-import { mimeFor, resolveAsset } from "../vb_hooks/lib/static.ts";
+import { cacheControl, mimeFor, resolveAsset } from "../vb_hooks/lib/static.ts";
 
 describe("resolveAsset (pure)", () => {
   const files = new Set(["/d/index.html", "/d/app.js", "/d/assets/x.css"]);
@@ -18,6 +18,14 @@ describe("resolveAsset (pure)", () => {
     const bad = { exists: async () => true, isFile: async () => true };
     expect((await resolveAsset("/d", "/app/../../etc/passwd", bad))?.path).toBe("/d/index.html");
     expect((await resolveAsset("/d", "/app/%2e%2e/%2e%2e/etc/passwd", bad))?.path).toBe("/d/index.html");
+  });
+  test("cache lifetime: index never, build-hashed URLs a year, the rest five minutes", () => {
+    expect(cacheControl("/app/", true, { v: "0123456789" })).toBe("no-cache");
+    expect(cacheControl("/app/chunks/z7py0mje.js", false)).toBe("public, max-age=31536000, immutable");
+    expect(cacheControl("/app/main.js", false, { v: "0674ae6f18" })).toBe("public, max-age=31536000, immutable");
+    expect(cacheControl("/app/main.js", false)).toBe("public, max-age=300");
+    expect(cacheControl("/app/main.js", false, { v: "latest" })).toBe("public, max-age=300");
+    expect(cacheControl("/app/icons/favicon.svg", false)).toBe("public, max-age=300");
   });
   test("mime types", () => {
     expect(mimeFor("a.js")).toBe("text/javascript; charset=utf-8");
@@ -58,6 +66,20 @@ describe("on a running instance", () => {
     const bytes = new Uint8Array(await js.arrayBuffer());
     expect(new Bun.CryptoHasher("sha256").update(bytes).digest("hex").slice(0, 10)).toBe(main![1]);
     expect(html).not.toMatch(/(href|src)="(?!\/api\/custom\/app\/)[^"]*"/);
+    // Lighthouse (Nov 2026): a meta description, the first-load chunks preloaded
+    // with main.js, and the fonts versioned like the rest.
+    expect(html).toContain('<meta name="description"');
+    const pre = [...html.matchAll(/<link rel="modulepreload" href="(\/api\/custom\/app\/chunks\/[\w-]+\.js)">/g)].map((m) => m[1]!);
+    expect(pre.length).toBeGreaterThan(0);
+    const chunk = await fetch(h.url + pre[0]);
+    expect(chunk.status).toBe(200);
+    expect(chunk.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    expect(js.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    expect(r.headers.get("cache-control")).toBe("no-cache");
+    const font = /href="(\/api\/custom\/app\/fonts\/bricolage-grotesque-latin\.woff2\?v=[0-9a-f]{10})"/.exec(html);
+    expect(font).not.toBeNull();
+    const fontsCss = /href="(\/api\/custom\/app\/styles\/fonts\.css\?v=[0-9a-f]{10})"/.exec(html);
+    expect(await (await fetch(h.url + fontsCss![1])).text()).toContain(font![1]!.replace("/api/custom/app/", "../"));
   });
 
   test("assets get their MIME type; unknown paths fall back to index.html", async () => {

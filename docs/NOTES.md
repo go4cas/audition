@@ -517,3 +517,14 @@ Cas approved on Nov 19, 2026 the move from 0.46.0 to **0.47.0** (tag commit `7a7
 - **CT1. The current champion is now the newest casting by `created`, not by `since`.** `lib/fitness.ts` sorted by `-since,-created`. Both are set at the same moment by the castings route, so nothing changes for real data, but `created` can't be edited, which keeps the order honest (the trial-nudge test moves `since` back four days).
 - **CT2. Restore skips the qualify check.** The owner restores because of real-world use, which the leaderboard can't see. The leaderboard then holds back the replaced contender until a run for the role starts after the restore, so the run-finished email doesn't keep suggesting it.
 - **CT3. Open:** the "Waiting for you" nudge comes after 3 days on trial (`TRIAL_NUDGE_DAYS` in `ui/src/state/inbox.js`). It could be a workspace setting if 3 days doesn't fit every role.
+
+## Lighthouse review of the live app (Nov 23, 2026)
+
+Cas ran Lighthouse (mobile, signed in, home page) on audition.go4cas.com at v0.5.1: Performance 76, Accessibility 95, Best practices 73, SEO 91.
+
+- **L1. LCP 4.6 s, 2.7 s of it render delay.** The first-load files arrived one after another (page, main.js, shared chunk, page chunk, then data). The build now lists main.js's static chunk imports as `modulepreload` in `index.html` and preloads the heading font (Bricolage Grotesque) with the body font.
+- **L2. CLS 0.12, all from the versions footer.** It sat near the top of the empty page and was pushed down when the content arrived. `#main` now keeps at least one screen of height while the chrome is shown.
+- **L3. Colour contrast.** Avatar monograms on some hues were 3.8 to 4.3:1 in light mode and down to 2.7:1 in dark mode. The text is now half hue, half text colour: at least 4.9:1 on every hue in both themes (checked for hues 0 to 357 in steps of 3).
+- **L4. Missing meta description.** Added.
+- **L5. Cache lifetimes.** Hashed chunks and `?v=` files are now served for a year (`immutable`); the fonts get `?v=` too. The report showed 4 hours for everything: Cloudflare's Browser Cache TTL overrides our headers until it is set to "Respect existing headers" (RELEASE.md "Speed and Cloudflare settings").
+- **L6. Not app-side.** Both console errors are Cloudflare Web Analytics' injected script, blocked by our CSP (turn its automatic setup off for the host). The six third-party cookies are OneSignal's SDK (push alerts). 500 KB of "unused JavaScript" was the Adobe Acrobat extension in the test browser. About 12 KB of unused CSS belongs to other pages and is left as is. The home page also loads one leaderboard per role (about ten small requests in parallel); not a bottleneck here, left for later.

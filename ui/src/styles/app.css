@@ -227,7 +227,9 @@ td.col-state > .row-tight { justify-content: flex-end; }
 .avatar {
   --h: 330; width: 30px; height: 30px; border-radius: var(--r-sm); flex: none; display: inline-grid; place-items: center;
   font-family: var(--font-display); font-weight: 700; font-size: 0.8rem; letter-spacing: -0.02em;
-  color: color-mix(in oklch, hsl(var(--h) 70% 40%) 75%, var(--text));
+  /* Half hue, half text colour: at least 4.5:1 on the tinted tile for every hue,
+     light and dark (Lighthouse colour-contrast, Nov 2026). */
+  color: color-mix(in oklch, hsl(var(--h) 70% 40%) 50%, var(--text));
   background: color-mix(in oklch, hsl(var(--h) 75% 55%) 20%, var(--surface));
   box-shadow: inset 0 0 0 1px color-mix(in oklch, hsl(var(--h) 75% 55%) 30%, transparent);
 }

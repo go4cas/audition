@@ -238,6 +238,15 @@ It stops the service, moves the current data aside to `/var/lib/audition.failed-
 
 Guest voters (TECH-SPEC §10b) need no Cloudflare change. The guest page (`/api/custom/app/vote/…`), the guest sign-in (`/api/v1/auth/guests/anonymous`) and the guest routes (`/api/custom/guest/…`) go through like the rest of the app, and the host-scoped WAF rule only blocks `/_/`. Vaultbase's rate limiter (10 guest sign-ins and 240 guest calls a minute per visitor) sees each visitor's address because `audition.env` trusts the tunnel. Optional second layer: a Cloudflare rate-limiting rule on `/api/v1/auth/guests/anonymous` for your host (the free plan allows one). If Cloudflare's Bot Fight Mode or "Under Attack" mode is on, guests may get a challenge page first; that is fine.
 
+### Speed and Cloudflare settings
+
+A Lighthouse check of the live server (Nov 23, 2026) found two Cloudflare settings that undo what the app does. Both are dashboard changes for the go4cas.com zone; nothing on the server changes.
+
+1. **Caching, Configuration, Browser Cache TTL: "Respect existing headers".** Audition sends its own cache lifetimes (`routes/app.ts`, `lib/static.ts` `cacheControl`): `index.html` is never cached, the hashed chunks and every `?v=<hash>` file (main.js, the stylesheets, the fonts) are kept for a year, the rest five minutes. Cloudflare's default replaces all of them with 4 hours, so a returning visitor downloads the app again every few hours. This is safe because the file names change with every build, so an upgrade still reaches browsers at once.
+2. **Analytics & Logs, Web Analytics: turn off automatic setup for `audition.go4cas.com`** (or exclude that host). Cloudflare injects its analytics script into the page; the app's Content-Security-Policy (no inline or outside scripts) blocks it, which shows as two console errors and lowers Lighthouse's Best practices score. Audition has no use for it. The landing page on GitHub Pages is not affected.
+
+Run Lighthouse in an Incognito window: browser extensions (Adobe Acrobat's, for one) add their own scripts to the page and to the "unused JavaScript" figure. The six third-party cookies it reports come from the OneSignal SDK, which push alerts need (PUSH-ALERTS.md).
+
 ## Making a release
 
 1. Tag the release on `main` and publish it on GitHub (Releases, Draft a new release).

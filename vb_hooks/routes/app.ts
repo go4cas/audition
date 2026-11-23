@@ -2,7 +2,7 @@
 // An unknown path serves index.html, because the UI is a single-page app
 // with real path routes (quiver, docs/PLATFORM-UPGRADES.md part C).
 import { defineRoute } from "vaultbase";
-import { resolveAsset, securityHeaders } from "../lib/static.ts";
+import { cacheControl, resolveAsset, securityHeaders } from "../lib/static.ts";
 import { ONESIGNAL_WORKER, ONESIGNAL_WORKER_JS, pushConfig, withOneSignal } from "../lib/push.ts";
 
 // The app's CSP: the strict policy from lib/static.ts, plus inline *style
@@ -42,7 +42,7 @@ export default defineRoute({
       status: 200,
       headers: {
         "content-type": asset.mime,
-        "cache-control": asset.isIndex ? "no-cache" : "public, max-age=300",
+        "cache-control": cacheControl(ctx.path, asset.isIndex, ctx.query),
         ...headers(oneSignal),
       },
     });

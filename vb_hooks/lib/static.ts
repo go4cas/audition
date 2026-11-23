@@ -30,6 +30,18 @@ export function securityHeaders(): Record<string, string> {
   };
 }
 
+/**
+ * Cache lifetime for a served UI file. index.html is never cached (it names
+ * the current build). Files whose URL changes with every build, the hashed
+ * chunks and anything loaded as `?v=<content hash>` (scripts/build-ui.ts), are
+ * kept for a year. Everything else (icons, the manifest) gets five minutes.
+ */
+export function cacheControl(routePath: string, isIndex: boolean, query: Record<string, string> = {}): string {
+  if (isIndex) return "no-cache";
+  if (/^\/app\/chunks\/[\w-]+\.js(\.map)?$/.test(routePath) || /^[0-9a-f]{6,64}$/.test(query["v"] ?? "")) return "public, max-age=31536000, immutable";
+  return "public, max-age=300";
+}
+
 export interface FsLike { exists(p: string): Promise<boolean>; isFile(p: string): Promise<boolean> }
 
 /**
