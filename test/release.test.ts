@@ -66,7 +66,7 @@ test("provision applies settings and the backup schedule, creates the owner and 
   expect(await ownerLogin(inst.url, OWNER.email, OWNER.password)).toBeTruthy();
   const tpl = await call(inst.url, "GET", "/api/v1/handoff_templates", { token });
   expect(tpl.body.data.some((t: { kind: string }) => t.kind === "generic")).toBe(true);
-  const ui = await fetch(`${inst.url}/api/custom/app/`);
+  const ui = await fetch(`${inst.url}/`);
   expect(ui.status).toBe(200);
 }, 60_000);
 

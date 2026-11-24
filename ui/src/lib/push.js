@@ -42,7 +42,7 @@ function oneSignal(appId) {
           try {
             await OneSignal.init({
               appId,
-              serviceWorkerPath: BASE.slice(1) + "OneSignalSDKWorker.js",
+              serviceWorkerPath: "OneSignalSDKWorker.js",
               serviceWorkerParam: { scope: BASE },
               allowLocalhostAsSecureOrigin: location.hostname === "localhost",
             });
@@ -74,12 +74,27 @@ const stateOf = (OneSignal) =>
   Notification.permission === "denied" ? "blocked"
   : OneSignal?.User?.PushSubscription?.optedIn && Notification.permission === "granted" ? "on" : "off";
 
+/**
+ * Before the app moved to the site root, it and OneSignal's worker lived under
+ * /api/custom/app/. That old worker would keep its own push subscription next
+ * to the new one at "/" and show every alert twice, so it is removed.
+ */
+const OLD_SCOPE = "/api/custom/app/";
+async function retireOldWorker() {
+  try {
+    for (const r of await navigator.serviceWorker.getRegistrations()) {
+      if (new URL(r.scope).pathname === OLD_SCOPE) await r.unregister();
+    }
+  } catch { /* best effort */ }
+}
+
 let config = null;
 /** Read whether OneSignal is on; on a device that turned alerts on before, start the SDK. */
 export async function checkPush() {
   try { config = await custom.push(); } catch { config = null; }
   if (!config || config.provider !== "onesignal" || !config.app_id) { push.state = "off-server"; return; }
   if (!supported()) { push.state = "unsupported"; return; }
+  await retireOldWorker();
   if (Notification.permission === "denied") { push.state = "blocked"; return; }
   if (!flag()) { push.state = "off"; return; }
   try {

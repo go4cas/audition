@@ -45,7 +45,7 @@ export async function appLink(sql: Sql, page: string): Promise<string> {
     const row = await sql.queryOne<{ value: string }>(`SELECT value FROM vaultbase_settings WHERE key = 'app.url'`);
     base = String(row?.value ?? "").replace(/\/+$/, "");
   } catch { /* no settings table access: the bare page will do */ }
-  return `${base}/api/custom/app${page}`;
+  return `${base}${page}`;
 }
 
 /**

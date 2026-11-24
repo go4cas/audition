@@ -8,7 +8,7 @@ How to run Audition on your own machine, and the Phase 1 check with a real Anthr
 | --- | --- |
 | Start | `bun run dev`. It is safe to run again: the seed only adds what is missing, and data from an older version is migrated first (it prints "Migrated: ..." when it renames something, such as stages to groups). |
 | Stop | `bun run stop` |
-| Open the app | The address `bun run dev` prints, normally <http://127.0.0.1:8091/api/custom/app/> |
+| Open the app | The address `bun run dev` prints, normally <http://127.0.0.1:8091/> |
 | Sign-ins | `.vaultbase/credentials.json` (owner, and the Vaultbase admin for `/_/`) |
 | Server log | `.vaultbase/vaultbase.log` |
 | Data | `.vaultbase/data`. Copy it while the server is stopped to keep a backup. |

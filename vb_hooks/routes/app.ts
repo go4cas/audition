@@ -1,50 +1,20 @@
-// GET /api/custom/app/* serves the built UI from ui/dist (TECH-SPEC Q2).
-// An unknown path serves index.html, because the UI is a single-page app
-// with real path routes (quiver, docs/PLATFORM-UPGRADES.md part C).
+// GET /api/custom/app/* redirects old links to the app at the site root.
+// The app used to live here; since Vaultbase 0.48 it is the public folder
+// (ui/dist served at /, TECH-SPEC Q2). Emails, push alerts, guest links and
+// home-screen icons from before the move keep working. The redirect is a 302,
+// not a 301, so a browser doesn't remember it if an older release is restored.
+// The URL's #hash isn't sent to the server; the browser keeps it across the
+// redirect, so a pre-quiver `/api/custom/app/#/runs/1` link still lands on
+// `/#/runs/1`, which the app turns into `/runs/1` (ui/src/lib/nav.js).
 import { defineRoute } from "vaultbase";
-import { cacheControl, resolveAsset, securityHeaders } from "../lib/static.ts";
-import { ONESIGNAL_WORKER, ONESIGNAL_WORKER_JS, pushConfig, withOneSignal } from "../lib/push.ts";
-
-// The app's CSP: the strict policy from lib/static.ts, plus inline *style
-// attributes* only (style-src-attr). The Design markup sets per-element custom
-// properties such as an avatar's hue (--h) or a bar's width. Inline <style>
-// elements and all inline scripts stay blocked.
-const APP_CSP = securityHeaders()["content-security-policy"]!.replace("style-src 'self';", "style-src 'self'; style-src-attr 'unsafe-inline';");
-// With OneSignal turned on (docs/PUSH-ALERTS.md), its SDK origins are added.
-const headers = (oneSignal = false) => ({ ...securityHeaders(), "content-security-policy": oneSignal ? withOneSignal(APP_CSP) : APP_CSP });
+import { rootTarget } from "../lib/static.ts";
 
 export default defineRoute({
   name: "app",
   method: "GET",
   path: "/app/*",
   requireAuth: false,
-  async handle(ctx) {
-    const { helpers } = ctx;
-    const oneSignal = (await pushConfig(helpers.sql)).provider === "onesignal";
-    // OneSignal's service worker must come from our origin, inside the app's scope.
-    if (ctx.path === `/app/${ONESIGNAL_WORKER}`) {
-      if (!oneSignal) return new Response("Not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", ...headers() } });
-      return new Response(ONESIGNAL_WORKER_JS, { status: 200, headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache", ...headers(true) } });
-    }
-    const dist = helpers.os.env("AUDITION_UI_DIST")
-      || helpers.path.join(helpers.os.env("VAULTBASE_HOOKS_DIR") || "vb_hooks", "..", "ui", "dist");
-    const asset = await resolveAsset(dist, ctx.path, {
-      exists: (p) => helpers.fs.exists(p),
-      isFile: async (p) => (await helpers.fs.stat(p)).isFile,
-    });
-    if (!asset) {
-      return new Response("The UI has not been built. Run `bun run build:ui`.", {
-        status: 404, headers: { "content-type": "text/plain; charset=utf-8", ...headers() },
-      });
-    }
-    const bytes = await helpers.fs.readBytes(asset.path);
-    return new Response(bytes, {
-      status: 200,
-      headers: {
-        "content-type": asset.mime,
-        "cache-control": cacheControl(ctx.path, asset.isIndex, ctx.query),
-        ...headers(oneSignal),
-      },
-    });
+  handle(ctx) {
+    return new Response(null, { status: 302, headers: { location: rootTarget(ctx.path, ctx.query), "cache-control": "no-store" } });
   },
 });

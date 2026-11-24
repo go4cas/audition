@@ -2,7 +2,8 @@
 // itself: helpers.notify hands each alert to the OneSignal provider turned on
 // in the admin (Settings, Notifications). This file only tells the app
 // whether OneSignal is on and its public App ID, so the app can offer "Turn on
-// alerts on this device", and widens the app's CSP for OneSignal's SDK then.
+// alerts on this device", and names the origins the app's CSP lets OneSignal's
+// SDK use (lib/static.ts APP_CSP).
 // No "vaultbase" import (F7).
 import type { Sql } from "./store.ts";
 
@@ -11,7 +12,12 @@ export interface PushConfig { provider: "onesignal" | null; app_id: string | nul
 /** OneSignal's web SDK, loaded only once OneSignal is turned on. */
 export const ONESIGNAL_SDK = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
 export const ONESIGNAL_WORKER = "OneSignalSDKWorker.js";
-/** The service worker file OneSignal needs on our own origin, inside the app's scope. */
+/**
+ * The service worker file OneSignal needs on our own origin, inside the app's
+ * scope. scripts/build-ui.ts writes it to ui/dist, so it is served at
+ * /OneSignalSDKWorker.js next to the app. It only runs once the app registers
+ * it, which happens when the owner turns alerts on.
+ */
 export const ONESIGNAL_WORKER_JS = `importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");\n`;
 
 const truthy = (v: unknown) => v === "1" || v === "true" || v === true;
@@ -32,8 +38,7 @@ export async function pushConfig(sql: Sql): Promise<PushConfig> {
  * The app's CSP with OneSignal's origins added: its SDK and service worker
  * load from cdn.onesignal.com and talk to onesignal.com. The SDK reads the
  * app's config by JSONP (a <script> from api.onesignal.com/sync/<app id>/web),
- * so OneSignal's API hosts are script sources too; without them init times out. Only used while
- * OneSignal is on; otherwise the app keeps the strict 'self' policy.
+ * so OneSignal's API hosts are script sources too; without them init times out.
  */
 export function withOneSignal(csp: string): string {
   const add = (dir: string, extra: string) => csp = csp.replace(new RegExp(`(^|; )${dir} ([^;]*)`), (_m, pre, v) => `${pre}${dir} ${v} ${extra}`);

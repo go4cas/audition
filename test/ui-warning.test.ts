@@ -29,7 +29,7 @@ beforeAll(async () => {
   browser = await chromium.launch();
   p = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
   p.setDefaultTimeout(30_000);
-  await p.goto(`${h.url}/api/custom/app/signin`);
+  await p.goto(`${h.url}/signin`);
   await p.fill("input[type=email]", OWNER.email);
   await p.fill("input[type=password]", OWNER.password);
   await p.locator("button[type=submit]").click();
@@ -43,7 +43,7 @@ afterAll(async () => {
 
 async function openStartRun(contender: string) {
   // A full load, so nothing chosen on an earlier visit carries over.
-  await p.goto(`${h.url}/api/custom/app/runs/new?role=${role.id}`);
+  await p.goto(`${h.url}/runs/new?role=${role.id}`);
   await p.reload();
   await p.waitForSelector("#main section:not(.is-loading)", { state: "attached" });
   await p.locator("label.check", { hasText: contender }).click();
@@ -67,21 +67,23 @@ test("a mock contender with the same judge shows no warning", async () => {
 });
 
 test("an old #/ link opens the same page at its path URL", async () => {
-  // Bookmarks from before quiver (PLATFORM-UPGRADES part C) keep working.
+  // Bookmarks from before quiver (PLATFORM-UPGRADES part C) keep working, also
+  // from before the app moved to the site root: the server redirects
+  // /api/custom/app/ to / and the browser keeps the #/ route.
   await p.goto(`${h.url}/api/custom/app/#/runs/new?role=${role.id}`);
-  await p.waitForURL((u) => u.pathname === "/api/custom/app/runs/new" && u.search === `?role=${role.id}` && !u.hash);
+  await p.waitForURL((u) => u.pathname === "/runs/new" && u.search === `?role=${role.id}` && !u.hash);
   await p.locator("label.check", { hasText: "Mock Steady" }).waitFor();
 });
 
 test("signed out, a deep link goes to sign-in and back after it", async () => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const q = await ctx.newPage();
-  await q.goto(`${h.url}/api/custom/app/r/${role.id}`);
-  await q.waitForURL((u) => u.pathname === "/api/custom/app/signin" && u.searchParams.get("next") === `/r/${role.id}`);
+  await q.goto(`${h.url}/r/${role.id}`);
+  await q.waitForURL((u) => u.pathname === "/signin" && u.searchParams.get("next") === `/r/${role.id}`);
   await q.fill("#si-email", OWNER.email);
   await q.fill("#si-pass", OWNER.password);
   await q.getByRole("button", { name: /Sign in/ }).click();
-  await q.waitForURL((u) => u.pathname === `/api/custom/app/r/${role.id}`);
+  await q.waitForURL((u) => u.pathname === `/r/${role.id}`);
   await q.waitForFunction(() => document.title === "Role · Audition"); // quiver sets it from the route's meta.title
   await ctx.close();
 });

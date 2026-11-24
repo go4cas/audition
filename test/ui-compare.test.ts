@@ -16,7 +16,7 @@ import { seedReference } from "../seed/reference.ts";
 const SCREENS = process.env["UI_SCREENS"];
 const THEMES: ("light" | "dark" | null)[] = process.env["UI_THEMES"] === "both" ? ["light", "dark"] : [null];
 const T = 30_000;
-const APP = "/api/custom/app";
+const APP = "";
 let h: Harness, browser: Browser, p: Page;
 const errors: string[] = [];
 
@@ -91,7 +91,7 @@ async function startRun(role: string, contenders: string[], o: { judge?: "Me" | 
   await p.waitForFunction((n) => document.querySelector("[data-testid=call-count]")?.textContent?.trim() === n, String(o.calls));
   if (o.screen) await shot(o.screen);
   await p.click("#start-run");
-  await p.waitForURL(/\/app\/runs\/[\w-]+$/);
+  await p.waitForURL(/:\d+\/runs\/[\w-]+$/);
   await settle();
   return p.url().split("/runs/")[1]!;
 }

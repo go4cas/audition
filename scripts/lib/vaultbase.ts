@@ -106,7 +106,11 @@ export function vbEnv(dataDir: string, hooksDir: string, port?: number, extra: R
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !/^(ANTHROPIC|OPENAI)_/.test(k)) env[k] = v;
   env["VAULTBASE_DATA_DIR"] = dataDir;
   env["VAULTBASE_HOOKS_DIR"] = hooksDir;
-  env["AUDITION_UI_DIST"] = env["AUDITION_UI_DIST"] ?? UI_DIST;
+  // The built UI is Vaultbase's public folder, served at the site root with the
+  // single-page fallback (TECH-SPEC Q2). Vaultbase refuses to start when
+  // VAULTBASE_PUBLIC_DIR names a missing folder, so it is set only once built.
+  const ui = env["VAULTBASE_PUBLIC_DIR"] ?? UI_DIST;
+  if (existsSync(ui)) { env["VAULTBASE_PUBLIC_DIR"] = ui; env["VAULTBASE_PUBLIC_SPA"] = "1"; }
   if (port !== undefined) env["VAULTBASE_PORT"] = String(port);
   return { ...env, ...extra };
 }

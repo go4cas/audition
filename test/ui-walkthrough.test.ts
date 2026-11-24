@@ -48,7 +48,7 @@ afterAll(async () => {
 });
 
 // Real path URLs under the app's base (quiver, PLATFORM-UPGRADES part C).
-const APP = "/api/custom/app";
+const APP = "";
 const app = (path = "/") => `${h.url}${APP}${path}`;
 const go = async (path: string) => { await p.goto(app(path)); await settle(); };
 /** Wait for the page's loader to finish and check the wording on screen. */
@@ -103,7 +103,7 @@ async function startRun(role: string, contenders: string[], judge: "Me" | RegExp
   await p.waitForFunction((n) => document.querySelector("[data-testid=call-count]")?.textContent?.trim() === n, String(calls));
   await shot(`start-run-${role.toLowerCase().replace(/\W+/g, "-")}`);
   await p.click("#start-run");
-  await p.waitForURL(/\/app\/runs\/[\w-]+$/);
+  await p.waitForURL(/:\d+\/runs\/[\w-]+$/);
   await settle();
   return p.url().split("/runs/")[1]!;
 }
@@ -136,7 +136,7 @@ async function paste(runId: string, taskId: string, reply: string, attach?: stri
 
 test("sign in", async () => {
   await p.goto(app("/"));
-  await p.waitForURL(/\/app\/signin/);
+  await p.waitForURL(/:\d+\/signin/);
   await p.fill("#si-email", OWNER.email);
   await p.fill("#si-pass", "wrong password");
   await p.getByRole("button", { name: /Sign in/ }).click();
@@ -183,7 +183,7 @@ test("Software Factory: edit the workspace, a group, a role's rubric and a task"
   await shot("workspace-settings");
   await p.click("button[type=submit]");
   await toastSays("Settings saved");
-  await p.waitForURL(new RegExp(`/app/w/${ws.id}$`));
+  await p.waitForURL(new RegExp(`:\\d+/w/${ws.id}$`));
   expect((await one("workspaces", `id = "${ws.id}"`)).description).toBe("Agents that research, spec and build small web features.");
   expect((await one("groups", `workspace = "${ws.id}" && name = "Specification"`))).toBeTruthy();
 
@@ -305,7 +305,7 @@ test("Stock Review: add a connection with a key and a contender; paste an output
   await shot("contender-new");
   await p.getByRole("button", { name: "Add contender" }).click();
   await toastSays(/added/i);
-  await p.waitForURL(/\/app\/contenders$/);
+  await p.waitForURL(/:\d+\/contenders$/);
   await settle();
   const c = await one("contenders", `name = "Claude on a test key"`);
   expect(c.mode).toBe("api");

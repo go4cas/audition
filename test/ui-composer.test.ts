@@ -17,7 +17,7 @@ import { seedReference } from "../seed/reference.ts";
 const SCREENS = process.env["UI_SCREENS"];
 const THEMES: ("light" | "dark" | null)[] = process.env["UI_THEMES"] === "both" ? ["light", "dark"] : [null];
 const T = 30_000;
-const APP = "/api/custom/app";
+const APP = "";
 let h: Harness, browser: Browser, p: Page;
 const errors: string[] = [];
 
@@ -138,7 +138,7 @@ test("Start a run marks the composed task, and every contender gets that text", 
   for (const c of ["Mock Steady", "Mock Erratic"]) await p.locator("label.check").filter({ has: p.locator("strong", { hasText: new RegExp(`^${c}$`) }) }).click();
   await shot("composer-start-run");
   await p.click("#start-run");
-  await p.waitForURL(/\/app\/runs\/[\w-]+$/);
+  await p.waitForURL(/:\d+\/runs\/[\w-]+$/);
   const run = p.url().split("/runs/")[1]!;
   const attempts = await list("attempts", `run = "${run}" && task = "${taskId}"`);
   expect(attempts.length).toBe(2);

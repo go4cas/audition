@@ -51,5 +51,5 @@ if (created) {
   console.log(`  Owner: ${creds.owner.email} / ${creds.owner.password}`);
   console.log(`  Admin (Vaultbase admin UI at ${inst.url}/_/): ${creds.admin.email} / ${creds.admin.password}`);
 }
-console.log(`\nAudition: ${inst.url}/api/custom/app/`);
+console.log(`\nAudition: ${inst.url}/`);
 process.exit(0);

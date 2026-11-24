@@ -4,3 +4,9 @@
 import { ensureBinary } from "../scripts/lib/vaultbase.ts";
 
 await ensureBinary({ log: (s) => console.log(s) });
+
+// The app is Vaultbase's public folder (ui/dist, TECH-SPEC Q2): build it once
+// here, so every instance a test boots serves it at the site root. Vaultbase
+// only gets VAULTBASE_PUBLIC_DIR when the folder exists (scripts/lib/vaultbase.ts).
+const ui = Bun.spawnSync(["bun", new URL("../scripts/build-ui.ts", import.meta.url).pathname], { stdout: "ignore", stderr: "pipe" });
+if (ui.exitCode !== 0) throw new Error(`building the UI failed:\n${ui.stderr.toString()}`);

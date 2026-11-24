@@ -23,9 +23,18 @@ __DOMAIN__ {
 		not path /_/ready
 	}
 
+	# The app is Vaultbase's public folder, at the site root (TECH-SPEC Q2).
+	# Its CSP travels in index.html; the headers a <meta> tag can't set are
+	# added here, only where Vaultbase didn't send its own
+	# (vb_hooks/lib/static.ts EDGE_HEADERS).
+	@app not path /api/* /_/* /auth/* /realtime
+	header @app {
+		?Content-Security-Policy "frame-ancestors 'none'"
+		?X-Frame-Options DENY
+		?Referrer-Policy same-origin
+	}
+
 	route {
-		# The app lives at /api/custom/app/ (TECH-SPEC Q2).
-		redir / /api/custom/app/ 302
 		respond @admin 404
 		reverse_proxy @cloudflare 127.0.0.1:__PORT__ {
 			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}

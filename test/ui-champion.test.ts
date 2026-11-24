@@ -15,7 +15,7 @@ import { ROOT } from "../scripts/lib/vaultbase.ts";
 const SCREENS = process.env["UI_SCREENS"];
 const THEMES: ("light" | "dark" | null)[] = process.env["UI_THEMES"] === "both" ? ["light", "dark"] : [null];
 const T = 30_000;
-const APP = "/api/custom/app";
+const APP = "";
 let h: Harness, browser: Browser, p: Page;
 const errors: string[] = [];
 const S: Record<string, any> = {};

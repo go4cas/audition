@@ -17,7 +17,7 @@ import { testImage } from "../vb_hooks/lib/png.ts";
 const SCREENS = process.env["UI_SCREENS"];
 const THEMES: ("light" | "dark" | null)[] = process.env["UI_THEMES"] === "both" ? ["light", "dark"] : [null];
 const T = 30_000;
-const APP = "/api/custom/app";
+const APP = "";
 let h: Harness, browser: Browser, p: Page;
 const errors: string[] = [];
 
@@ -102,7 +102,7 @@ test("add an image contender, see the warning, judge its pictures", async () => 
   await shot("images-contender-form");
   await p.getByRole("button", { name: "Add contender" }).click();
   await toastSays(/added/i);
-  await p.waitForURL(/\/app\/contenders$/);
+  await p.waitForURL(/:\d+\/contenders$/);
   await settle();
   const painter = await one("contenders", `name = "gpt-image, high"`);
   expect(painter.connection).toBe(conn.id);
