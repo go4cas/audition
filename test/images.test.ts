@@ -230,6 +230,34 @@ describe("on a fresh Vaultbase", () => {
     expect(thumb.status).toBe(200);
   });
 
+  // The worker's claim (lib/runs.ts) is helpers.records.update with
+  // { filter: status = "queued" } (Vaultbase 0.48, discussion #13): two
+  // workers racing for one attempt, one runs it, and record history shows
+  // the in_progress step as a system write.
+  test("two workers racing for one queued attempt: one runs it, the other skips", async () => {
+    const run = await h.store("insert", "runs", { workspace: f.workspace.id, role: f.role.id, tasks: [f.task.id], contenders: [painter.id], judge: "me", method: "rate", status: "running", call_count: 1 });
+    const attempt = await h.store("insert", "attempts", { run, task: f.task.id, contender: painter.id, mode: "api", status: "queued", prompt_sent: "TASK: Design a coffee bag label" });
+    // The claim must move updated_at, or the sweep (lib/arena.ts) would time
+    // out an attempt that sat queued a while as soon as it is claimed.
+    await Bun.sleep(1100);
+    const [r1, r2] = await Promise.all([0, 1].map(() => h.api("admin", "POST", "/api/custom/test/generate", { attempt, images: [PNG_B64] })));
+    const results = [r1!.body.data.result, r2!.body.data.result].sort((a, b) => a.status.localeCompare(b.status));
+    expect(results).toEqual([{ status: "skipped", calls: 0 }, { status: "submitted", calls: 1 }]);
+    // Only the winner called the provider.
+    expect(r1!.body.data.seen.length + r2!.body.data.seen.length).toBe(1);
+    // A late third worker skips too: the attempt is no longer queued.
+    expect((await h.api("admin", "POST", "/api/custom/test/generate", { attempt, images: [PNG_B64] })).body.data.result).toEqual({ status: "skipped", calls: 0 });
+
+    const hist = await h.api("admin", "GET", `/api/v1/attempts/${attempt}/history`);
+    expect(hist.status).toBe(200);
+    const steps = hist.body.data.data as Array<Record<string, any>>;
+    // Newest first: created queued, the claim, the image attached, submitted. One claim only.
+    expect(steps.map((e) => e.snapshot?.status)).toEqual(["submitted", "in_progress", "in_progress", "queued"]);
+    expect(steps[2]!.snapshot.output_files ?? []).toEqual([]);
+    expect(steps[2]!.snapshot.updated).toBeGreaterThan(steps[3]!.snapshot.updated);
+    for (const e of steps) expect(e.actor_type).toBeNull();
+  });
+
   test("an image maker can't be the AI judge of a run", async () => {
     await h.api("owner", "PATCH", `/api/v1/workspaces/${f.workspace.id}`, { judge_contender: painter.id });
     const r = await h.api("owner", "POST", "/api/custom/runs/preview", { role: f.role.id, tasks: [f.task.id], contenders: [f.contender.id], judge: "ai" });

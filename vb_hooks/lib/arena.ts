@@ -4,7 +4,7 @@
 // "vaultbase" import (F7).
 import { roleBoard, type BoardDeps } from "./fitness.ts";
 import { refreshRunStatus, rerunPlan, RunError, startRun, type Deps, type PromptForTask } from "./runs.ts";
-import { updateRecord, type Sql } from "./store.ts";
+import { claimRecord, updateRecord, type Sql } from "./store.ts";
 
 type Rec = Record<string, any>;
 
@@ -114,19 +114,24 @@ export const TIMED_OUT = "Timed out: Audition got no answer for this output, so 
  * records API, so record history shows each one as system.
  */
 export async function sweepStale(deps: Deps, nowS = Math.floor(Date.now() / 1000)): Promise<{ failed: string[] }> {
-  const rows = await deps.sql.query<{ id: string; run: string }>(
-    `SELECT id, run FROM vb_attempts
+  const rows = await deps.sql.query<{ id: string; run: string; status: string }>(
+    `SELECT id, run, status FROM vb_attempts
       WHERE mode = 'api'
         AND ((status = 'in_progress' AND updated_at < ?) OR (status = 'queued' AND created_at < ?))
       ORDER BY rowid`,
     [nowS - STALE_IN_PROGRESS_S, nowS - STALE_QUEUED_S]);
   const runs = new Set<string>();
+  const failed: string[] = [];
   for (const r of rows) {
-    await updateRecord(deps, "attempts", r.id, { status: "failed", error: TIMED_OUT });
+    // Only if it hasn't moved since the read: a worker that claims or
+    // finishes it in between keeps its result (helpers.records { filter }).
+    const rec = await claimRecord(deps, "attempts", r.id, `status = ${JSON.stringify(r.status)}`, { status: "failed", error: TIMED_OUT });
+    if (!rec) continue;
+    failed.push(r.id);
     runs.add(r.run);
   }
   for (const run of runs) await refreshRunStatus(deps, run);
-  return { failed: rows.map((r) => r.id) };
+  return { failed };
 }
 
 // ── Repeating a run on a schedule ────────────────────────────────────────────

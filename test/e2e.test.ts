@@ -152,6 +152,8 @@ async function checkHistory(runId: string, attempts: Rec[]) {
     expect(statuses.has("judged"), `${a.mode} attempt: ${[...statuses].join(",")}`).toBe(true);
     if (a.mode === "api") {
       expect(statuses.has("submitted")).toBe(true);
+      // The worker's claim goes through the records API too (Vaultbase 0.48 { filter }).
+      expect(statuses.has("in_progress"), [...statuses].join(",")).toBe(true);
       for (const e of steps) expect(e.actor_type).toBeNull();
     } else {
       // The owner's own submit is the one write made as the owner.
