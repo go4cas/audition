@@ -114,6 +114,20 @@ Check:
 - [ ] Each output gets a verdict, and the judge's reasons for "Matches the brief" and "Visual quality" describe the picture (a coffee bag, warm tones). A reason that says it can't see an image means the image blocks didn't arrive: note it as a finding.
 - [ ] The judge call's tokens in are well above a text-only judge call, because images are counted as input.
 
+### 5b. Optional: a real Replicate picture
+
+This checks the Replicate adapter (SPEC "Replicate", TECH-SPEC §12b) with a real key. Flux Schnell costs about $0.003 a picture (check the model's page on replicate.com).
+
+1. **Contenders → Add connection**: Name `Replicate`, Provider **Replicate**, base URL empty (it defaults to `https://api.replicate.com/v1`), paste your Replicate API token.
+2. **Add contender** on that connection: Name `Flux Schnell`, Model `black-forest-labs/flux-schnell`, Aspect ratio Square, File type WebP, Price per image `0.003`.
+3. **Start a run** on the Image maker role with the image task, contenders `Flux Schnell` (and `Mock Image` if you like), judged by you or the AI judge.
+
+Check:
+
+- [ ] The Flux Schnell output ends submitted within a minute and shows one WebP picture with a thumbnail.
+- [ ] Its cost is 0.003, tokens are empty, and time is filled in.
+- [ ] With the AI judge, its reasons describe the picture.
+
 ### 6. Afterwards
 
 - Remove the key if you like: on the connection, remove the key. The connection then says "No key yet", and its contenders fail with a clear error until a key is added again.

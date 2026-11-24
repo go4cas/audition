@@ -7,7 +7,7 @@ import { defineWorker } from "vaultbase";
 import { judgeAttempt, judgePair, type JudgeDeps } from "../lib/judge.ts";
 import { callProvider, type ApiProvider } from "../lib/providers/index.ts";
 
-const CALLED: string[] = ["anthropic", "openai-compatible", "mock"];
+const CALLED: string[] = ["anthropic", "openai-compatible", "replicate", "mock"];
 
 export default defineWorker({
   name: "judge",

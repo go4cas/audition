@@ -2,7 +2,7 @@
 // generate worker's logic (TECH-SPEC §7, §8). Routes and the worker are thin
 // wrappers around these functions. No "vaultbase" import (F7).
 import { join } from "node:path";
-import { deriveCost } from "./cost.ts";
+import { deriveCost, imageCost } from "./cost.ts";
 import { attachFile, type Files } from "./files.ts";
 import { callProvider, ProviderError, type ApiProvider, type FileOut, type HttpLike } from "./providers/index.ts";
 import { mockSeed } from "./providers/mock.ts";
@@ -28,6 +28,8 @@ export interface WorkerDeps extends Deps {
   dataDir: string;
   log(...args: unknown[]): void;
   now?: () => number;
+  /** helpers.util.sleep: Replicate's wait between status checks (§12b). */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 /** A prompt renderer: lib/handoff.ts's promptForTask (T2), bound to helpers. */
@@ -193,7 +195,7 @@ export function imageMismatchWarnings(plan: Pick<Plan, "tasks" | "contenders">):
   return out;
 }
 
-const PROVIDER_LABEL: Record<string, string> = { anthropic: "Anthropic", "openai-compatible": "OpenAI", mock: "Mock" };
+const PROVIDER_LABEL: Record<string, string> = { anthropic: "Anthropic", "openai-compatible": "OpenAI", replicate: "Replicate", mock: "Mock" };
 
 /**
  * The AI judge shares a provider with an API contender when their
@@ -344,7 +346,7 @@ export async function callable(deps: Deps, contenderId: string): Promise<Callabl
   const c = await contenderWithConnection(deps, contenderId);
   if (!c) throw new ProviderError("The contender or its connection no longer exists.", false);
   const provider = String(c.connection["provider"]);
-  if (provider !== "anthropic" && provider !== "openai-compatible" && provider !== "mock") {
+  if (provider !== "anthropic" && provider !== "openai-compatible" && provider !== "replicate" && provider !== "mock") {
     throw new ProviderError(`A ${provider} contender is not called by Audition.`, false);
   }
   let apiKey: string | undefined;
@@ -401,6 +403,7 @@ export async function runGenerate(deps: WorkerDeps, attemptId: string): Promise<
         ...(target.connection["base_url"] ? { baseUrl: String(target.connection["base_url"]) } : {}),
         seed: mockSeed(String(attempt["task"]), String(attempt["contender"]), await earlierAttempts(deps.sql, attempt)),
         http: deps.http,
+        ...(deps.sleep ? { sleep: deps.sleep } : {}),
       }, now);
       calls = out.calls;
       const r = out.result;
@@ -418,7 +421,8 @@ export async function runGenerate(deps: WorkerDeps, attemptId: string): Promise<
         tokens_out: r.tokensOut,
         duration_ms: Math.round(out.durationMs),
         provider_calls: calls,
-        cost: deriveCost(r.tokensIn, r.tokensOut, num(target.contender["price_in_per_mtok"]), num(target.contender["price_out_per_mtok"])),
+        cost: imageCost(r.files.length, (config["image"] as Rec | undefined)?.["price_per_image"])
+          ?? deriveCost(r.tokensIn, r.tokensOut, num(target.contender["price_in_per_mtok"]), num(target.contender["price_out_per_mtok"])),
         finish_reason: r.finishReason,
         metrics_source: "measured",
         error: null,
@@ -471,6 +475,7 @@ export function workerDepsFrom(helpers: Rec): WorkerDeps {
     files: helpers.files,
     dataDir: helpers.os.env("VAULTBASE_DATA_DIR") || "./vaultbase_data",
     log: (...a) => helpers.log(...a),
+    sleep: (ms) => helpers.util.sleep(ms),
   };
 }
 

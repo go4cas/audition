@@ -3,6 +3,8 @@
 // effort for Anthropic, temperature for OpenAI-compatible (TECH-SPEC F8),
 // a behaviour for the mock. An OpenAI-compatible contender can make images
 // instead of text (TECH-SPEC §12a): then it gets size, quality and count.
+// A Replicate contender always makes images (§12b): aspect ratio, count,
+// file type, the model's picture input and any other inputs.
 import { html, reactive } from "@arrow-js/core";
 import { create, update } from "../api.js";
 import { APP, go } from "../lib/nav.js";
@@ -33,6 +35,10 @@ const QUALITIES = [
   { value: "medium", label: "Medium", desc: "Balanced" },
   { value: "high", label: "High", desc: "Finest detail, costs most" },
 ];
+const RATIOS = [
+  { value: null, label: "Model default", desc: "Usually square" },
+  ...[["1:1", "Square"], ["16:9", "Wide"], ["9:16", "Tall"], ["4:3", "Landscape"], ["3:4", "Portrait"], ["3:2", "Photo"], ["2:3", "Photo, tall"]].map(([value, label]) => ({ value, label, desc: value })),
+];
 const FORMATS = [{ value: null, label: "Model default", desc: "Usually PNG" }, ...["png", "jpeg", "webp"].map((v) => ({ value: v, label: v.toUpperCase(), desc: { png: "Lossless, can be transparent", jpeg: "Smaller files", webp: "Small, can be transparent" }[v] }))];
 
 export default function contenderForm({ params, query }) {
@@ -57,6 +63,9 @@ export default function contenderForm({ params, query }) {
         price_in: src?.price_in_per_mtok ?? "", price_out: src?.price_out_per_mtok ?? "",
         makes: cfg.image ? "image" : "text", img_size: cfg.image?.size || "auto", img_quality: cfg.image?.quality || null,
         img_n: cfg.image?.n ?? 1, img_format: cfg.image?.format || null, img_b64: cfg.image?.ask_b64 === true,
+        img_ratio: cfg.image?.aspect_ratio || null, img_input: cfg.image?.image_input || "",
+        img_extra: cfg.image?.input ? JSON.stringify(cfg.image.input, null, 2) : "",
+        img_price: cfg.image?.price_per_image ?? "",
       });
     },
     body: (s) => {
@@ -64,6 +73,7 @@ export default function contenderForm({ params, query }) {
       const apiConns = d.connections.filter((c) => c.provider !== "manual").map((c) => ({ value: c.id, label: c.name, icon: c.provider === "mock" ? "api" : "key", desc: PROVIDER_LABEL[c.provider] + (c.provider === "mock" ? " · built-in test provider" : c.has_key ? " · key saved" : " · no key yet") }));
       const provider = () => d.byId.connections.get(f.connection)?.provider;
       const images = () => provider() === "openai-compatible" && f.makes === "image";
+      const rep = () => provider() === "replicate";
       const save = (e) => busy(e, async () => {
         e.preventDefault();
         const api = f.mode === "api";
@@ -78,6 +88,17 @@ export default function contenderForm({ params, query }) {
             if (f.img_quality) config.image.quality = f.img_quality;
             if (f.img_format) config.image.format = f.img_format;
             if (f.img_b64) config.image.ask_b64 = true;
+          }
+          if (provider() === "replicate") {
+            config.image = {};
+            if (Number(f.img_n) > 1) config.image.n = Math.min(4, Number(f.img_n) || 1);
+            if (f.img_format) config.image.format = f.img_format;
+            if (f.img_ratio) config.image.aspect_ratio = f.img_ratio;
+            if (f.img_input.trim()) config.image.image_input = f.img_input.trim();
+            if (f.img_price !== "") config.image.price_per_image = Number(f.img_price);
+            if (f.img_extra.trim()) {
+              try { config.image.input = JSON.parse(f.img_extra); } catch { errorToast(new Error("Other inputs must be JSON, like {\"seed\": 7}.")); return; }
+            }
           }
           if (provider() === "mock") config.mock = { behaviour: f.behaviour };
         } else if (f.notes.trim()) config.notes = f.notes.trim();
@@ -116,7 +137,7 @@ export default function contenderForm({ params, query }) {
             </div>` : "")}
             <div class="fields-2">
               <div class="field"><label for="cn-conn">Connection</label>${dropdown({ id: "cn-conn", label: "Connection", options: () => apiConns, value: () => f.connection, onChange: (v) => { f.connection = v; } })}</div>
-              <div class="field"><label for="cn-model">Model</label><input class="input" id="cn-model" value="${() => f.model}" @input="${(e) => { f.model = e.target.value; }}" placeholder="${() => (provider() === "mock" ? "mock-steady" : "claude-opus-5-5")}"></div>
+              <div class="field"><label for="cn-model">Model</label><input class="input" id="cn-model" value="${() => f.model}" @input="${(e) => { f.model = e.target.value; }}" placeholder="${() => (provider() === "mock" ? "mock-steady" : rep() ? "black-forest-labs/flux-schnell" : "claude-opus-5-5")}">${() => (rep() ? html`<span class="hint">owner/name from replicate.com, or owner/name:version.</span>` : "")}</div>
               ${() => (provider() === "anthropic" ? html`<div class="field"><label for="cn-effort">Effort</label>${dropdown({ id: "cn-effort", label: "Effort", options: () => EFFORTS, value: () => f.effort, onChange: (v) => { f.effort = v; } })}</div>` : "")}
               ${() => (provider() === "openai-compatible" && !images() ? html`<div class="field"><label for="cn-temp">Temperature <button class="info-btn" type="button" popovertarget="${tempPop}" aria-label="What is temperature?">${icon("help")}</button></label><input class="input num" id="cn-temp" type="number" step="0.1" min="0" max="2" value="${() => f.temperature}" @input="${(e) => { f.temperature = e.target.value; }}"></div>` : "")}
               ${() => (provider() === "mock" ? html`<div class="field"><label for="cn-behaviour">Mock behaviour</label>${dropdown({ id: "cn-behaviour", label: "Mock behaviour", options: () => BEHAVIOURS, value: () => f.behaviour, onChange: (v) => { f.behaviour = v; } })}</div>` : "")}
@@ -128,19 +149,30 @@ export default function contenderForm({ params, query }) {
               <div class="field"><label for="cn-format">File type</label>${dropdown({ id: "cn-format", label: "File type", options: () => FORMATS, value: () => f.img_format, onChange: (v) => { f.img_format = v; } })}</div>
               <label class="check"><input type="checkbox" checked="${() => f.img_b64}" @change="${(e) => { f.img_b64 = e.target.checked; }}"><span class="check__box">${icon("check")}</span><span>Ask for base64 <span class="muted small">for DALL·E and servers that send links</span></span></label>
             </div>` : "")}
+            ${() => (rep() ? html`<div class="stack">
+              <div class="notice">${icon("image")}<div>Replicate contenders make images. Audition downloads every picture the model returns and keeps it on the output.</div></div>
+              <div class="fields-2">
+                <div class="field"><label for="cn-ratio">Aspect ratio</label>${dropdown({ id: "cn-ratio", label: "Aspect ratio", options: () => RATIOS, value: () => f.img_ratio, onChange: (v) => { f.img_ratio = v; } })}</div>
+                <div class="field"><label for="cn-rn">Images per output</label><input class="input num" id="cn-rn" type="number" min="1" max="4" value="${() => f.img_n}" @input="${(e) => { f.img_n = e.target.value; }}"><span class="hint">1 to 4, if the model can. Each one costs.</span></div>
+                <div class="field"><label for="cn-rformat">File type</label>${dropdown({ id: "cn-rformat", label: "File type", options: () => FORMATS, value: () => f.img_format, onChange: (v) => { f.img_format = v; } })}</div>
+                <div class="field"><label for="cn-rinput">Picture input <span class="muted">(optional)</span></label><input class="input" id="cn-rinput" value="${() => f.img_input}" @input="${(e) => { f.img_input = e.target.value; }}" placeholder="input_image"><span class="hint">The model's input for a picture. The task's first image goes there.</span></div>
+                <div class="field"><label for="cn-rprice">${icon("cost")}Price per image, $ <span class="muted">(optional)</span></label><input class="input num" id="cn-rprice" type="number" step="0.001" min="0" value="${() => f.img_price}" @input="${(e) => { f.img_price = e.target.value; }}" placeholder="0.003"><span class="hint">From the model's page on replicate.com. Shows cost on the leaderboard.</span></div>
+              </div>
+              <div class="field"><label for="cn-rextra">Other inputs <span class="muted">(optional, JSON)</span></label><textarea class="textarea textarea--short" id="cn-rextra" rows="3" value="${() => f.img_extra}" @input="${(e) => { f.img_extra = e.target.value; }}" placeholder='{"seed": 7}'></textarea><span class="hint">Sent to the model as they are. See the model's API page on replicate.com.</span></div>
+            </div>` : "")}
             <div class="pop" id="${tempPop}" popover><div class="pop__head">${icon("sliders")}Temperature</div><div class="pop__body"><p>How adventurous the answers are. 0 gives the same, careful answer each time. 1 gives more varied, creative answers.</p></div></div>
             <div class="field"><label for="cn-sys">System prompt <span class="muted">(optional)</span></label><textarea class="textarea textarea--short" id="cn-sys" rows="3" value="${() => f.system_prompt}" @input="${(e) => { f.system_prompt = e.target.value; }}" placeholder="Extra instructions this contender always gets"></textarea></div>
             <div class="fields-2">
-              ${() => (images() ? "" : html`<div class="field"><label for="cn-max">${icon("tokens")}Max output tokens</label><input class="input num" id="cn-max" type="number" min="1" required value="${() => f.max_output_tokens}" @input="${(e) => { f.max_output_tokens = e.target.value; }}"><span class="hint">A hard limit on every reply. Your spending guard.</span></div>`)}
+              ${() => (images() || rep() ? "" : html`<div class="field"><label for="cn-max">${icon("tokens")}Max output tokens</label><input class="input num" id="cn-max" type="number" min="1" required value="${() => f.max_output_tokens}" @input="${(e) => { f.max_output_tokens = e.target.value; }}"><span class="hint">A hard limit on every reply. Your spending guard.</span></div>`)}
               <div class="field"><label for="cn-group">Leaderboard group</label><input class="input" id="cn-group" value="${() => f.group}" @input="${(e) => { f.group = e.target.value; }}" placeholder="Opus 5.5"><span class="hint">Groups setups of the same model.</span></div>
             </div>
-            <details class="panel">
+            ${() => (rep() ? "" : html`<details class="panel">
               <summary class="panel__head summary-plain"><span class="row-tight">${icon("cost")}<strong>Prices</strong> <span class="muted small">optional, shows cost on the leaderboard</span></span>${icon("caret-down")}</summary>
               <div class="panel__body fields-2">
                 <div class="field"><label for="cn-pin">Input, $ per 1M tokens</label><input class="input num" id="cn-pin" type="number" step="0.01" min="0" value="${() => f.price_in}" @input="${(e) => { f.price_in = e.target.value; }}" placeholder="5.00"></div>
                 <div class="field"><label for="cn-pout">Output, $ per 1M tokens</label><input class="input num" id="cn-pout" type="number" step="0.01" min="0" value="${() => f.price_out}" @input="${(e) => { f.price_out = e.target.value; }}" placeholder="25.00"></div>
               </div>
-            </details>
+            </details>`)}
           </div>` : html`<div class="stack">
             <div class="field"><label for="cn-notes">Which tool and settings?</label><textarea class="textarea textarea--short" id="cn-notes" rows="3" value="${() => f.notes}" @input="${(e) => { f.notes = e.target.value; }}" placeholder="Claude Code, Opus, plan mode"></textarea><span class="hint">For your memory only. Audition never stores your passwords for these tools.</span></div>
             <div class="field"><label for="cn-group2">Leaderboard group <span class="muted">(optional)</span></label><input class="input" id="cn-group2" value="${() => f.group}" @input="${(e) => { f.group = e.target.value; }}" placeholder="Claude Code"></div>

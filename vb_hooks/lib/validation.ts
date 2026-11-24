@@ -69,7 +69,7 @@ export function fitnessWeightsError(raw: unknown): string | null {
   return null;
 }
 
-export type Provider = "anthropic" | "openai-compatible" | "mock" | "manual";
+export type Provider = "anthropic" | "openai-compatible" | "replicate" | "mock" | "manual";
 
 /** The mode a contender must have on a connection of this provider. */
 export function requiredMode(provider: Provider): "api" | "handoff" {
@@ -96,9 +96,11 @@ export function normaliseContenderConfig(raw: unknown, provider: Provider): { co
     if (typeof t !== "number" || t < 0 || t > 2) return { error: "Temperature must be a number from 0 to 2." };
   }
   if (config["image"] === null) delete config["image"];
+  // A Replicate contender always makes images (TECH-SPEC §12b).
+  if (provider === "replicate" && config["image"] === undefined) config["image"] = {};
   if (config["image"] !== undefined) {
-    if (provider !== "openai-compatible") return { error: "Only an OpenAI-compatible connection makes images through the Images API." };
-    const err = imageOptionsError(config["image"]);
+    if (provider !== "openai-compatible" && provider !== "replicate") return { error: "Only an OpenAI-compatible or Replicate connection makes images." };
+    const err = provider === "replicate" ? replicateOptionsError(config["image"]) : imageOptionsError(config["image"]);
     if (err) return { error: err };
     delete config["temperature"];
   }
@@ -110,7 +112,31 @@ export function normaliseContenderConfig(raw: unknown, provider: Provider): { co
   return { config };
 }
 
-/** A contender's config makes images (OpenAI-compatible Images API, TECH-SPEC §12a). */
+/**
+ * config.image on a Replicate connection (TECH-SPEC §12b): n, format,
+ * aspect_ratio, image_input, input, price_per_image; all optional. Returns an error or null.
+ */
+export function replicateOptionsError(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "The image options must be an object.";
+  const o = raw as Record<string, unknown>;
+  const extra = Object.keys(o).filter((k) => !["n", "format", "aspect_ratio", "image_input", "input", "price_per_image"].includes(k));
+  if (extra.length) return `Unknown Replicate option: ${extra.join(", ")}.`;
+  const set = (k: string) => o[k] !== undefined && o[k] !== null;
+  if (set("n") && !(isWhole(o["n"]) && o["n"] >= 1 && o["n"] <= MAX_IMAGES_PER_OUTPUT)) return `Images per output must be a whole number from 1 to ${MAX_IMAGES_PER_OUTPUT}.`;
+  if (set("format") && !(IMAGE_FORMATS as readonly string[]).includes(String(o["format"]))) return `Image format must be one of ${IMAGE_FORMATS.join(", ")}.`;
+  if (set("aspect_ratio") && !(typeof o["aspect_ratio"] === "string" && /^\d{1,2}:\d{1,2}$/.test(o["aspect_ratio"]))) return 'The aspect ratio is width:height, like 1:1 or 16:9.';
+  if (set("image_input") && !(typeof o["image_input"] === "string" && /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(o["image_input"]))) return 'The picture input is the model\'s input name, like input_image.';
+  if (set("price_per_image") && !(typeof o["price_per_image"] === "number" && Number.isFinite(o["price_per_image"]) && o["price_per_image"] >= 0 && o["price_per_image"] <= 100)) return "The price per image is a number of dollars from 0 to 100, like 0.003.";
+  if (set("input")) {
+    const inp = o["input"];
+    if (!inp || typeof inp !== "object" || Array.isArray(inp)) return "Other inputs must be an object, like {\"seed\": 7}.";
+    if (JSON.stringify(inp).length > 10_000) return "Other inputs are too long (10,000 characters at most).";
+    if ("prompt" in (inp as object)) return "Other inputs can't set prompt: Audition sends the task's prompt.";
+  }
+  return null;
+}
+
+/** A contender's config makes images (OpenAI-compatible Images API §12a, Replicate §12b). */
 export function makesImages(contender: { config?: unknown } | null | undefined): boolean {
   const img = (parseJson(contender?.config) as { image?: unknown } | null)?.image;
   return !!img && typeof img === "object" && !Array.isArray(img);

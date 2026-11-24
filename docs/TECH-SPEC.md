@@ -309,7 +309,7 @@ Rules: list, view and create `OWNER` · update `OWNER && locked = false` · dele
 | Field | Type | Notes |
 | --- | --- | --- |
 | name | text, required, unique | |
-| provider | select `anthropic`, `openai-compatible`, `mock`, `manual` | |
+| provider | select `anthropic`, `openai-compatible`, `mock`, `manual`, `replicate` | `replicate` added Nov 24, 2026 (schema change Cas approved, NOTES RP2); its base URL defaults to `https://api.replicate.com/v1` (§12b) |
 | base_url | url | Empty means the provider default. Required for `openai-compatible`. |
 | has_key | bool | Maintained by the hooks on `connection_keys`; read-only to the owner (hook) |
 | notes | text | |
@@ -336,7 +336,7 @@ To replace a key, the UI deletes the old `connection_keys` record and creates a 
 | mode | select `api`, `handoff`, `runner` | `runner` is *later*. The hook requires `handoff` for a manual connection and `api` otherwise. |
 | model | text | Provider model id, for example `claude-opus-5-5`. Empty for handoff. |
 | group | text | For leaderboard grouping; defaults to `model` or `name` |
-| config | json | `{ "system_prompt"?: string, "effort"?: "low"\|"medium"\|"high"\|"xhigh"\|"max", "temperature"?: number, "mock"?: MockConfig, "image"?: ImageOptions }`. The hook drops `temperature` for Anthropic (F8) and for an image maker. `image` is allowed on OpenAI-compatible connections only (§12a). |
+| config | json | `{ "system_prompt"?: string, "effort"?: "low"\|"medium"\|"high"\|"xhigh"\|"max", "temperature"?: number, "mock"?: MockConfig, "image"?: ImageOptions }`. The hook drops `temperature` for Anthropic (F8) and for an image maker. `image` is allowed on OpenAI-compatible connections (§12a) and Replicate connections, where the hook always sets it (`{}` when empty) and it takes `ReplicateOptions` instead (§12b). |
 | max_output_tokens | number, min 1 | default 16000; required for `api` |
 | price_in_per_mtok | number | optional, USD |
 | price_out_per_mtok | number | optional, USD |
@@ -349,6 +349,8 @@ Rules: as for tasks (update and delete need `locked = false`), with the same hoo
 `MockConfig` is `{ "behaviour": "steady" | "erratic" | "fail" | "flaky" | "image" | "judge" }`.
 
 `ImageOptions` is `{ "size"?: "auto" | "<w>x<h>", "quality"?: "auto"|"low"|"medium"|"high"|"standard"|"hd", "n"?: 1-4, "format"?: "png"|"jpeg"|"webp", "background"?: "auto"|"transparent"|"opaque", "ask_b64"?: boolean }`, checked by `imageOptionsError()` in `lib/validation.ts`. Its presence makes the contender an image maker.
+
+`ReplicateOptions` (a Replicate contender's `config.image`) is `{ "n"?: 1-4, "format"?: "png"|"jpeg"|"webp", "aspect_ratio"?: "<w>:<h>", "image_input"?: string, "input"?: object, "price_per_image"?: number }`, checked by `replicateOptionsError()`. The contender hook also checks the model id: `owner/name` or `owner/name:<version>` (`replicateModelError()`).
 
 ### handoff_templates
 
@@ -758,11 +760,26 @@ Added Nov 18, 2026. `lib/providers/openai-images.ts`. No schema change: a conten
 - **Request.** No image attachments: `POST {baseUrl}/images/generations`, JSON `{ model, prompt, n, size?, quality?, output_format?, background?, response_format? }`. With image attachments (PNG, JPEG, GIF, WebP): `POST {baseUrl}/images/edits`, `multipart/form-data` built by hand (`editsBody()`, since `helpers.http` takes a `Uint8Array` body and a content type), the same fields as text parts and each image as `image` (one) or `image[]` (several). `Authorization: Bearer` as for chat. 10-minute timeout, 3 tries, as for the other adapters.
 - **Prompt.** The contender's system prompt, then "Attached files not shown here: …" for non-image attachments, then the rendered task prompt (the same text every contender gets, §9).
 - **Reply.** Each `data[].b64_json` is decoded; the file type is sniffed from its first bytes (PNG, JPEG, WebP, GIF; anything else fails) and named `image-<n>.<ext>`. The output text lists the file names, with `revised_prompt` when the provider sends one. Tokens from `usage.input_tokens` / `usage.output_tokens` (gpt-image), else empty; cost is derived as usual. `finish_reason` is `images`.
-- **Why base64 only.** Vaultbase's `helpers.http` (still in 0.47) always reads the reply with `res.text()`, so downloading an image from a link would corrupt it. gpt-image always answers in base64; DALL·E and some compatible servers need `ask_b64` (sends `response_format: "b64_json"`). A reply with links only fails with that hint. The egress guard (F3) is unchanged: only the connection's host is called.
+- **Why base64 only.** Vaultbase's `helpers.http` read every reply with `res.text()` until 0.48, so downloading an image from a link would have corrupted it. (Replicate, §12b, now downloads with 0.48's `getBytes`; this adapter could too, but gpt-image never sends links, so it stays as it is.) gpt-image always answers in base64; DALL·E and some compatible servers need `ask_b64` (sends `response_format: "b64_json"`). A reply with links only fails with that hint. The egress guard (F3) is unchanged: only the connection's host is called.
 - **Storing.** The generate worker already stores `GenerateResult.files` with `lib/files.ts attachFile()` on `attempts.output_files` (thumbs and download audit included), so judging, the AI judge and Compare need no change.
 - **Guards.** An image maker can't answer a call with `outputSchema` (judge, Composer): `callProvider()` refuses before any HTTP call, `loadPlan()` refuses it as the AI judge and `composerFor()` as the Composer, and the workspace screen leaves image makers out of both pickers. `previewOf()` adds `imageMismatchWarnings()`: an image maker on a task whose `output_type` isn't `image`, and an OpenAI-compatible text contender on an `image` task.
-- **Not done (needs Vaultbase).** Replicate (Flux, Stable Diffusion, Ideogram, Recraft, …) answers with `replicate.delivery` links, which `helpers.http` can't download as bytes. NOTES I1 has the request, posted as Vaultbase discussion #17; SPEC "Waiting on Vaultbase" has the plan. Google Imagen/Gemini (inline base64) would work today but needs a new `connections.provider` value, a schema change for Cas to approve.
+- **Replicate** has its own adapter since Nov 24, 2026 (§12b). Google Imagen/Gemini (inline base64) would work today but needs a new `connections.provider` value, a schema change for Cas to approve.
 - **Tests.** `test/images.test.ts`: request bodies (JSON and multipart), reply parsing and failures against a fake http; config checks; warnings; and one output end to end on a fresh Vaultbase through the test-only route `test/vb_hooks_test/routes/_test-generate.ts` (`runGenerate` with a fake `helpers.http`), checking the files, thumbnail, tokens and cost.
+
+## 12b. Replicate image models
+
+Added Nov 24, 2026, once Vaultbase 0.48 shipped discussion #17 (`helpers.http` bytes). `lib/providers/replicate.ts`. A connection with provider `replicate` (key required, base URL optional); every contender on it makes images.
+
+- **Model.** The contender's model is `owner/name` (an official model, e.g. `black-forest-labs/flux-schnell`) or `owner/name:<version>` (a pinned version of a community model).
+- **Request.** `owner/name`: `POST {base}/models/{owner}/{name}/predictions` with `{ input }`. With a version: `POST {base}/predictions` with `{ version, input }`. Headers: `Authorization: Bearer <key>` and `Prefer: wait=60`, so Replicate holds the reply up to 60 s and a fast model answers in one call. `input` is the contender's `input` object, then `prompt` (system prompt, "Attached files not shown here: …", the task prompt, as in §12a), `num_outputs` from `n`, `output_format` from `format` (`jpeg` sent as `jpg`), `aspect_ratio`. When `image_input` is set, the task's first PNG, JPEG, GIF or WebP attachment goes to that input as a data URL; other attachments are only named. `price_per_image` is never sent.
+- **Waiting.** While the prediction is `starting` or `processing`, the adapter GETs its `urls.get`, waiting 1, 2, 4, then 5 s between checks (`helpers.util.sleep`). After 10 minutes it POSTs `urls.cancel` and fails (retryable). `failed`, `canceled` and `aborted` fail with Replicate's error text.
+- **Downloading.** Each link in `output` (a string, a list, or links inside an object) is fetched with `helpers.http.getBytes(url, {}, { maxBytes: 25 MB, timeoutMs: 120 s, retries: 3 })`, without the API key. The type is sniffed from the first bytes (`sniffImage()`): PNG, JPEG, WebP or GIF, the types `attempts.output_files` takes since #12 (no SVG, no `application/octet-stream`). Anything else fails with a hint to pick one of those formats. Files are named `image-<n>.<ext>`, and the output text lists them.
+- **Storing.** As §12a: the generate worker saves each file with `lib/files.ts attachFile()`, which is `helpers.files.save` (#11), so thumbnails, the download audit, judging, the AI judge and Compare work unchanged.
+- **Egress (F3).** `egressGuard()` takes a third argument for downloads: a Replicate connection may `getBytes` only over https from `replicate.delivery` or a subdomain of it (`isReplicateFileHost()`); every other connection may not download at all. API calls, polls and cancels still go only to the connection's host. Vaultbase's own denylist applies on top.
+- **Measures.** Replicate reports no tokens, so tokens stay empty. Time is the whole wall time, waiting included. `provider_calls` is 1 per output (one prediction). Cost is `pictures × price_per_image` when the contender sets a price (`imageCost()` in `lib/cost.ts`), else empty.
+- **Guards.** As §12a: a Replicate contender can't judge or compose (`callProvider()` refuses a call with `outputSchema`; `makesImages()` is true because the hook always sets `config.image`), and the run preview warns when it gets a text task.
+- **UI.** Contenders → Add connection → Replicate (base URL optional). The contender form shows aspect ratio, images per output, file type, picture input, price per image and "Other inputs" (JSON), and hides temperature, max output tokens and token prices.
+- **Tests.** `test/replicate.test.ts`: the request shapes, polling, the 10-minute cancel, failures, SVG refusal and the egress rules against a fake http with `getBytes`; the config, model-id and price checks; and on a fresh Vaultbase the hooks, the preview warning, the AI-judge refusal and one output end to end through `_test-generate.ts` (`{ replicate: true }`): two pictures downloaded, saved with `helpers.files.save`, served with a thumbnail, cost 2 × price.
 
 ## 13. Testing
 

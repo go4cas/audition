@@ -157,7 +157,7 @@ describe("image config checks", () => {
     expect(imageOptionsError({ format: "tiff" })).toMatch(/format/);
     expect(imageOptionsError({ style: "vivid" })).toMatch(/Unknown image option: style/);
     expect(imageOptionsError([])).toMatch(/object/);
-    expect(normaliseContenderConfig({ image: {} }, "anthropic")).toEqual({ error: "Only an OpenAI-compatible connection makes images through the Images API." });
+    expect(normaliseContenderConfig({ image: {} }, "anthropic")).toEqual({ error: "Only an OpenAI-compatible or Replicate connection makes images." });
     expect(normaliseContenderConfig({ image: {} }, "mock")).toHaveProperty("error");
   });
 });

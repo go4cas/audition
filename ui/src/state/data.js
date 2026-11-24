@@ -33,7 +33,7 @@ export const sortRoles = (d, roles) => {
   return [...roles].sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
 };
 
-export const PROVIDER_LABEL = { anthropic: "Anthropic", "openai-compatible": "OpenAI-compatible", mock: "Mock", manual: "Manual" };
+export const PROVIDER_LABEL = { anthropic: "Anthropic", "openai-compatible": "OpenAI-compatible", replicate: "Replicate", mock: "Mock", manual: "Manual" };
 export const contenderMeta = (d, c) => {
   const conn = d.byId.connections?.get(c.connection);
   if (c.mode === "handoff") return "Copy and paste";

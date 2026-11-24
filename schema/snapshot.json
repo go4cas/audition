@@ -54,7 +54,8 @@
               "anthropic",
               "openai-compatible",
               "mock",
-              "manual"
+              "manual",
+              "replicate"
             ]
           }
         },
