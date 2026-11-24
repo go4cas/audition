@@ -115,6 +115,23 @@ describe("on a running instance", () => {
     expect(await w.text()).toContain('importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js")');
   });
 
+  test("robots.txt is a real file, valid for Lighthouse, never the SPA index.html", async () => {
+    for (const accept of ["*/*", "text/html"]) {
+      const r = await fetch(`${h.url}/robots.txt`, { headers: { accept } });
+      expect(r.status).toBe(200);
+      expect(r.headers.get("content-type")).toStartWith("text/plain");
+      const text = await r.text();
+      expect(text).not.toContain("<html");
+      expect(text).toContain("User-agent: *");
+      // Lighthouse's robots-txt audit fails on any unknown directive (such as
+      // Cloudflare's Content-Signal), and the sign-in page at / must stay crawlable.
+      for (const line of text.split("\n").map((l) => l.replace(/#.*/, "").trim()).filter(Boolean)) {
+        expect(line).toMatch(/^(user-agent|allow|disallow|sitemap):\s*\S/i);
+        expect(line).not.toMatch(/^disallow:\s*\/\s*$/i);
+      }
+    }
+  });
+
   test("path traversal and dotfiles never reach files outside ui/dist", async () => {
     for (const p of ["/..%2f..%2fvaultbase.lock.json", "/%2e%2e/%2e%2e/package.json", "/../package.json"]) {
       const text = await (await fetch(h.url + p)).text();

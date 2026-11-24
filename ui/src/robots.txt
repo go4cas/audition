@@ -1,0 +1,7 @@
+# Audition is a private, self-hosted app. Only the sign-in page is public;
+# the API, the Vaultbase admin and guest voting links stay out of search.
+# Standard directives only: Lighthouse marks any other line as an error.
+User-agent: *
+Disallow: /api/
+Disallow: /_/
+Disallow: /vote/
