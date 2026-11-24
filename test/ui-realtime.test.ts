@@ -1,11 +1,12 @@
 // PLATFORM-UPGRADES B3: the run page follows a live run through Vaultbase's
 // realtime events, and falls back to polling GET /api/custom/runs/:id every
-// 2 seconds when the realtime connection is down.
+// 2 seconds when the realtime connection is down. The Guest votes box follows
+// guest votes the same way, also after the run is done.
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { join } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { boot, type Harness } from "./harness.ts";
-import { ROOT } from "../scripts/lib/vaultbase.ts";
+import { call, ROOT } from "../scripts/lib/vaultbase.ts";
 import { seedReference } from "../seed/reference.ts";
 
 const APP = "";
@@ -107,3 +108,55 @@ test("with realtime down, the run page falls back to polling every 2 seconds", a
   }
   expect(errors).toEqual([]);
 }, 90_000);
+
+/** One guest signs in anonymously and gives every output of the run 4 stars. */
+async function guestVotes(run: string) {
+  const link = (await list("guest_links", `run = "${run}" && active = true`))[0];
+  const s = await call(h.url, "POST", "/api/v1/auth/guests/anonymous", {});
+  expect(s.status).toBe(200);
+  const token = s.body.data.token;
+  const ballot = await call(h.url, "GET", `/api/custom/guest/${link.token}`, { token });
+  expect(ballot.status).toBe(200);
+  for (const t of ballot.body.data.tasks) for (const o of t.outputs) {
+    const r = await call(h.url, "POST", `/api/custom/guest/${link.token}/votes`, { token, body: { task: t.id, label: o.label, stars: 4 } });
+    expect(r.status).toBe(200);
+  }
+}
+
+test("guest vote counts update live, during the run and after it is done", async () => {
+  const { run, total } = await startHandoffRun();
+  await pasteAndJudgeOne(run);
+  const { p, reads, close } = await openRun(run);
+  const panel = p.getByTestId("guest-panel");
+  try {
+    await p.locator('[data-live="realtime"]').waitFor();
+    // During the run: a link made elsewhere and a guest's votes show up without a reload.
+    await data("POST", "/api/v1/guest_links", { run });
+    await panel.getByText("0 guests of 50").waitFor({ timeout: 5000 });
+    await guestVotes(run);
+    await panel.getByText("1 guest of 50").waitFor({ timeout: 5000 });
+    await panel.getByText("1 vote", { exact: true }).waitFor();
+
+    // Finish the run: the page keeps following because a guest link is open.
+    for (let i = 1; i < total; i++) await pasteAndJudgeOne(run);
+    await p.getByText(/^Finished:/).waitFor({ timeout: 5000 });
+    await p.waitForTimeout(500);
+    const quiet = reads.n;
+    await p.waitForTimeout(3000);
+    expect(reads.n).toBe(quiet); // still realtime, not polling
+    await guestVotes(run);
+    await panel.getByText("2 guests of 50").waitFor({ timeout: 5000 });
+    await panel.getByText(`${total + 1} votes`).waitFor();
+
+    // Closing the link from the page stops following; a new link starts again.
+    await panel.getByRole("button", { name: "Close link" }).click();
+    await panel.getByTestId("guest-make").waitFor();
+    await p.getByTestId("guest-make").click();
+    await panel.getByText("0 guests of 50").waitFor();
+    await guestVotes(run);
+    await panel.getByText("1 guest of 50").waitFor({ timeout: 5000 });
+  } finally {
+    await close();
+  }
+  expect(errors).toEqual([]);
+}, 120_000);

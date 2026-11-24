@@ -1,8 +1,10 @@
-// 10. Run progress: a live bar and one table per task. While the run is active
-// the page listens for realtime events on the run and its outputs and reloads
-// GET /runs/:id when one arrives; while the realtime connection is down it
-// polls that route every 2 seconds instead (PLATFORM-UPGRADES B3). Outputs and
-// scores stay hidden here so judging stays blind.
+// 10. Run progress: a live bar and one table per task. The page listens for
+// realtime events on the run, its outputs, its guest links and guest votes,
+// and reloads GET /runs/:id when one arrives; while the realtime connection is
+// down it polls that route every 2 seconds instead (PLATFORM-UPGRADES B3).
+// Once the run is done it keeps listening only while a guest link is open, so
+// the Guest votes counts stay live. Outputs and scores stay hidden here so
+// judging stays blind.
 import { html, reactive } from "@arrow-js/core";
 import { create, custom, update } from "../../api.js";
 import { APP, go, routeArgs } from "../../lib/nav.js";
@@ -26,36 +28,50 @@ export default function run() {
       // mode: "realtime" while the realtime subscription is up, else "polling".
       s.live = reactive({ v: live, mode: "polling" });
       const done = () => s.live.v.run.status === "done";
+      // Guests can vote long after the run is done, so a done run still
+      // follows its open guest link (the Guest votes box).
+      const guestsOpen = () => (s.live.v.guests || []).some((l) => l.state === "open");
+      const following = () => !done() || guestsOpen();
       // One fetch at a time; a change that lands while one is in flight
       // fetches once more after it, so the last event is never missed.
-      let inFlight = false, again = false, soon = null;
+      let inFlight = false, again = false, soon = null, stopLive = null;
       const refresh = async () => {
         if (inFlight) { again = true; return; }
         inFlight = true;
         try {
-          const before = s.live.v.counts;
+          const before = s.live.v;
           const v = await custom.run(params.id);
-          if (JSON.stringify(v.counts) !== JSON.stringify(before)) refreshInbox();
+          if (JSON.stringify(v.counts) !== JSON.stringify(before.counts)) refreshInbox();
           s.live.v = v;
+          if (JSON.stringify(v.guests) !== JSON.stringify(before.guests)) s.guestsChanged?.();
         } catch { /* keep the last view */ }
         inFlight = false;
         if (again) { again = false; refresh(); }
-        if (done()) stopLive();
+        follow();
       };
       // Events only say "something changed": the page still reads the run
-      // through GET /runs/:id, which keeps outputs out of this view (blind).
+      // through GET /runs/:id, which keeps outputs and votes out of this view
+      // (blind). Vaultbase topics have no filter, so events on other runs'
+      // outputs, links and votes are dropped here.
       const nudge = () => { clearTimeout(soon); soon = setTimeout(refresh, 150); };
-      const stopLive = subscribe([`runs/${params.id}`, "attempts"], {
+      const start = () => subscribe([`runs/${params.id}`, "attempts", "guest_links", "guest_votes"], {
         onEvent: (m) => { if (m.collection === "runs" || m.record?.run === params.id) nudge(); },
         onStatus: (st) => {
           s.live.mode = st === "live" ? "realtime" : "polling";
           if (st === "live") nudge(); // catch up on anything missed while polling
         },
       });
+      // Listen while there is something to follow; stop once there isn't.
+      // The guest panel calls follow() after making a link, to start again.
+      const follow = () => {
+        if (following() && !stopLive) stopLive = start();
+        else if (!following() && stopLive) { stopLive(); stopLive = null; }
+      };
+      s.follow = follow;
       // Polling is the fallback while the realtime connection is down.
-      const timer = setInterval(() => { if (s.live.mode === "polling" && !done()) refresh(); }, 2000);
-      if (done()) stopLive();
-      s.onLeave(() => { clearInterval(timer); clearTimeout(soon); stopLive(); });
+      const timer = setInterval(() => { if (stopLive && s.live.mode === "polling") refresh(); }, 2000);
+      follow();
+      s.onLeave(() => { clearInterval(timer); clearTimeout(soon); stopLive?.(); stopLive = null; });
     },
     body: (s) => {
       const d = s.d;
@@ -146,7 +162,10 @@ function guestPanel(s, r) {
     host.replaceChildren();
     body()(host);
   };
-  const reload = async () => { try { s.live.v = await custom.run(r.id); links = s.live.v.guests || []; } catch { /* keep the last view */ } draw(); };
+  const reload = async () => { try { s.live.v = await custom.run(r.id); links = s.live.v.guests || []; } catch { /* keep the last view */ } draw(); s.follow?.(); };
+  // Live: the page's realtime refresh calls this when the links or their
+  // guest and vote counts change.
+  s.guestsChanged = () => { links = s.live.v.guests || []; draw(); };
   const urlOf = (l) => `${location.origin}${APP}/vote/${l.token}`;
   const make = (e) => busy(e, async () => {
     try {
