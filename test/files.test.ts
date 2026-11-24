@@ -81,16 +81,20 @@ test("F9 (fixed in 0.41.1): the owner uploads through Vaultbase's own endpoint, 
   expect(await res.text()).toBe("hello from the owner");
 });
 
-// NOTES W1: why the owner upload route stays. Bun's multipart parser gives a
-// part the type of its file name, and Vaultbase's global allowlist has no
-// text/markdown or application/zip. Flips when Vaultbase accepts them.
-test("W1: Vaultbase's own upload endpoint refuses a Markdown and a zip file, whatever type the client declares", async () => {
+// NOTES W1 and VB1: why the owner upload route stays. Bun's multipart parser
+// gives a part the type of its file name. Since 0.48.0 Vaultbase's server
+// list (files.allowed_types) takes text/markdown and application/zip, so only
+// the fields' own mimeTypes refuse them now. Flips when the #12 thread widens
+// those fields (a schema change) and drops routes/files-upload.ts.
+test("W1: Vaultbase's own upload endpoint takes Markdown and zip server-wide, but our fields' mimeTypes still refuse them", async () => {
   for (const [name, type, seen] of [["notes.md", "text/plain", "text/markdown"], ["bundle.zip", "application/octet-stream", "application/zip"]] as const) {
     const form = new FormData();
     form.append("file", new File(["PK\u0005\u0006"], name, { type }));
     const r = await fetch(`${h.url}/api/v1/files/tasks/${f.task.id}/attachments`, { method: "POST", headers: { authorization: `Bearer ${h.ownerToken}` }, body: form });
-    expect(r.status, name).toBe(415);
-    expect((await r.json() as { error: string }).error).toContain(seen);
+    expect(r.status, name).toBe(422);
+    const error = (await r.json() as { error: string }).error;
+    expect(error).toContain(seen);
+    expect(error).toContain("not allowed by field rules");
   }
 });
 
