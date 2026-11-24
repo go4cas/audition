@@ -86,7 +86,7 @@ All writes go through `vb_hooks/lib/store.ts` (`insertRecord`, `updateRecord`) o
 | castings | 1 create | `routes/castings.ts` |
 | connections, contenders, tasks | 4 updates (key flags, lock state) | `lib/hook-logic.ts`, `routes/connections-key.ts`, `lib/handoff.ts` |
 | connection_keys | 1 delete by `connection` | `routes/connections-key.ts` |
-| files | insert into `vaultbase_files` plus the record's file field | `lib/files.ts` (seed, provider file outputs, owner upload route) |
+| files | insert into `vaultbase_files` plus the record's file field *(since Vaultbase 0.48: `helpers.files.save`, NOTES FS1)* | `lib/files.ts` (seed, provider file outputs, owner upload route) |
 
 ### Plan
 
@@ -188,7 +188,7 @@ First-load JS 53.1 → **56.5 KB** (budget 150 KB). All JS chunks together 151.3
 | # | Question | Recommendation |
 | --- | --- | --- |
 | Q1 | Should owner uploads move from Audition's route to Vaultbase's own upload endpoint now that F9 is fixed? | Yes, in PR B, where Vaultbase's rules and field options cover the checks; keep the custom route only for the magic-byte check if needed. |
-| Q2 | Ask the Vaultbase author for a server-side file helper (like `helpers.records`, for storing a file on a record)? | Yes. It would remove the last reach into `vaultbase_files`. Audition keeps `lib/files.ts` until then. |
+| Q2 | Ask the Vaultbase author for a server-side file helper (like `helpers.records`, for storing a file on a record)? | Yes. It would remove the last reach into `vaultbase_files`. Audition keeps `lib/files.ts` until then. *(Done: discussion #11, shipped in 0.48.0 as `helpers.files.save`, adopted Nov 24, 2026.)* |
 | Q3 | Keep the worker claim and the run status compare-and-set in SQL? | Yes, documented. Or ask upstream for an "only if" option on `helpers.records.update`. |
 | Q4 | Turn on record history for verdicts, castings, attempts and runs (a schema change)? | Yes for all four. Verdicts and castings are what the SPEC promised; attempts and runs make the run's story visible in the admin. |
 | Q5 | Allow `@go4cas/quiver` as a second runtime dependency (orchestrator rule 7)? | Yes, pinned exactly. |

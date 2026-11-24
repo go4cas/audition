@@ -3,7 +3,7 @@
 // wrappers around these functions. No "vaultbase" import (F7).
 import { join } from "node:path";
 import { deriveCost } from "./cost.ts";
-import { attachFile } from "./files.ts";
+import { attachFile, type Files } from "./files.ts";
 import { callProvider, ProviderError, type ApiProvider, type FileOut, type HttpLike } from "./providers/index.ts";
 import { mockSeed } from "./providers/mock.ts";
 import { methodOf, pairCount, queueJudging, settleCompareRun, type Method } from "./pairwise.ts";
@@ -23,7 +23,8 @@ export interface Deps extends Store {
 export interface WorkerDeps extends Deps {
   http: HttpLike;
   readBytes(path: string): Promise<Uint8Array>;
-  write(path: string, data: Uint8Array): Promise<void>;
+  /** helpers.files (lib/files.ts) */
+  files: Files;
   dataDir: string;
   log(...args: unknown[]): void;
   now?: () => number;
@@ -467,7 +468,7 @@ export function workerDepsFrom(helpers: Rec): WorkerDeps {
     ...depsFrom(helpers),
     http: helpers.http,
     readBytes: (p) => helpers.fs.readBytes(p),
-    write: (p, d) => helpers.fs.write(p, d),
+    files: helpers.files,
     dataDir: helpers.os.env("VAULTBASE_DATA_DIR") || "./vaultbase_data",
     log: (...a) => helpers.log(...a),
   };

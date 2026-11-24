@@ -1,10 +1,10 @@
-// lib/files.ts attaches a file from server code that GET /api/v1/files/…
-// serves (TECH-SPEC §12, "Mock files"). Also records finding F9: the
+// lib/files.ts attaches a file from server code, through Vaultbase's
+// helpers.files.save (0.48+), that GET /api/v1/files/… serves (TECH-SPEC §12,
+// "Mock files"). Also records finding F9: the
 // 0.38-0.41.0 upload endpoint refused every multipart body; 0.41.1 fixed it.
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { boot, fixtures, type Harness } from "./harness.ts";
 import { testImage } from "../vb_hooks/lib/png.ts";
-import { storedName } from "../vb_hooks/lib/files.ts";
 
 let h: Harness;
 let f: Awaited<ReturnType<typeof fixtures>>;
@@ -14,10 +14,14 @@ afterAll(async () => { await h?.cleanup(); });
 const attach = (collection: string, id: string, field: string, name: string, mime: string, bytes: Uint8Array) =>
   h.api("admin", "POST", "/api/custom/seed/attach", { collection, id, field, name, mime, data: Buffer.from(bytes).toString("base64") });
 
-test("stored names follow the upload handler's extensions", () => {
-  expect(storedName("image/png", "abc")).toBe("abc.png");
-  expect(storedName("text/plain", "abc")).toBe("abc.txt");
-  expect(storedName("application/zip", "abc")).toBe("abc.bin");
+test("FS1: Vaultbase's file helper refuses a type the field doesn't list, and nothing is attached", async () => {
+  const t = await h.store("insert", "tasks", { role: f.role.id, title: "Refused file", prompt: "<p>x</p>" });
+  const r = await attach("tasks", t, "attachments", "bundle.zip", "application/zip", new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
+  expect(r.status).toBe(422);
+  expect(r.body.error).toContain("bundle.zip");
+  const task = (await h.api("owner", "GET", `/api/v1/tasks/${t}`)).body.data;
+  expect(task.attachments ?? []).toEqual([]);
+  expect(await h.sql(`SELECT id FROM vaultbase_files WHERE record_id = ?`, [t])).toEqual([]);
 });
 
 test("an attached image is listed on the record and served to the owner, byte for byte", async () => {
@@ -34,6 +38,11 @@ test("an attached image is listed on the record and served to the owner, byte fo
   expect(res.status).toBe(200);
   expect(res.headers.get("content-type")).toBe("image/png");
   expect(new Uint8Array(await res.arrayBuffer())).toEqual(png);
+
+  // Vaultbase wrote the file's row itself (helpers.files.save), with the original name.
+  const rows = await h.sql<{ original_name: string; mime_type: string; size: number; field_name: string }>(
+    `SELECT original_name, mime_type, size, field_name FROM vaultbase_files WHERE filename = ?`, [name]);
+  expect(rows).toEqual([{ original_name: "coffee.png", mime_type: "image/png", size: png.byteLength, field_name: "attachments" }]);
 
   expect((await fetch(`${h.url}/api/v1/files/${name}`)).status).toBeOneOf([401, 403, 404]);
 });

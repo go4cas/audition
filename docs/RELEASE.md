@@ -111,7 +111,7 @@ ssh -L 8091:127.0.0.1:<port> you@your-vps   # <port>: PORT in /etc/audition/inst
 
 Then open <http://127.0.0.1:8091/_/> and sign in as the admin (the email and password in `/etc/audition/admin-credentials`). Hooks and routes are read-only there in production, because they come from the release in git.
 
-**Keep File storage on local.** Leave the admin's File storage setting on the local disk (the default); don't switch it to S3 or R2. Audition's own upload route, the mock image provider and the seed write files through `vb_hooks/lib/files.ts`, which puts the bytes straight into the local upload folder because Vaultbase has no server-side file helper yet. With File storage moved elsewhere, those files would be missing from it. This can change once Vaultbase ships a helper like `helpers.files.save` (requested in Vaultbase discussion #11).
+**Keep File storage on local.** Leave the admin's File storage setting on the local disk (the default); don't switch it to S3 or R2. Since Vaultbase 0.48, Audition *stores* files through Vaultbase's `helpers.files.save` (discussion #11), which writes to whichever storage is set, so saving is no longer the problem. *Reading* still is: the generate worker (task attachments sent to a provider), the AI judge and the guest file route read file bytes from the local upload folder (`helpers.fs.readBytes`), because Vaultbase has no server-side file read helper, and the backups copy that folder. With S3 those reads would fail (NOTES FS2).
 
 **Downloads are in the audit log.** Both file fields (task attachments and output files) have `auditDownloads` on, so every file download shows in the admin's Audit log as `files.download`, with who, which record and which field. A thumbnail shown on the judge page is logged the same way (NOTES TH2). Image previews on the judge page are Vaultbase thumbnails (`thumbs` on the same fields); Vaultbase keeps them in `uploads/.thumbs/` and makes them again if that folder is lost, so it needs no backup.
 
@@ -200,7 +200,7 @@ Owner uploads still go through Audition's own route (`POST /api/custom/files/:co
 
 **0.46.0 to 0.47.0** (Nov 19, 2026) needs nothing beyond the steps below either: no setting, schema, env or service change. It fixes OneSignal pushes with App API keys, so after the upgrade an alert from Audition shows a banner on devices that turned alerts on, with the key already saved in the admin (no need to enter it again). The upgrade test opened 0.46.0 data with 0.47.0 and found every record, file, key and sign-in.
 
-**0.47.0 to 0.48.0** (Nov 24, 2026) needs nothing beyond the steps below either: no setting, schema, env or service change. Audition doesn't use the new features yet (bytes downloads, `helpers.files.save`, conditional writes, the Allowed file types setting, the `vb_public/` folder); each comes in its own release. Leave **Settings → File storage → Allowed file types** unset. The upgrade test opened 0.47.0 data with 0.48.0 and found every record, file, key and sign-in.
+**0.47.0 to 0.48.0** (Nov 24, 2026) needs nothing beyond the steps below either: no setting, schema, env or service change. Each new feature comes in its own thread (conditional writes and `helpers.files.save` are adopted; bytes downloads, the Allowed file types setting and the `vb_public/` folder follow). Leave **Settings → File storage → Allowed file types** unset. The upgrade test opened 0.47.0 data with 0.48.0 and found every record, file, key and sign-in.
 
 ### On the server
 
