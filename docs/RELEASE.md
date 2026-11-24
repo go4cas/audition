@@ -254,10 +254,11 @@ Guest voters (TECH-SPEC §10b) need no Cloudflare change. The guest page (`/vote
 
 ### Speed and Cloudflare settings
 
-A Lighthouse check of the live server (Nov 23, 2026) found two Cloudflare settings that undo what the app does. Both are dashboard changes for the go4cas.com zone; nothing on the server changes.
+A Lighthouse check of the live server (Nov 23, 2026) found Cloudflare settings that undo what the app does (the third, the managed robots.txt, after v0.7.0). All are dashboard changes for the go4cas.com zone; nothing on the server changes.
 
 1. **Caching, Configuration, Browser Cache TTL: "Respect existing headers".** Audition's files come with their own cache lifetimes from Vaultbase's public folder: every file whose name carries a content hash (`main-<hash>.js`, the chunks, the stylesheets, the fonts) is kept for a year, and everything else, `index.html` included, is checked again on each use (`no-cache`, usually answered with a quick 304). Cloudflare's default replaces all of them with 4 hours, so a returning visitor downloads the app again every few hours. This is safe because the file names change with every build, so an upgrade still reaches browsers at once.
 2. **Analytics & Logs, Web Analytics: turn off automatic setup for `audition.go4cas.com`** (or exclude that host). Cloudflare injects its analytics script into the page; the app's Content-Security-Policy (no inline or outside scripts) blocks it, which shows as two console errors and lowers Lighthouse's Best practices score. Audition has no use for it. The landing page on GitHub Pages is not affected.
+3. **AI Crawl Control (older dashboards: Security, Bots), "Instruct AI bot traffic with robots.txt" (managed robots.txt): off for the zone.** Audition ships its own `/robots.txt` (sign-in page crawlable, `/api/`, `/_/` and `/vote/` not). Cloudflare's setting adds its own `Content-Signal` line in front of it (or serves its own file in its place), which Lighthouse doesn't know, so SEO drops from 100 to 91 with "robots.txt is not valid" (NOTES SR9). Check: `https://<your domain>/robots.txt` shows only the lines in `ui/src/robots.txt`. Its AI-bot blocking rules (Block AI bots) are separate and can stay on.
 
 Run Lighthouse in an Incognito window: browser extensions (Adobe Acrobat's, for one) add their own scripts to the page and to the "unused JavaScript" figure. The six third-party cookies it reports come from the OneSignal SDK, which push alerts need (PUSH-ALERTS.md).
 
