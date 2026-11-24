@@ -124,21 +124,25 @@ export const custom = {
 };
 
 // ---------- Files ----------
-// Uploads go through Audition's owner upload route (multipart, parts named
-// `file`). Vaultbase's own endpoint works since 0.41.1 (F9) but can't take
-// Markdown, CSV or zip files (NOTES.md W1), so the route stays.
-// F4: the server checks types by extension; we also set a MIME type the
-// Vaultbase allowlist accepts.
-const TEXTLIKE = /\.(md|markdown|txt|csv|log)$/i;
-export function uploadMime(file) {
-  if (TEXTLIKE.test(file.name)) return "text/plain";
-  if (/\.zip$/i.test(file.name)) return "application/octet-stream";
-  return file.type || "application/octet-stream";
-}
-export async function upload(collection, id, field, files) {
+// Uploads go through Vaultbase's own endpoint (POST /api/v1/files/...): it
+// checks the record's update rule, the server's allowed file types and the
+// field's mimeTypes (schema/snapshot.json), stores the files and answers
+// their stored names. It doesn't touch the record, so the names are then
+// saved on the record's file field with a normal update, which runs the
+// record's hooks (NOTES "Vaultbase's own upload"). Vaultbase gives each file
+// the type of its name, whatever the browser says, so we send it as is.
+/** Upload files to a record's file field; answers their stored names. */
+export async function uploadFiles(collection, id, field, files) {
   const form = new FormData();
-  for (const f of files) form.append("file", new File([f], f.name, { type: uploadMime(f) }));
-  return data(await request("POST", C(`/files/${collection}/${id}/${field}`), form));
+  for (const f of files) form.append("file", f, f.name);
+  const res = data(await request("POST", `/api/v1/files/${collection}/${id}/${field}`, form));
+  return (Array.isArray(res) ? res : [res]).map((u) => u.filename);
+}
+/** Upload files and add them to the record's field; answers the record. */
+export async function upload(collection, id, field, files) {
+  const names = await uploadFiles(collection, id, field, files);
+  const rec = await one(collection, id);
+  return update(collection, id, { [field]: [...(rec[field] || []), ...names] });
 }
 /** Protected files need the bearer header, so they are fetched as blobs. */
 const blobCache = new Map();

@@ -78,16 +78,20 @@ async function pasteHandoffOutputs(runId: string, tasks: Rec[], rate?: (contende
     const handoff = await route("GET", `/api/custom/handoff/${runId}/${t.id}`);
     expect(handoff.prompt).toContain(t.title);
     for (const w of handoff.waiting) {
+      let files: string[] = [];
       if (t.output_type === "image") {
         const form = new FormData();
         form.append("file", new File([testImage(1)], "result.png", { type: "image/png" }));
-        const up = await fetch(`${h.url}/api/custom/files/attempts/${w.attempt}/output_files`, {
+        const up = await fetch(`${h.url}/api/v1/files/attempts/${w.attempt}/output_files`, {
           method: "POST", headers: { authorization: `Bearer ${h.ownerToken}` }, body: form,
         });
         expect(up.status, await up.clone().text()).toBe(200);
+        // as the handoff page does: the submit saves the uploaded names on the output
+        files = ((await up.json()) as { data: Array<{ filename: string }> }).data.map((u) => u.filename);
       }
       const r = await api("PATCH", `/api/v1/attempts/${w.attempt}`, {
         output: `Pasted from another tool for: ${t.title}${rate ? `\n\n[[mock-quality:${rate(w.contender_name)}]]` : ""}`, tokens_in: 900, tokens_out: 400, duration_ms: 30_000, status: "submitted",
+        ...(files.length ? { output_files: files } : {}),
       });
       expect(r.status, JSON.stringify(r.body)).toBe(200);
     }

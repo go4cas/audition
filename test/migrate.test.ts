@@ -107,3 +107,45 @@ test("if the new schema started first, the groups still come back", async () => 
   await h.stop();
   h = null;
 }, 120_000);
+
+// Owner uploads through Vaultbase's own endpoint (Nov 24, 2026, NOTES UP1):
+// the file fields' mimeTypes widen. That is an option change, which the
+// service applies from the new snapshot when it starts (`--snapshot-mode
+// sync`), so it needs no step in scripts/lib/migrate.ts. Data made with the
+// schema before it keeps its files, and the fields take Markdown, CSV and zip.
+const BEFORE_UPLOAD_TYPES = join(import.meta.dir, "golden", "snapshot-before-upload-types.json");
+test("the wider file types reach a data folder made with the schema before them", async () => {
+  const root = mkdtempSync(join(tmpdir(), "audition-migrate-"));
+  roots.push(root);
+  const dataDir = join(root, "data");
+  await setupAdmin(bin, dataDir, "off", ADMIN.email, ADMIN.password);
+  const inst = await startInstance({ bin, dataDir, hooksDir: "off", snapshot: BEFORE_UPLOAD_TYPES });
+  const token = await adminLogin(inst.url, ADMIN.email, ADMIN.password);
+  await ensureOwner(inst.url, token, OWNER.email, OWNER.password, "Owner");
+  const owner = await ownerLogin(inst.url, OWNER.email, OWNER.password);
+  const ws = (await call(inst.url, "POST", "/api/v1/workspaces", { token: owner, body: { name: "Docs" } })).body.data as Rec;
+  const role = (await call(inst.url, "POST", "/api/v1/roles", { token: owner, body: { workspace: ws.id, name: "Writer", rubric: RUBRIC } })).body.data as Rec;
+  const task = (await call(inst.url, "POST", "/api/v1/tasks", { token: owner, body: { role: role.id, title: "Old", prompt: "<p>x</p>", locked: false } })).body.data as Rec;
+  const send = (url: string, name: string, tok: string) => {
+    const form = new FormData();
+    form.append("file", new File(["# notes"], name, { type: "text/plain" }));
+    return fetch(`${url}/api/v1/files/tasks/${task.id}/attachments`, { method: "POST", headers: { authorization: `Bearer ${tok}` }, body: form });
+  };
+  expect((await send(inst.url, "before.md", owner)).status).toBe(422);
+  const txt = await send(inst.url, "before.txt", owner);
+  expect(txt.status).toBe(200);
+  const kept = ((await txt.json()) as { data: Array<{ filename: string }> }).data[0]!.filename;
+  expect((await call(inst.url, "PATCH", `/api/v1/tasks/${task.id}`, { token: owner, body: { attachments: [kept] } })).status).toBe(200);
+  await inst.stop();
+
+  expect(await migrateOffline({ bin, dataDir, admin: ADMIN })).toEqual([]);
+  h = await boot({ root, bin, dataDir, hooksDir: makeHooksDir(root) });
+  const diff = await h.api("admin", "POST", "/api/v1/admin/migrations/diff", { snapshot: await Bun.file(SNAPSHOT_PATH).json() });
+  expect(diff.status).toBe(200);
+  expect(JSON.stringify(diff.body.data)).not.toContain("attachments");
+  for (const name of ["after.md", "after.csv", "after.zip"]) expect((await send(h.url, name, h.ownerToken)).status, name).toBe(200);
+  const served = await fetch(`${h.url}/api/v1/files/${kept}`, { headers: { authorization: `Bearer ${h.ownerToken}` } });
+  expect(await served.text()).toBe("# notes");
+  await h.stop();
+  h = null;
+}, 120_000);

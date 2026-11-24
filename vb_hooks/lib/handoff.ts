@@ -167,6 +167,26 @@ export async function originalNames(sql: Sql, stored: string[]): Promise<Map<str
   return out;
 }
 
+/**
+ * The owner uploads through Vaultbase's own endpoint, which stores a file for
+ * a record's field (its `vaultbase_files` row names both) and leaves the
+ * record alone; the client then saves the stored names on the record. A name
+ * a write adds must be such a file, uploaded to this record and field, so a
+ * file from another record (or a made-up name) can't be attached. Names the
+ * record already had may stay or go. Answers the error, or null.
+ */
+export async function addedFilesError(sql: Sql, recordId: string, field: string, before: unknown, after: unknown): Promise<string | null> {
+  const had = new Set(fileList(before));
+  const added = fileList(after).filter((f) => !had.has(f));
+  if (added.length === 0) return null;
+  const meta = await originalNames(sql, added);
+  for (const f of added) {
+    const m = meta.get(f);
+    if (!m || m.record !== recordId || m.field !== field) return "A file can be added only by uploading it here.";
+  }
+  return null;
+}
+
 /** The generic template: the oldest `kind = generic` row (T0 seeds one). */
 export async function genericTemplate(sql: Sql): Promise<{ body: string; return_instructions: string | null }> {
   const row = await sql.queryOne<{ body: string; return_instructions: string | null }>(
@@ -256,9 +276,8 @@ export async function attemptBeforeUpdate(ctx: SubmitCtx): Promise<void> {
 
   const files = fileList("output_files" in r ? r["output_files"] : existing!["output_files"]);
   if ("output_files" in r) {
-    // Files are attached by the upload route; a PATCH may only keep or drop them.
-    const had = new Set(fileList(existing!["output_files"]));
-    for (const f of files) if (!had.has(f)) abort("Upload files with the upload button, not by name.");
+    const err = await addedFilesError(ctx.helpers.sql, String(existing!["id"]), "output_files", existing!["output_files"], r["output_files"]);
+    if (err) abort(err);
   }
 
   const status = "status" in r ? r["status"] : existing!["status"];
@@ -287,17 +306,17 @@ export async function attemptBeforeUpdate(ctx: SubmitCtx): Promise<void> {
   r["cost"] = cost;
 }
 
-// ── upload checks (Phase 1 list: text, images, PDF, zip) ─────────────────────
+// ── file names (Phase 1 list: text, images, PDF, zip) ───────────────────────
+// Vaultbase's upload endpoint checks types (schema/snapshot.json mimeTypes);
+// the submit re-checks each output file's name against its stored type (F4).
 
-export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
-
-/** Extension → the MIME type stored for it (F4: zip goes up as octet-stream). */
+/** Extension → the type Vaultbase stores for it (it types a file by its name). */
 export const UPLOAD_TYPES: Record<string, string> = {
-  txt: "text/plain", md: "text/plain", csv: "text/plain", log: "text/plain",
+  txt: "text/plain", md: "text/markdown", markdown: "text/markdown", csv: "text/csv", log: "text/plain",
   json: "application/json",
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
   pdf: "application/pdf",
-  zip: "application/octet-stream",
+  zip: "application/zip",
 };
 
 export const extOf = (name: string) => {
@@ -305,65 +324,21 @@ export const extOf = (name: string) => {
   return m ? m[1]!.toLowerCase() : "";
 };
 
-/** null when the name and declared type are on the Phase 1 list. */
+/**
+ * null when the name is on the Phase 1 list and its stored type fits it.
+ * Files stored before Vaultbase 0.48 keep the types Audition's own upload
+ * route gave them (Markdown and CSV as text/plain, zip as octet-stream).
+ */
 export function uploadTypeError(name: string, mime: string): string | null {
   const ext = extOf(name);
   const stored = UPLOAD_TYPES[ext];
   if (!stored) return `"${name}" isn't a supported file. Use text, an image (PNG, JPEG, GIF, WebP), a PDF or a zip.`;
   const declared = (mime || "").split(";")[0]!.trim().toLowerCase();
   const ok = declared === "" || declared === stored || declared === "application/octet-stream"
-    || (ext === "zip" && (declared === "application/zip" || declared === "application/x-zip-compressed"))
-    || (stored === "text/plain" && declared.startsWith("text/"))
+    || (ext === "zip" && declared === "application/x-zip-compressed")
+    || (stored.startsWith("text/") && declared.startsWith("text/"))
     || (ext === "json" && declared === "text/plain");
   return ok ? null : `"${name}" says it is ${declared}, which doesn't match its name.`;
-}
-
-/** The first bytes must match for binary types, so a renamed file is caught. */
-export function contentError(name: string, bytes: Uint8Array): string | null {
-  const ext = extOf(name);
-  const starts = (...sig: number[]) => sig.every((b, i) => bytes[i] === b);
-  const ok: Record<string, () => boolean> = {
-    png: () => starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a),
-    jpg: () => starts(0xff, 0xd8, 0xff),
-    jpeg: () => starts(0xff, 0xd8, 0xff),
-    gif: () => starts(0x47, 0x49, 0x46, 0x38),
-    webp: () => starts(0x52, 0x49, 0x46, 0x46) && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50,
-    pdf: () => starts(0x25, 0x50, 0x44, 0x46),
-    zip: () => starts(0x50, 0x4b) && (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07),
-  };
-  const check = ok[ext];
-  return check && !check() ? `"${name}" isn't really a ${ext.toUpperCase()} file.` : null;
-}
-
-export const storedMime = (name: string) => UPLOAD_TYPES[extOf(name)] ?? "application/octet-stream";
-
-/** Every check on one uploaded file: size, name and declared type, content. */
-export function checkUpload(name: string, mime: string, size: number, bytes: Uint8Array): { code: number; error: string } | null {
-  if (size > MAX_UPLOAD_BYTES) return { code: 413, error: `"${name}" is larger than 25 MB.` };
-  if (size === 0) return { code: 422, error: `"${name}" is empty.` };
-  const type = uploadTypeError(name, mime);
-  if (type) return { code: 415, error: type };
-  const content = contentError(name, bytes);
-  return content ? { code: 415, error: content } : null;
-}
-
-/**
- * Where the owner may upload: a waiting handoff output's files, or an
- * unlocked task's attachments (the same as those records' update rules).
- */
-export function uploadTargetError(collection: string, field: string, record: Rec | null): { code: number; error: string } | null {
-  if (collection === "attempts" && field === "output_files") {
-    if (!record) return { code: 404, error: "That output does not exist." };
-    if (record["mode"] !== "handoff") return { code: 403, error: "Only copy-and-paste (handoff) outputs take uploaded files." };
-    if (record["status"] !== "waiting") return { code: 409, error: "This output has already been submitted." };
-    return null;
-  }
-  if (collection === "tasks" && field === "attachments") {
-    if (!record) return { code: 404, error: "That task does not exist." };
-    if (record["locked"]) return { code: 403, error: "This task has been used in a run, so it is read-only. Use Duplicate and edit." };
-    return null;
-  }
-  return { code: 404, error: "Files can be uploaded only to an output or a task." };
 }
 
 export interface AfterCtx {

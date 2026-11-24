@@ -1,7 +1,7 @@
 // POST /api/custom/seed/attach: admin only. Attaches a seed fixture to a
 // record through lib/files.ts (helpers.files.save), so seeded files are stored exactly as the
 // files server code makes (provider outputs). Only the seed script calls it;
-// the owner uploads through files-upload.ts.
+// the owner uploads through Vaultbase's own endpoint (POST /api/v1/files/...).
 import { defineRoute } from "vaultbase";
 import { attachFile, FileRefused } from "../lib/files.ts";
 import { fileDeps } from "../lib/route-deps.ts";

@@ -132,23 +132,22 @@ test("Done-when 8: a judge reply that misses a criterion is retried once, then r
   await until(async () => (await get("runs", s.run)).status === "done", "the run to be done");
 });
 
-test("Done-when 9: an image output's judge request carries the images and names an SVG it skipped", async () => {
+test("Done-when 9: an image output's judge request carries the images and names a file it skipped", async () => {
   const id = await h.store("insert", "attempts", { run: s.run, task: s.task.id, contender: s.image.id, mode: "api", status: "submitted", prompt_sent: "TASK: Draw", output: "Two images" });
   await attach(h, id, "bag.png", "image/png", testImage(0));
-  // The output fields' mimeTypes don't list image/svg+xml, and Vaultbase's
-  // file helper enforces them (NOTES FS1a), so an SVG is only ever stored as
-  // application/octet-stream; the judge still knows it by its name.
-  await attach(h, id, "logo.svg", "application/octet-stream", new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'/>"));
+  // The output fields' mimeTypes don't list SVG (or any unknown binary) since
+  // the move to Vaultbase's upload (NOTES UP1), so the skipped file is a zip.
+  await attach(h, id, "assets.zip", "application/zip", new Uint8Array([0x50, 0x4b, 0x05, 0x06, ...new Array(18).fill(0)]));
   await attach(h, id, "label.png", "image/png", testImage(1));
   const r = await h.api("admin", "POST", "/api/custom/test/judge", { attempt: id, fake: "record" });
   expect(r.status).toBe(200);
   const [call] = r.body.data.calls;
   expect(call.attachments).toEqual([
-    // Neutral names in upload order: bag.png, logo.svg, label.png.
+    // Neutral names in upload order: bag.png, assets.zip, label.png.
     { name: "file-1.png", mime: "image/png", bytes: testImage(0).byteLength },
     { name: "file-3.png", mime: "image/png", bytes: testImage(1).byteLength },
   ]);
-  expect(call.prompt).toContain("an image `file-2.svg` was supplied but could not be shown to you");
+  expect(call.prompt).toContain("a file `file-2.zip` was supplied but could not be shown to you");
   expect(call.prompt).not.toContain("bag.png");
   expect(call.prompt).toContain("TASK: Draw");
   expect(call.hasSchema).toBe(true);

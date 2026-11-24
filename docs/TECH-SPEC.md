@@ -40,7 +40,7 @@ The upgrade notes between 0.37.0 and 0.40.2 that touch Audition:
 
 The upgrade notes between 0.40.2 and 0.44.0 that touch Audition (none of the five changelogs has a **Security** section):
 
-- **0.41.1: uploads to `POST /api/v1/files/...` work again (F9 fixed).** The endpoint stores the file and answers its name; the client then saves the name into the record's field with a normal update, as Vaultbase's admin does. Audition's own upload route stays: the built-in endpoint can't take Markdown, CSV or zip files (NOTES W1).
+- **0.41.1: uploads to `POST /api/v1/files/...` work again (F9 fixed).** The endpoint stores the file and answers its name; the client then saves the name into the record's field with a normal update, as Vaultbase's admin does. Audition's own upload route stayed until 0.48: the built-in endpoint couldn't take Markdown, CSV or zip files (NOTES W1). *(Since Nov 24, 2026 the owner uploads through this endpoint, NOTES UP1.)*
 - **0.42.0: registering a known email answers 409** (was 200). Audition registers the owner once, and provision checks for an existing owner first.
 - **0.42.0: the `vaultbase` CLI rejects unknown commands and options** (exit 2). `deploy/audition.service` and `bun run dev` use only `--apply-snapshot` and `--snapshot-mode sync`, which 0.44.0 accepts.
 - **0.42.0: `vaultbase setup-admin` follows the password policy, 12 characters by default** (was 8). `RELEASE.md` says so.
@@ -148,11 +148,12 @@ Each finding names the file it comes from at tag v0.37.0; all were re-checked at
 
 **F3. The egress guard denies private and loopback ranges by default** and allows the rest (`src/core/hook-egress.ts`). Public provider hosts such as `api.anthropic.com` pass without configuration. The spec's "allows only the configured provider hosts" is stricter than what Vaultbase offers, which is a denylist plus allow exceptions. Decision: keep the default denylist, and have `lib/providers/index.ts` refuse any URL whose host isn't the host of a configured connection's `base_url` (or `api.anthropic.com` for Anthropic). The mock provider runs in-process and makes no HTTP call, so tests need no egress change.
 
-**F4. Custom routes parse only JSON and text bodies** (`src/core/routes.ts`, `dispatchCustomRoute`). Uploads therefore go through Vaultbase's file endpoint, `POST /api/v1/files/:collection/:recordId/:field` (multipart, field name `file`). It checks the record's `update_rule`, the field's `maxSize` and `mimeTypes`, and a global allowlist (`src/api/files.ts`; `src/core/sec.ts`, `ALLOWED_UPLOAD_MIME`). That allowlist accepts images, `application/pdf`, `text/plain`, `application/json` and `application/octet-stream`, but **not `application/zip` or `text/markdown`**, and it trusts the MIME type the browser declares. Decisions:
+**F4. Custom routes parse only JSON and text bodies** (`src/core/routes.ts`, `dispatchCustomRoute`). Uploads therefore go through Vaultbase's file endpoint, `POST /api/v1/files/:collection/:recordId/:field` (multipart, field name `file`). It checks the record's `update_rule`, the field's `maxSize` and `mimeTypes`, and the server's allowed types (`src/api/files.ts`; since 0.48 the `files.allowed_types` setting, whose default takes images, PDF, plain text, Markdown, CSV, JSON, zip and `application/octet-stream`). Bun's multipart parser gives each part the type of its file name (NOTES W1), so a file is typed by its name, not by what the browser declares, and nothing looks inside it. Decisions (updated Nov 24, 2026, NOTES UP1):
 
-- The UI sets the MIME type from the file's extension before uploading: `.md`, `.txt`, `.csv` and `.log` go up as `text/plain`, and `.zip` as `application/octet-stream`.
-- A before-update hook on attempts re-checks every attached file's original name and type against the Phase 1 list (text, images, PDF, zip) when the output is submitted.
+- The two file fields (`tasks.attachments`, `attempts.output_files`) list exactly the Phase 1 types: `text/plain` (`.txt`, `.log`), `text/markdown`, `text/csv`, `application/json`, `application/pdf`, `application/zip` (and `application/x-zip-compressed`), and PNG, JPEG, GIF and WebP. Not `application/octet-stream`, so a file with no or an unknown extension is refused.
+- The UI uploads the files as they are, then saves the returned names on the record with a normal update (the handoff page does it in the submit). The record's before-update hook accepts a new name only if it is a file uploaded to that record and field (`addedFilesError`, `lib/handoff.ts`), and on submit re-checks every output file's original name and stored type against the Phase 1 list.
 - Each file field sets `maxSize: 26214400` (25 MB). The per-request cap stays at its 50 MB default.
+- There is no content (magic-byte) check: a text file renamed `photo.png` is stored as `image/png`. Cas accepted that on Nov 24, 2026. Vaultbase serves only raster image types inline, with `nosniff`, and everything else as a download.
 
 **F5. Script time limits.** By default a route has 30 s and a queue worker 300 s (`src/core/script-limits.ts`), and each `helpers.http` attempt times out after 30 s. A Claude call with thinking on can take minutes. T0's setup script sets `queues.timeout_ms` to `900000` (15 minutes). Adapters pass `timeoutMs: 600000` and `retries: 3` to `helpers.http.request`, which retries network errors, 429 and 5xx with doubling delays.
 
@@ -301,7 +302,7 @@ Rules: all `OWNER`, except delete: `OWNER`, and the hook refuses when the role h
 | composed_prompt | text | The Composer's draft as the owner left it (§9a). When not empty, `promptForTask` returns it instead of the generic prompt. The owner may edit it while the task is unlocked. |
 | compose | json | Set only by Audition (the hook refuses an owner write that changes it): `{ status: composing \| done \| failed, contender, asked_at, error?, tokens_in?, tokens_out?, cost?, duration_ms?, done_at? }`. Cas approved the field on Nov 18, 2026. |
 
-Rules: list, view and create `OWNER` · update `OWNER && locked = false` · delete `OWNER && locked = false`. The `beforeUpdate` hook also refuses any write that changes `locked` (only server code sets it), and refuses attachment uploads on locked tasks through the update rule.
+Rules: list, view and create `OWNER` · update `OWNER && locked = false` · delete `OWNER && locked = false`. The `beforeUpdate` hook also refuses any write that changes `locked` (only server code sets it), and refuses attachment uploads on locked tasks through the update rule (Vaultbase's upload endpoint checks it). An owner write may add only attachments uploaded to that task (a new task starts with none); it may drop any.
 
 ### connections
 
@@ -400,9 +401,9 @@ Rules: list and view `OWNER` · create, update and delete `—`.
 | error | text | Why it failed, or why AI judging failed |
 | submitted_at | date | |
 
-Rules: list and view `OWNER` · create and delete `—` · update `OWNER && mode = "handoff" && (status = "waiting" || (status = "submitted" && @request.body.status = "submitted" && @request.body.status:changed = true))`. Vaultbase checks an update rule on the record before and after the change (NOTES.md F14), so the rule allows a waiting output to be edited and to move once to submitted, and nothing after. Files can be attached only while the output is waiting (the upload route checks the same).
+Rules: list and view `OWNER` · create and delete `—` · update `OWNER && mode = "handoff" && (status = "waiting" || (status = "submitted" && @request.body.status = "submitted" && @request.body.status:changed = true))`. Vaultbase checks an update rule on the record before and after the change (NOTES.md F14), so the rule allows a waiting output to be edited and to move once to submitted, and nothing after. Files can be uploaded only while the output is waiting, since Vaultbase's upload endpoint checks the same rule.
 
-The `beforeUpdate` hook allows the owner to change only `output`, `output_files`, `tokens_in`, `tokens_out`, `duration_ms` and `status`. `status` may only go from `waiting` to `submitted`, and that change needs a non-empty `output` or at least one file. On submit it sets `metrics_source = manual`, `submitted_at`, and `cost` when prices and tokens allow, and it re-checks file names and types (F4). The `afterUpdate` hook enqueues AI judging when the run's judge is `ai`, then refreshes the run's status.
+The `beforeUpdate` hook allows the owner to change only `output`, `output_files`, `tokens_in`, `tokens_out`, `duration_ms` and `status`. `status` may only go from `waiting` to `submitted`, and that change needs a non-empty `output` or at least one file. On submit it sets `metrics_source = manual`, `submitted_at`, and `cost` when prices and tokens allow, and it re-checks file names and types (F4). A write may add only files uploaded to this output's `output_files`. The `afterUpdate` hook enqueues AI judging when the run's judge is `ai`, then refreshes the run's status.
 
 ### verdicts
 
@@ -504,7 +505,6 @@ All routes need the owner (`requireAuth: true`, plus a check that the caller is 
 | `POST /guest/:token/votes` | Guest voters | `{ task, label, stars }` or `{ task, left, right, pick }`. One vote per guest per output or pair. |
 | `GET /guest/:token/files/:task/:label/:i` | Guest voters | An output file for a guest, under a neutral name. |
 | `DELETE /connections/:id/key` | T1 | Removes the stored key (F2) |
-| `POST /files/:collection/:id/:field` | T2 | The owner's upload path, built while Vaultbase's own was broken (NOTES.md F9, fixed in 0.41.1; F15, O6). Kept until part B of `docs/PLATFORM-UPGRADES.md`. Multipart, parts named `file`. Only `attempts/output_files` (handoff, waiting) and `tasks/attachments` (unlocked). 25 MB per file, Phase 1 types, all or nothing. Returns `{ data: record }`. |
 
 ## 8. Workers and the run lifecycle
 
@@ -835,7 +835,7 @@ The spec's thread plan stands: T0 merges first, then T1 to T4 run in parallel, t
 2. Text, image and file tasks get their own return instructions. A task without `base_ref` shows no repo line.
 3. A pasted output submits once. A second PATCH, a PATCH on a non-handoff attempt, and a PATCH that changes `contender` or `task` are all refused.
 4. Optional tokens and time are saved with `metrics_source = manual`.
-5. A 26 MB upload is refused, as is a `.exe` declared as `application/octet-stream`, and an upload after submit. Text, PNG, PDF and zip uploads are accepted.
+5. A 26 MB upload is refused, as is a `.exe` declared as `application/octet-stream`, and an upload after submit. Text (including `.md`, `.csv` and `.log`), PNG, PDF and zip uploads are accepted, through Vaultbase's own upload endpoint.
 
 ### T3 Judging and fitness
 

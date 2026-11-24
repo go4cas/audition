@@ -87,7 +87,7 @@ export const weightTotal = (values, okLabel) => () => {
 
 // ---------- File picker with a drop zone ----------
 export const MAX_FILE = 25 * 1024 * 1024;
-const OK_FILE = /\.(txt|md|markdown|csv|log|json|png|jpe?g|gif|webp|svg|pdf|zip)$/i;
+const OK_FILE = /\.(txt|md|markdown|csv|log|json|png|jpe?g|gif|webp|pdf|zip)$/i;
 export const fileIcon = (name) => (/\.(png|jpe?g|gif|webp|svg)$/i.test(name) ? "image" : "file");
 export const kb = (bytes) => (bytes >= 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + " MB" : Math.max(1, Math.round(bytes / 1024)) + " KB");
 

@@ -1,9 +1,9 @@
 // lib/handoff.ts without a server: the prompt pieces, the renderer copy and
-// the upload checks (TECH-SPEC §9, F4, F6).
+// the file name checks (TECH-SPEC §9, F4, F6).
 import { expect, test } from "bun:test";
 import {
-  checkUpload, htmlToText, renderPrompt, renderTemplate, returnInstructionsFor, rubricText,
-  uploadTargetError, uploadTypeError,
+  htmlToText, renderPrompt, renderTemplate, returnInstructionsFor, rubricText,
+  uploadTypeError,
 } from "../vb_hooks/lib/handoff.ts";
 import { deriveCost } from "../vb_hooks/lib/cost.ts";
 import { runStatusFrom } from "../vb_hooks/lib/runs.ts";
@@ -82,28 +82,15 @@ test("run status follows TECH-SPEC §8", () => {
   expect(runStatusFrom(["failed"])).toBe("done");
 });
 
-test("upload checks: size, type by name, and content", () => {
-  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]);
-  const zip = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0]);
-  const pdf = new TextEncoder().encode("%PDF-1.4");
-  expect(checkUpload("a.png", "image/png", png.length, png)).toBeNull();
-  expect(checkUpload("a.zip", "application/zip", zip.length, zip)).toBeNull();
-  expect(checkUpload("a.zip", "application/octet-stream", zip.length, zip)).toBeNull();
-  expect(checkUpload("a.pdf", "application/pdf", pdf.length, pdf)).toBeNull();
-  expect(checkUpload("notes.md", "text/markdown", 3, new Uint8Array(3))).toBeNull();
-  expect(checkUpload("big.txt", "text/plain", 26 * 1024 * 1024, new Uint8Array(0))?.code).toBe(413);
-  expect(checkUpload("tool.exe", "application/octet-stream", 3, new Uint8Array(3))?.code).toBe(415);
-  expect(checkUpload("fake.png", "image/png", 3, new Uint8Array([1, 2, 3]))?.code).toBe(415);
+test("file names: the Phase 1 list, and the stored type must fit the name", () => {
+  expect(uploadTypeError("a.png", "image/png")).toBeNull();
+  expect(uploadTypeError("a.zip", "application/zip")).toBeNull();
+  expect(uploadTypeError("notes.md", "text/markdown")).toBeNull();
+  expect(uploadTypeError("data.csv", "text/csv")).toBeNull();
+  expect(uploadTypeError("build.log", "text/plain")).toBeNull();
+  // files stored by the old upload route (before Vaultbase 0.48)
+  expect(uploadTypeError("notes.md", "text/plain")).toBeNull();
+  expect(uploadTypeError("a.zip", "application/octet-stream")).toBeNull();
+  expect(uploadTypeError("tool.exe", "application/x-msdownload")).toContain("isn't a supported file");
   expect(uploadTypeError("a.png", "application/pdf")).toContain("doesn't match");
-  expect(checkUpload("e.txt", "text/plain", 0, new Uint8Array(0))?.code).toBe(422);
-});
-
-test("upload targets: waiting handoff outputs and unlocked tasks only", () => {
-  expect(uploadTargetError("attempts", "output_files", { mode: "handoff", status: "waiting" })).toBeNull();
-  expect(uploadTargetError("attempts", "output_files", { mode: "handoff", status: "submitted" })?.code).toBe(409);
-  expect(uploadTargetError("attempts", "output_files", { mode: "api", status: "waiting" })?.code).toBe(403);
-  expect(uploadTargetError("tasks", "attachments", { locked: false })).toBeNull();
-  expect(uploadTargetError("tasks", "attachments", { locked: true })?.code).toBe(403);
-  expect(uploadTargetError("contenders", "x", {})?.code).toBe(404);
-  expect(uploadTargetError("attempts", "prompt_sent", { mode: "handoff", status: "waiting" })?.code).toBe(404);
 });

@@ -50,11 +50,20 @@ async function startRun(task: Record<string, any>, contenderNames: string[], jud
 
 const patch = (id: string, body: unknown) => h.api("owner", "PATCH", `/api/v1/attempts/${id}`, body);
 const get = async (id: string) => (await h.api("owner", "GET", `/api/v1/attempts/${id}`)).body.data;
-const upload = async (collection: string, id: string, field: string, files: File[], token = h.ownerToken) => {
+// The owner's upload, as the UI does it: Vaultbase's own endpoint stores the
+// files for the record's field, then a PATCH saves their names on the record.
+const post = async (collection: string, id: string, field: string, files: File[], token = h.ownerToken) => {
   const form = new FormData();
   for (const f of files) form.append("file", f);
-  const r = await fetch(`${h.url}/api/custom/files/${collection}/${id}/${field}`, { method: "POST", headers: { authorization: `Bearer ${token}` }, body: form });
+  const r = await fetch(`${h.url}/api/v1/files/${collection}/${id}/${field}`, { method: "POST", headers: { authorization: `Bearer ${token}` }, body: form });
   return { status: r.status, body: await r.json() as any };
+};
+const upload = async (collection: string, id: string, field: string, files: File[], token = h.ownerToken) => {
+  const up = await post(collection, id, field, files, token);
+  if (up.status !== 200) return up;
+  const names = (Array.isArray(up.body.data) ? up.body.data : [up.body.data]).map((u: any) => u.filename);
+  const rec = (await h.api("owner", "GET", `/api/v1/${collection}/${id}`)).body.data;
+  return h.api("owner", "PATCH", `/api/v1/${collection}/${id}`, { [field]: [...(rec[field] ?? []), ...names] });
 };
 
 // ── Done-when 1 ──────────────────────────────────────────────────────────────
@@ -268,9 +277,9 @@ test("5. text, PNG, PDF and zip uploads are accepted, served back, and can be su
     `SELECT original_name, mime_type FROM vaultbase_files WHERE record_id = ? ORDER BY original_name`, [id]);
   expect(names).toEqual([
     { original_name: "brief.pdf", mime_type: "application/pdf" },
-    { original_name: "bundle.zip", mime_type: "application/octet-stream" },
+    { original_name: "bundle.zip", mime_type: "application/zip" },
     { original_name: "image.png", mime_type: "image/png" },
-    { original_name: "notes.md", mime_type: "text/plain" },
+    { original_name: "notes.md", mime_type: "text/markdown" },
   ]);
   const imgName = r.body.data.output_files[1];
   const served = await fetch(`${h.url}/api/v1/files/${imgName}`, { headers: { authorization: `Bearer ${h.ownerToken}` } });
@@ -285,30 +294,54 @@ test("5. a 26 MB upload, a .exe declared as application/octet-stream, and an upl
   const { attempts } = await startRun(task, ["Midjourney (manual)", "Mock Image"]);
   const id = attempts["Midjourney (manual)"]!;
 
-  const big = await upload("attempts", id, "output_files", [new File([new Uint8Array(26 * 1024 * 1024)], "big.txt", { type: "text/plain" })]);
-  expect(big.status).toBe(413);
-  const exe = await upload("attempts", id, "output_files", [new File([new Uint8Array([0x4d, 0x5a, 0x90, 0])], "tool.exe", { type: "application/octet-stream" })]);
+  const big = await post("attempts", id, "output_files", [new File([new Uint8Array(26 * 1024 * 1024)], "big.txt", { type: "text/plain" })]);
+  expect(big.status).toBeOneOf([413, 422]);
+  // Vaultbase types a part by its name (application/x-msdownload), which no setting allows.
+  const exe = await post("attempts", id, "output_files", [new File([new Uint8Array([0x4d, 0x5a, 0x90, 0])], "tool.exe", { type: "application/octet-stream" })]);
   expect(exe.status).toBe(415);
-  const fake = await upload("attempts", id, "output_files", [new File(["not a png"], "fake.png", { type: "image/png" })]);
-  expect(fake.status).toBe(415);
   // all or nothing: one bad file refuses the whole upload
-  const mixed = await upload("attempts", id, "output_files", [new File(["ok"], "ok.txt"), new File(["MZ"], "bad.exe")]);
+  const mixed = await post("attempts", id, "output_files", [new File(["ok"], "ok.txt"), new File(["MZ"], "bad.exe")]);
   expect(mixed.status).toBe(415);
+  expect((await h.sql(`SELECT id FROM vaultbase_files WHERE record_id = ?`, [id])).length).toBe(0);
   expect(fileCount(await get(id))).toBe(0);
 
   expect((await upload("attempts", id, "output_files", [new File(["ok"], "ok.txt", { type: "text/plain" })])).status).toBe(200);
   expect((await patch(id, { output: "done", status: "submitted" })).status).toBe(200);
-  const after = await upload("attempts", id, "output_files", [new File(["late"], "late.txt", { type: "text/plain" })]);
-  expect(after.status).toBe(409);
+  // a submitted output fails the attempts update rule, which Vaultbase's upload checks
+  const after = await post("attempts", id, "output_files", [new File(["late"], "late.txt", { type: "text/plain" })]);
+  expect(after.status).toBe(403);
   expect(fileCount(await get(id))).toBe(1);
 
-  // not a handoff output, not the owner, not an upload target
-  expect((await upload("attempts", attempts["Mock Image"]!, "output_files", [new File(["x"], "x.txt")])).status).toBe(403);
-  expect((await upload("attempts", id, "output_files", [new File(["x"], "x.txt")], h.adminToken)).status).toBe(403);
-  expect((await upload("attempts", id, "prompt_sent", [new File(["x"], "x.txt")])).status).toBe(404);
-  expect((await upload("contenders", byName.get("Codex (manual)")!.id, "config", [new File(["x"], "x.txt")])).status).toBe(404);
-  const anon = await fetch(`${h.url}/api/custom/files/attempts/${id}/output_files`, { method: "POST", body: new FormData() });
+  // not a handoff output (update rule), not a file field, not signed in
+  expect((await post("attempts", attempts["Mock Image"]!, "output_files", [new File(["x"], "x.txt")])).status).toBe(403);
+  expect((await post("attempts", attempts["Midjourney (manual)"]!, "prompt_sent", [new File(["x"], "x.txt")])).status).toBeOneOf([400, 403]);
+  const anon = await fetch(`${h.url}/api/v1/files/attempts/${id}/output_files`, { method: "POST", body: new FormData() });
   expect(anon.status).toBeOneOf([401, 403]);
+});
+
+// NOTES UP2: Vaultbase types a file by its name and doesn't look inside, so
+// the magic-byte check of the old upload route (F4) is gone. A renamed file
+// is stored under its name's type; Vaultbase serves only real image types
+// inline (with nosniff), everything else as a download.
+test("5. a renamed file is stored under its name's type (no content check since the move to Vaultbase's upload)", async () => {
+  const task = await one("tasks", 'title ~ "square social image"');
+  const { attempts } = await startRun(task, ["Midjourney (manual)"]);
+  const id = attempts["Midjourney (manual)"]!;
+  const fake = await post("attempts", id, "output_files", [new File(["not a png"], "fake.png", { type: "text/plain" })]);
+  expect(fake.status).toBe(200);
+  const row = await h.sql<{ mime_type: string }>(`SELECT mime_type FROM vaultbase_files WHERE record_id = ?`, [id]);
+  expect(row).toEqual([{ mime_type: "image/png" }]);
+});
+
+test("5. a .log file uploads as plain text", async () => {
+  const task = await one("tasks", 'title ~ "square social image"');
+  const { attempts } = await startRun(task, ["Midjourney (manual)"]);
+  const id = attempts["Midjourney (manual)"]!;
+  const r = await upload("attempts", id, "output_files", [new File(["12:00 started\n"], "build.log", { type: "" })]);
+  expect(r.status).toBe(200);
+  const row = await h.sql<{ original_name: string; mime_type: string }>(`SELECT original_name, mime_type FROM vaultbase_files WHERE record_id = ?`, [id]);
+  expect(row).toEqual([{ original_name: "build.log", mime_type: "text/plain" }]);
+  expect((await patch(id, { status: "submitted" })).status).toBe(200);
 });
 
 test("5. a PATCH can't claim a file that wasn't uploaded to this output", async () => {
@@ -321,7 +354,7 @@ test("5. a PATCH can't claim a file that wasn't uploaded to this output", async 
   expect(fileCount(await get(id))).toBe(0);
 });
 
-test("task attachments upload through the same route while the task is unlocked", async () => {
+test("task attachments upload through Vaultbase's endpoint while the task is unlocked", async () => {
   const role = await one("roles", 'name = "Researcher"');
   const task = await create(h, "tasks", { role: role.id, title: "With a file", prompt: "<p>See the file.</p>" });
   const r = await upload("tasks", task.id, "attachments", [new File(["context"], "context.txt", { type: "text/plain" })]);
@@ -329,7 +362,22 @@ test("task attachments upload through the same route while the task is unlocked"
   expect(r.body.data.attachments.length).toBe(1);
   expect((await render(task.id)).server).toContain("Attached files: context.txt");
   await h.store("update", "tasks", { locked: true }, task.id);
-  expect((await upload("tasks", task.id, "attachments", [new File(["more"], "more.txt")])).status).toBe(403);
+  expect((await post("tasks", task.id, "attachments", [new File(["more"], "more.txt")])).status).toBe(403);
+});
+
+test("a task can only gain files uploaded to it", async () => {
+  const role = await one("roles", 'name = "Researcher"');
+  const a = await create(h, "tasks", { role: role.id, title: "Task A", prompt: "<p>A</p>" });
+  const b = await create(h, "tasks", { role: role.id, title: "Task B", prompt: "<p>B</p>" });
+  const up = await post("tasks", a.id, "attachments", [new File(["for A"], "a.txt", { type: "text/plain" })]);
+  const name = up.body.data[0].filename;
+  // someone else's file, a made-up name, or files on a new task: refused
+  expect((await h.api("owner", "PATCH", `/api/v1/tasks/${b.id}`, { attachments: [name] })).status).toBe(422);
+  expect((await h.api("owner", "PATCH", `/api/v1/tasks/${a.id}`, { attachments: ["00000000-0000-0000-0000-000000000000.txt"] })).status).toBe(422);
+  expect((await h.api("owner", "POST", `/api/v1/tasks`, { role: role.id, title: "C", prompt: "<p>C</p>", attachments: [name] })).status).toBe(422);
+  // its own upload: saved, and can be removed again
+  expect((await h.api("owner", "PATCH", `/api/v1/tasks/${a.id}`, { attachments: [name] })).body.data.attachments).toEqual([name]);
+  expect((await h.api("owner", "PATCH", `/api/v1/tasks/${a.id}`, { attachments: [] })).status).toBe(200);
 });
 
 function fileCount(a: Record<string, any>): number {

@@ -1,6 +1,6 @@
 # Platform upgrades plan: Vaultbase 0.44 and Quiver 3.1/3.2
 
-Status: **approved by Cas on Nov 11, 2026**, with the recommended answers to Q1 to Q8. Part A is done (PR #19, Vaultbase 0.44.0). Part B is done for the server writes and record history; Q1 (owner uploads through Vaultbase's endpoint) was checked and is blocked, so the custom route stays (NOTES W1). B3 (realtime run page) shipped in its own small PR after part C (Q8, NOTES "Realtime run page"). Written Nov 11, 2026, before the feature roadmap continues. Part D (Quiver 3.2 conventions) was added on Nov 12, 2026, when Cas chose full adoption.
+Status: **approved by Cas on Nov 11, 2026**, with the recommended answers to Q1 to Q8. Part A is done (PR #19, Vaultbase 0.44.0). Part B is done for the server writes and record history; Q1 (owner uploads through Vaultbase's endpoint) was checked and was blocked, so the custom route stayed (NOTES W1); it was done on Nov 24, 2026 with Vaultbase 0.48, without the magic-byte check (NOTES UP1). B3 (realtime run page) shipped in its own small PR after part C (Q8, NOTES "Realtime run page"). Written Nov 11, 2026, before the feature roadmap continues. Part D (Quiver 3.2 conventions) was added on Nov 12, 2026, when Cas chose full adoption.
 
 Both changes need Cas's OK under the orchestrator rules (a Vaultbase version change, a schema change after T0, and a scope change for the UI). This document gives the facts, a recommendation, the order of work and the open questions.
 
@@ -86,7 +86,7 @@ All writes go through `vb_hooks/lib/store.ts` (`insertRecord`, `updateRecord`) o
 | castings | 1 create | `routes/castings.ts` |
 | connections, contenders, tasks | 4 updates (key flags, lock state) | `lib/hook-logic.ts`, `routes/connections-key.ts`, `lib/handoff.ts` |
 | connection_keys | 1 delete by `connection` | `routes/connections-key.ts` |
-| files | insert into `vaultbase_files` plus the record's file field *(since Vaultbase 0.48: `helpers.files.save`, NOTES FS1)* | `lib/files.ts` (seed, provider file outputs, owner upload route) |
+| files | insert into `vaultbase_files` plus the record's file field *(since Vaultbase 0.48: `helpers.files.save`, NOTES FS1)* | `lib/files.ts` (seed, provider file outputs; the owner upload route until Nov 24, 2026) |
 
 ### Plan
 
@@ -97,7 +97,7 @@ All writes go through `vb_hooks/lib/store.ts` (`insertRecord`, `updateRecord`) o
    - *Server-made files* (seed fixtures and files a provider returns, such as the mock image outputs). 0.44 has no helper to store a file from server code, so `lib/files.ts` keeps writing the file and its `vaultbase_files` row. The record's field update moves to `helpers.records.update` if the records path accepts a stored file name there; the spike for PR B checks that first. See Q2.
 4. **Turn on record history for `verdicts`, `castings`, `attempts` and `runs`** in `schema/snapshot.json` (today: `tasks`, `contenders`, `roles`). This is a schema change after T0, so it needs Cas's OK (Q4). It is what the SPEC promised for judgements and castings (R5).
 5. **Realtime for the run page (B3).** With server writes sending realtime events, `ui/src/pages/run.js` subscribes to `attempts` and `runs` for the run instead of polling. Polling stays as the fallback when the realtime connection drops. This can ship in PR B or as a small follow-up PR; the recommendation is a follow-up, so PR B stays server-only.
-6. **The owner upload route.** With F9 fixed, the owner could upload through Vaultbase's own `POST /api/v1/files/:collection/:id/:field`. The custom route enforces more than the built-in one can today: only a waiting handoff output or an unlocked task, the Phase 1 file types by extension, and a magic-byte check. The plan is to move to the built-in endpoint where its update rule plus the field's `maxSize` and MIME options cover those checks, and keep the custom route only for the magic-byte check if the built-in one can't do it. See Q1.
+6. **The owner upload route.** With F9 fixed, the owner could upload through Vaultbase's own `POST /api/v1/files/:collection/:id/:field`. The custom route enforces more than the built-in one can today: only a waiting handoff output or an unlocked task, the Phase 1 file types by extension, and a magic-byte check. The plan is to move to the built-in endpoint where its update rule plus the field's `maxSize` and MIME options cover those checks, and keep the custom route only for the magic-byte check if the built-in one can't do it. See Q1. *(Done Nov 24, 2026 with Vaultbase 0.48: the route is gone and the magic-byte check with it, NOTES UP1.)*
 
 Done when: no `helpers.sql` write is left in `vb_hooks/` except the two documented bypasses (a grep test enforces it), every server write shows up in record history as system, the full suite and the e2e test are green on 0.44.0, and NOTES.md records the change to F1.
 
