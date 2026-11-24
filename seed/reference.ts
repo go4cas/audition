@@ -181,7 +181,8 @@ export const WORKSPACES: WorkspaceDef[] = [
   },
 ];
 
-const MIME: Record<string, string> = { ".md": "text/plain", ".txt": "text/plain", ".png": "image/png" };
+// The types Vaultbase gives an owner upload of the same name (NOTES UP1).
+const MIME: Record<string, string> = { ".md": "text/markdown", ".txt": "text/plain", ".png": "image/png" };
 
 export interface SeedReport { created: string[]; existing: number }
 

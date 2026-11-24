@@ -16,9 +16,9 @@ const attach = (collection: string, id: string, field: string, name: string, mim
 
 test("FS1: Vaultbase's file helper refuses a type the field doesn't list, and nothing is attached", async () => {
   const t = await h.store("insert", "tasks", { role: f.role.id, title: "Refused file", prompt: "<p>x</p>" });
-  const r = await attach("tasks", t, "attachments", "bundle.zip", "application/zip", new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
+  const r = await attach("tasks", t, "attachments", "logo.svg", "image/svg+xml", new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'/>"));
   expect(r.status).toBe(422);
-  expect(r.body.error).toContain("bundle.zip");
+  expect(r.body.error).toContain("logo.svg");
   const task = (await h.api("owner", "GET", `/api/v1/tasks/${t}`)).body.data;
   expect(task.attachments ?? []).toEqual([]);
   expect(await h.sql(`SELECT id FROM vaultbase_files WHERE record_id = ?`, [t])).toEqual([]);
@@ -90,20 +90,30 @@ test("F9 (fixed in 0.41.1): the owner uploads through Vaultbase's own endpoint, 
   expect(await res.text()).toBe("hello from the owner");
 });
 
-// NOTES W1 and VB1: why the owner upload route stays. Bun's multipart parser
-// gives a part the type of its file name. Since 0.48.0 Vaultbase's server
-// list (files.allowed_types) takes text/markdown and application/zip, so only
-// the fields' own mimeTypes refuse them now. Flips when the #12 thread widens
-// those fields (a schema change) and drops routes/files-upload.ts.
-test("W1: Vaultbase's own upload endpoint takes Markdown and zip server-wide, but our fields' mimeTypes still refuse them", async () => {
-  for (const [name, type, seen] of [["notes.md", "text/plain", "text/markdown"], ["bundle.zip", "application/octet-stream", "application/zip"]] as const) {
+// NOTES W1, VB4 and UP1: Bun's multipart parser gives a part the type of its
+// file name, Vaultbase 0.48's server list (files.allowed_types) takes
+// Markdown, CSV and zip, and our fields' mimeTypes now list them, so every
+// Phase 1 type uploads through Vaultbase's own endpoint.
+test("UP1: Vaultbase's own upload endpoint takes Markdown, CSV, zip and .log files, typed by their names", async () => {
+  for (const [name, type, stored] of [
+    ["notes.md", "text/plain", "text/markdown"], ["data.csv", "text/plain", "text/csv"],
+    ["bundle.zip", "application/octet-stream", "application/zip"], ["build.log", "", "text/plain"],
+  ] as const) {
     const form = new FormData();
     form.append("file", new File(["PK\u0005\u0006"], name, { type }));
     const r = await fetch(`${h.url}/api/v1/files/tasks/${f.task.id}/attachments`, { method: "POST", headers: { authorization: `Bearer ${h.ownerToken}` }, body: form });
-    expect(r.status, name).toBe(422);
-    const error = (await r.json() as { error: string }).error;
-    expect(error).toContain(seen);
-    expect(error).toContain("not allowed by field rules");
+    const body = await r.json() as { data: Array<{ mimeType: string; originalName: string }> };
+    expect(r.status, `${name}: ${JSON.stringify(body)}`).toBe(200);
+    expect(body.data[0]).toMatchObject({ originalName: name, mimeType: stored });
+  }
+});
+
+test("UP1: a file with no or an unknown extension is refused by the fields' mimeTypes", async () => {
+  for (const name of ["Makefile", "script.py", "page.html"]) {
+    const form = new FormData();
+    form.append("file", new File(["x"], name, { type: "text/plain" }));
+    const r = await fetch(`${h.url}/api/v1/files/tasks/${f.task.id}/attachments`, { method: "POST", headers: { authorization: `Bearer ${h.ownerToken}` }, body: form });
+    expect(r.status, name).toBeOneOf([415, 422]);
   }
 });
 

@@ -2,6 +2,7 @@
 // three-line wrapper that names the collection and event and calls one of
 // these. They take the hook context, so this file never imports "vaultbase".
 import { isTrusted, updateRecord, type Records, type Sql } from "./store.ts";
+import { addedFilesError } from "./handoff.ts";
 import {
   DEFAULT_FITNESS_WEIGHTS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_MIN_OUTPUTS, DEFAULT_TRIAL_DAYS, DEFAULT_PASS_MARK,
   fitnessWeightsError, normaliseContenderConfig, parseJson, requiredMode, rubricError, type Provider,
@@ -101,6 +102,15 @@ export async function taskBeforeWrite(ctx: Ctx): Promise<void> {
   // tasks.compose is the Composer's status, written only by Audition (§9a).
   if (!trusted(ctx) && has(r, "compose") && JSON.stringify(parseJson(r["compose"]) ?? null) !== JSON.stringify(parseJson(ctx.existing?.["compose"]) ?? null)) {
     ctx.helpers.abort("The Composer's status is set by Audition. Use Compose on the task instead.");
+  }
+  // The owner's files come from Vaultbase's upload endpoint, which needs the
+  // task to exist: a new task starts with none, and an update may add only
+  // files uploaded to this task's attachments.
+  if (!trusted(ctx) && has(r, "attachments")) {
+    const err = ctx.existing
+      ? await addedFilesError(ctx.helpers.sql, String(ctx.existing["id"]), "attachments", ctx.existing["attachments"], r["attachments"])
+      : (Array.isArray(r["attachments"]) ? r["attachments"].length : !empty(r["attachments"])) ? "Save the task first, then add its files." : null;
+    if (err) ctx.helpers.abort(err);
   }
   const m = merged(ctx);
   if (!ctx.existing && empty(r["output_type"])) {

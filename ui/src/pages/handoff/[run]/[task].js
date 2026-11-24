@@ -1,7 +1,7 @@
 // 11. Copy and paste: copy the prompt, paste it into the tool, paste the reply
 // back (with files, and tokens and time if the tool showed them).
 import { html, reactive } from "@arrow-js/core";
-import { custom, fileLabel, fileUrl, update, upload } from "../../../api.js";
+import { custom, fileLabel, fileUrl, one, update, uploadFiles } from "../../../api.js";
 import { APP, go, routeArgs } from "../../../lib/nav.js";
 import { filePicker, fileIcon, rawFiles } from "../../../components/forms.js";
 import { crumbs, empty, page } from "../../../components/page.js";
@@ -41,8 +41,10 @@ export default function handoff() {
       const submit = async () => {
         f.sending = true;
         try {
-          if (f.files.length) await upload("attempts", f.attempt, "output_files", rawFiles(f.files));
+          // Vaultbase stores the files; the submit saves their names on the output in the same update.
+          const names = f.files.length ? await uploadFiles("attempts", f.attempt, "output_files", rawFiles(f.files)) : [];
           const body = { output: f.reply, status: "submitted" };
+          if (names.length) body.output_files = [...((await one("attempts", f.attempt)).output_files || []), ...names];
           if (f.tin !== "") body.tokens_in = Number(f.tin);
           if (f.tout !== "") body.tokens_out = Number(f.tout);
           if (f.minutes !== "") body.duration_ms = Math.round(Number(f.minutes) * 60000);

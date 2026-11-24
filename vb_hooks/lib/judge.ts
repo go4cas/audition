@@ -49,7 +49,7 @@ export const PAIR_SCHEMA = {
 export const JUDGE_IMAGE_MIMES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 /** 10 MB once base64-encoded is about 7.5 MB of raw file. */
 export const JUDGE_IMAGE_MAX_BYTES = 7.5 * 1024 * 1024;
-const TEXT_MIMES = ["text/plain", "application/json"];
+const TEXT_MIMES = ["text/plain", "text/markdown", "text/csv", "application/json"];
 
 export interface OutputFile { name: string; mime: string; size: number; stored: string }
 
