@@ -108,7 +108,7 @@ button.alert-item__link { width: 100%; font: inherit; text-align: left; cursor: 
 
 /* Light and dark toggle in the top bar (lib/theme.js) */
 .theme-btn .i { transition: transform var(--t-slow) var(--ease-spring); }
-.theme-btn:hover .i { transform: rotate(40deg); }
+@media (hover: hover) { .theme-btn:hover .i { transform: rotate(40deg); } }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dot-count { color: #160b33; } }
 @media (prefers-reduced-motion: reduce) { .theme-btn .i { transition: none; } }
 

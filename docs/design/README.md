@@ -70,7 +70,8 @@ What we took from it: the data-attribute variant pattern, native `<dialog>`, and
 | Modal image view | `<dialog>` with `showModal()` |
 | Enter and exit animation | `@starting-style`, `transition-behavior: allow-discrete` |
 | Card-style checkboxes | `:has(input:checked)` |
-| Tooltips on icon buttons and disabled controls | CSS `[data-tip]::after`, no JS |
+| Tooltips on icon buttons and disabled controls | CSS `[data-tip]::after`, no JS. Hover shows them only under `@media (hover: hover)`; keyboard focus always does. `data-tip-align="end"` opens a tip leftwards for things at the right edge. |
+| Tables on a phone | `table.table--cards`: below 40rem each row becomes a card (name and button on top, the other cells underneath with their `data-label`) |
 | Toasts | about 15 lines of JS |
 
 These work in current Chrome, Edge, Safari and Firefox. Popover positioning is a few lines of JS; CSS anchor positioning can replace it once every browser supports it.
@@ -171,6 +172,7 @@ For Cas to confirm in the PR. None of them adds scope; they decide how existing 
 - `JUDGE_DATA` in `wireframes.js` shows the shape the blind endpoint needs: letter, text, files, AI stars and reasons. No contender fields.
 - The call count assumes **one AI judging call per output**. If Architecture judges a whole task in one call, `countRun()` changes.
 - Star inputs are five radio buttons, so they work with a keyboard and screen readers.
+- Nothing scrolls sideways at 375 px: every table uses `table--cards`, and the UI walkthrough checks each screen it photographs at phone width.
 - Inputs hidden with `position: absolute` need a positioned parent (`.seg`, `.star-input`, `.check` have one), or they escape scroll containers and widen the page on phones.
 - To change the icon set, edit the list in `icons/build-sprite.mjs` and rerun it against the unpacked `@phosphor-icons/core@2.1.1` package.
 

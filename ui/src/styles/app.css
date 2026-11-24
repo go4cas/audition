@@ -89,7 +89,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .count.is-bumped { animation: bump 500ms var(--ease-spring); }
 @keyframes bump { 30% { transform: scale(1.35); } }
 .icon-btn { width: 32px; height: 32px; border-radius: var(--r-md); display: inline-grid; place-items: center; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast); }
-.icon-btn:hover { background: var(--surface-hover); color: var(--text); }
+@media (hover: hover) { .icon-btn:hover { background: var(--surface-hover); color: var(--text); } }
 .icon-btn:active { transform: scale(0.92); }
 
 .page {
@@ -147,8 +147,19 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
   transition: opacity var(--t-fast), transform var(--t-med) var(--ease-out); transition-delay: 0ms;
 }
 [data-tip=""]::after { display: none; }
-[data-tip]:hover::after, [data-tip]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); transition-delay: 250ms; }
+/* Hover tips only where there is a real pointer: on a phone, a tap leaves
+   :hover stuck, so the tip stayed on screen after tapping the button (Nov 2026).
+   On touch, a plain label with a tip (tabindex="0", not a button or link) shows
+   it while tapped, and a tap elsewhere hides it. */
+@media (hover: hover) { [data-tip]:hover::after { opacity: 1; transform: translate(-50%, 0); transition-delay: 250ms; } }
+[data-tip]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); transition-delay: 250ms; }
+@media (hover: none) { [data-tip][tabindex]:not(a, button):focus::after { opacity: 1; transform: translate(-50%, 0); } }
 [data-tip-side="bottom"]::after { bottom: auto; top: calc(100% + 8px); }
+/* A tip on something at the right edge opens leftwards, so it never sticks out past the screen. */
+[data-tip-align="end"]::after { left: auto; right: 0; transform: translate(0, 4px); }
+[data-tip-align="end"]:focus-visible::after { transform: none; }
+@media (hover: hover) { [data-tip-align="end"]:hover::after { transform: none; } }
+@media (hover: none) { [data-tip-align="end"][tabindex]:focus::after { transform: none; } }
 
 /* ---------- Popovers (native popover attribute, positioned by JS) ---------- */
 .pop {
@@ -268,6 +279,28 @@ tbody tr { transition: background var(--t-fast); }
 tbody tr:hover { background: var(--surface-2); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 tr.is-suggested td { background: color-mix(in srgb, var(--gold-soft) 70%, transparent); }
+/* Phone width: a .table--cards table turns each row into a small card, so it
+   never scrolls sideways. The first cell (the name) and the last cell (the
+   row's button) share the top line; the cells between wrap underneath, each
+   with its column name from data-label. The header row stays for screen readers. */
+@media (max-width: 40rem) {
+  .table-wrap:has(> .table--cards) { overflow-x: visible; }
+  .table--cards, .table--cards tbody { display: block; }
+  .table--cards thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .table--cards tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 10px 16px; border-top: 1px solid var(--line); }
+  .table--cards tbody tr:first-child { border-top: 0; }
+  .table--cards td { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; text-align: left; order: 2; min-width: 0; }
+  .table--cards td:first-child { order: 0; flex: 1 1 0; }
+  .table--cards td:last-child:not(:first-child) { order: 1; flex: none; }
+  .table--cards td:last-child:empty { display: none; }
+  /* Push the middle cells onto their own line under the name. */
+  .table--cards tr::after { content: ""; order: 1; flex-basis: 100%; height: 0; }
+  .table--cards td[data-label]::before { content: attr(data-label); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); font-weight: 650; }
+  .table--cards td.col-state > .row-tight { justify-content: flex-start; }
+  .table--cards tr.is-suggested { background: color-mix(in srgb, var(--gold-soft) 70%, transparent); }
+  .table--cards tr.is-suggested td { background: none; }
+  .table--cards tr.group-row td { flex: 1 1 100%; margin: -10px -16px; padding: 6px 16px; }
+}
 
 /* ---------- Notices ---------- */
 .notice { --fg: var(--text-muted); --bg: var(--surface-2); --ln: var(--line); display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-md); font-size: var(--fs-sm); border: 1px solid var(--ln); background: var(--bg); color: var(--text); }

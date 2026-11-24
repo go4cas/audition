@@ -66,7 +66,30 @@ async function pick(id: string, label: string) {
   await p.click(`#${id}`);
   await p.locator(".dd__menu:popover-open .dd__opt", { hasText: label }).first().click();
 }
+// Phone width: nothing on the page may scroll sideways (the page itself, or a
+// table inside its .table-wrap). The output carousel (.outputs) swipes on purpose.
+const sideways: string[] = [];
+async function fitsPhone(name: string) {
+  await p.setViewportSize({ width: 375, height: 800 });
+  await p.waitForTimeout(150);
+  const wide = await p.evaluate(() => {
+    const out: string[] = [];
+    const root = document.documentElement;
+    if (root.scrollWidth > root.clientWidth + 1) {
+      // Name the outermost element that sticks out, to make a failure easy to find.
+      const over = [...document.querySelectorAll<HTMLElement>("body *")].find((el) => el.getBoundingClientRect().right > root.clientWidth + 1);
+      out.push(`page ${root.scrollWidth}px (${over ? over.tagName.toLowerCase() + "." + [...over.classList].join(".") + " " + (over.getAttribute("data-tip") || over.textContent || "").trim().slice(0, 40) : "?"})`);
+    }
+    for (const el of document.querySelectorAll<HTMLElement>("#main .table-wrap, #main .panel, #main .list > li")) {
+      if (el.scrollWidth > el.clientWidth + 1) out.push(`${el.className || el.tagName} ${el.scrollWidth}px > ${el.clientWidth}px`);
+    }
+    return out;
+  });
+  for (const w of wide) sideways.push(`${name}: ${w}`);
+  await p.setViewportSize({ width: 1280, height: 900 });
+}
 async function shot(name: string) {
+  await fitsPhone(name);
   if (!SCREENS) return;
   mkdirSync(SCREENS, { recursive: true });
   await p.evaluate(() => { document.getElementById("toaster")!.style.visibility = "hidden"; });
@@ -436,3 +459,29 @@ test("Travel Research: judge as me, then confirm a champion on the leaderboard",
 test("the browser saw no script errors", () => {
   expect(errors).toEqual([]);
 });
+
+test("no screen scrolls sideways at phone width (375 px)", () => {
+  expect(sideways).toEqual([]);
+});
+
+test("on a phone, tapping a header icon doesn't leave its tooltip stuck on screen", async () => {
+  const { devices } = await import("playwright");
+  const phone = await browser.newContext({ ...devices["iPhone 13"], storageState: await ctx.storageState() });
+  const tp = await phone.newPage();
+  try {
+    await tp.goto(app("/"));
+    await tp.waitForSelector("#main section:not(.is-loading)", { state: "attached" });
+    expect(await tp.evaluate(() => matchMedia("(hover: none)").matches)).toBe(true);
+    const tipShown = (sel: string) => tp.evaluate((s) => getComputedStyle(document.querySelector(s)!, "::after").opacity, sel);
+    // iOS Safari leaves the tapped button in :hover; the mouse hover here stands in for that.
+    for (const sel of ["[data-theme-toggle]", "[data-alerts]", '[aria-label="Sign out"]']) {
+      if (sel === "[data-theme-toggle]") await tp.tap(sel);
+      await tp.hover(sel);
+      await tp.waitForTimeout(600);
+      expect(await tp.evaluate((s) => document.querySelector(s)!.matches(":hover"), sel)).toBe(true);
+      expect(await tipShown(sel)).toBe("0");
+    }
+  } finally {
+    await phone.close();
+  }
+}, 60_000);

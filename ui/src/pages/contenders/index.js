@@ -85,7 +85,7 @@ export default function contenders() {
 
         <div class="panel">
           <div class="panel__head"><h2>${icon("contenders")}All contenders</h2><span class="muted small row-tight">${icon("locked")}Used ones are read-only. Duplicate to try other settings.</span></div>
-          ${latest.length ? html`<div class="table-wrap"><table>
+          ${latest.length ? html`<div class="table-wrap"><table class="table--cards">
             <thead><tr><th>Contender</th><th>Runs by</th><th class="num">Max output</th><th class="col-state">State</th><th></th></tr></thead>
             <tbody>${latest.map((c) => {
               const pop = popId();
@@ -93,8 +93,8 @@ export default function contenders() {
               const runs = usedIn(c);
               return html`<tr>
                 <td><span class="who">${avatar(c.name)}<span><span class="who__name">${c.name}</span><br><span class="who__meta">${contenderMeta(d, c) || "Default settings"}</span></span></span></td>
-                <td><span class="badge">${icon(c.mode === "handoff" ? "paste" : "api")}${c.mode === "handoff" ? "Copy and paste" : "API · " + (PROVIDER_LABEL[conn?.provider] || "")}</span></td>
-                <td class="num">${c.mode === "handoff" ? html`<span class="muted">–</span>` : num(c.max_output_tokens)}</td>
+                <td data-label="Runs by"><span class="badge">${icon(c.mode === "handoff" ? "paste" : "api")}${c.mode === "handoff" ? "Copy and paste" : "API · " + (PROVIDER_LABEL[conn?.provider] || "")}</span></td>
+                <td class="num" data-label="Max output">${c.mode === "handoff" ? html`<span class="muted">–</span>` : num(c.max_output_tokens)}</td>
                 <td class="col-state">${c.enabled === false ? chip("disabled", "Turned off") : c.locked ? chip("locked", "Used") : chip("draft", "Not used yet")}</td>
                 <td class="num">${c.locked
                   ? html`<button class="icon-btn" type="button" popovertarget="${pop}" aria-label="${c.name + " details"}">${icon("more")}</button>

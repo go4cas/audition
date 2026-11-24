@@ -40,7 +40,7 @@ export default function workspace() {
           : html`<div class="panel">${empty("rubric", "No roles yet", "A role is a job in this workflow, with a rubric that says what good looks like.", html`<a class="btn btn--primary" href="${APP + "/w/" + ws.id + "/roles/new"}">${icon("plus")}Add role</a>`)}</div>`}
         <div class="panel">
           <div class="panel__head"><h2>${icon("history")}Recent runs</h2></div>
-          ${runs.length ? html`<div class="table-wrap"><table>
+          ${runs.length ? html`<div class="table-wrap"><table class="table--cards">
             <thead><tr><th>Run</th><th>Role</th><th class="num">Outputs</th><th>Judge</th><th class="col-state">State</th><th></th></tr></thead>
             <tbody>${runs.slice(0, 12).map((r) => runRow(d, r))}</tbody></table></div>`
           : empty("play", "No runs yet", "Start a run to see contenders compete on the same tasks.")}
@@ -71,5 +71,5 @@ function roleCard(d, ws, r, lb) {
 export function runRow(d, r) {
   const st = r.status === "running" ? chip("active", "Running") : r.status === "judging" ? (r.judge === "me" ? chip("waiting", "Waiting for you") : chip("active", "Being judged")) : chip("done", "Finished");
   const again = r.rerun_of ? html` <span class="badge" data-tip="${"Started with Run again from " + runLabel(d, { id: r.rerun_of })}">${icon("again")}${runLabel(d, { id: r.rerun_of })}</span>` : "";
-  return html`<tr><td><strong>${runLabel(d, r)}</strong>${again}</td><td>${d.byId.roles.get(r.role)?.name}</td><td class="num">${(r.tasks?.length || 0) * (r.contenders?.length || 0)}</td><td><span class="badge">${icon(r.judge === "ai" ? "ai" : "me")}${r.judge === "ai" ? "AI" : "Me"}</span></td><td class="col-state">${st}</td><td class="num"><a class="btn btn--sm btn--quiet" href="${APP + "/runs/" + r.id}">Open${icon("arrow-right", "i--nudge")}</a></td></tr>`;
+  return html`<tr><td><strong>${runLabel(d, r)}</strong>${again}</td><td data-label="Role">${d.byId.roles.get(r.role)?.name}</td><td class="num" data-label="Outputs">${(r.tasks?.length || 0) * (r.contenders?.length || 0)}</td><td data-label="Judge"><span class="badge">${icon(r.judge === "ai" ? "ai" : "me")}${r.judge === "ai" ? "AI" : "Me"}</span></td><td class="col-state">${st}</td><td class="num"><a class="btn btn--sm btn--quiet" href="${APP + "/runs/" + r.id}">Open${icon("arrow-right", "i--nudge")}</a></td></tr>`;
 }
