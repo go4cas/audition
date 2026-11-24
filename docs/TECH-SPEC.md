@@ -309,7 +309,7 @@ Rules: list, view and create `OWNER` · update `OWNER && locked = false` · dele
 | Field | Type | Notes |
 | --- | --- | --- |
 | name | text, required, unique | |
-| provider | select `anthropic`, `openai-compatible`, `mock`, `manual`, `replicate` | `replicate` added Nov 24, 2026 (schema change, NOTES RP2); its base URL defaults to `https://api.replicate.com/v1` (§12b) |
+| provider | select `anthropic`, `openai-compatible`, `mock`, `manual`, `replicate` | `replicate` added Nov 24, 2026 (schema change Cas approved, NOTES RP2); its base URL defaults to `https://api.replicate.com/v1` (§12b) |
 | base_url | url | Empty means the provider default. Required for `openai-compatible`. |
 | has_key | bool | Maintained by the hooks on `connection_keys`; read-only to the owner (hook) |
 | notes | text | |

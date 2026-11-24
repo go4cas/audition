@@ -128,7 +128,7 @@ Added Nov 18, 2026 (fourth roadmap item, no schema change).
 
 #### Replicate
 
-Added Nov 24, 2026, once Vaultbase 0.48 could download files (discussion #17). It brings one schema change: a new connection provider, **Replicate**.
+Added Nov 24, 2026, once Vaultbase 0.48 could download files (discussion #17). Cas approved its one schema change on Nov 24, 2026: a new connection provider, **Replicate**.
 
 - **Set up.** Contenders → Add connection → Replicate, with your Replicate API key (the base URL is optional). Then add contenders with a model id from replicate.com, such as `black-forest-labs/flux-schnell`. Every Replicate contender makes images.
 - **Options.** Aspect ratio, images per output (1 to 4, if the model can), file type (PNG, JPEG or WebP), a "picture input" (the model's input name for an image: the task's first image goes there, for edit and restyle tasks), other inputs as JSON (sent to the model as they are), and a price per image.
