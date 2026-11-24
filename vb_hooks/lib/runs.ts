@@ -7,7 +7,7 @@ import { attachFile } from "./files.ts";
 import { callProvider, ProviderError, type ApiProvider, type FileOut, type HttpLike } from "./providers/index.ts";
 import { mockSeed } from "./providers/mock.ts";
 import { methodOf, pairCount, queueJudging, settleCompareRun, type Method } from "./pairwise.ts";
-import { insertRecord, updateRecord, type Records, type Sql, type Store } from "./store.ts";
+import { claimRecord, insertRecord, updateRecord, type Records, type Sql, type Store } from "./store.ts";
 import { listOf, makesImages, parseJson } from "./validation.ts";
 
 type Rec = Record<string, any>;
@@ -375,14 +375,10 @@ export async function runGenerate(deps: WorkerDeps, attemptId: string): Promise<
   let runId: string | null = null;
   try {
     // Claim it: only a queued attempt moves to in_progress, and only once.
-    // One of the two documented SQL writes (store.ts, NOTES.md F1): the
-    // records API has no "only if still queued" update, and this is what
-    // stops two workers from running one attempt.
-    const claim = await deps.sql.exec(
-      `UPDATE vb_attempts SET status = 'in_progress', updated_at = ? WHERE id = ? AND status = 'queued'`,
-      [Math.floor(now() / 1000), attemptId]);
-    if (claim.changes === 0) return { status: "skipped", calls: 0 };
-    const attempt = await deps.find("attempts", attemptId);
+    // helpers.records.update with { filter } checks "still queued" under the
+    // record lock (Vaultbase 0.48, discussion #13), so two workers can't both
+    // run one attempt, and the claim shows in record history.
+    const attempt = await claimRecord(deps, "attempts", attemptId, `status = "queued"`, { status: "in_progress" });
     if (!attempt) return { status: "skipped", calls: 0 };
     runId = String(attempt["run"]);
     const run = await deps.find("runs", runId);

@@ -132,9 +132,10 @@ test("a store write sends a realtime event to a signed-in subscriber", async () 
 });
 
 // Done-when of docs/PLATFORM-UPGRADES.md part B: no SQL write is left in
-// vb_hooks/ except the worker's claim (lib/runs.ts) and the files row of a
-// server-made file (lib/files.ts).
-test("only the two documented SQL writes are left in vb_hooks/", () => {
+// vb_hooks/ except the files row of a server-made file (lib/files.ts). The
+// worker's claim left SQL with Vaultbase 0.48's helpers.records { filter }
+// (SPEC "Waiting on Vaultbase", #13).
+test("only the one documented SQL write is left in vb_hooks/", () => {
   const root = join(import.meta.dir, "..", "vb_hooks");
   const files: string[] = [];
   const walk = (d: string) => {
@@ -157,5 +158,5 @@ test("only the two documented SQL writes are left in vb_hooks/", () => {
     // helpers.sql under another name, or SQL built elsewhere, would slip past this.
     expect(/sql\.exec\(\s*[^`"'\s]/.test(text), name).toBe(false);
   }
-  expect(writes.sort()).toEqual(["lib/files.ts: INSERT vaultbase_files", "lib/runs.ts: UPDATE vb_attempts"]);
+  expect(writes.sort()).toEqual(["lib/files.ts: INSERT vaultbase_files"]);
 });

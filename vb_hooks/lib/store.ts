@@ -5,13 +5,17 @@
 // API rules apply (trusted server code), and Vaultbase passes no user, so the
 // hooks see `auth === null` and record history shows the write as system.
 //
-// Two writes still use helpers.sql, on purpose (docs/NOTES.md, F1):
-//   - the generate worker's claim of a queued attempt (lib/runs.ts): it needs
-//     "only if still queued", which helpers.records.update has no form of;
-//   - storing a file made by server code (lib/files.ts): Vaultbase has no
-//     server-side file helper, so the file and its vaultbase_files row are
-//     written directly. The record's file field is set through here.
-// test/store.test.ts holds the grep test that keeps it at those two.
+// A conditional write ("only if the record still matches this filter") is
+// claimRecord below: helpers.records.update with { filter } (Vaultbase 0.48+,
+// discussion #13). The generate worker claims a queued attempt this way, so
+// the claim shows in record history like any other write.
+//
+// One write still uses helpers.sql, on purpose (docs/NOTES.md, F1):
+//   - storing a file made by server code (lib/files.ts): the file and its
+//     vaultbase_files row are written directly. The record's file field is
+//     set through here. (helpers.files.save, Vaultbase 0.48, replaces it in a
+//     follow-up.)
+// test/store.test.ts holds the grep test that keeps it at that one.
 
 export interface Sql {
   query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
@@ -24,8 +28,8 @@ type Rec = Record<string, unknown>;
 /** helpers.records: Vaultbase's server-side records API. */
 export interface Records {
   create(collection: string, data: Rec): Promise<Rec>;
-  update(collection: string, id: string, data: Rec): Promise<Rec>;
-  delete(collection: string, id: string): Promise<void>;
+  update(collection: string, id: string, data: Rec, opts?: { filter?: string }): Promise<Rec | null>;
+  delete(collection: string, id: string, opts?: { filter?: string }): Promise<boolean | void>;
 }
 
 /** What a write needs: helpers.records, and helpers.sql to read the schema. */
@@ -75,7 +79,20 @@ export async function insertRecord(store: Store, collection: string, data: Rec):
 /** Update some fields of one record through helpers.records. Returns the record as saved. */
 export async function updateRecord(store: Store, collection: string, id: string, data: Rec): Promise<Rec> {
   await checkFields(store.sql, collection, data);
-  return store.records.update(collection, id, { ...data });
+  const rec = await store.records.update(collection, id, { ...data });
+  if (!rec) throw new StoreError(`store: no ${collection} record '${id}'`);
+  return rec;
+}
+
+/**
+ * Update a record only if it still matches `filter` (records filter syntax,
+ * e.g. `status = "queued"`), checked under Vaultbase's record lock at the
+ * moment of the write. Returns the record as saved, or null when it didn't
+ * match or is gone. Two callers racing for the same record: one gets it.
+ */
+export async function claimRecord(store: Store, collection: string, id: string, filter: string, data: Rec): Promise<Rec | null> {
+  await checkFields(store.sql, collection, data);
+  return store.records.update(collection, id, { ...data }, { filter });
 }
 
 /** Delete one record through helpers.records (with the collection's cascades and hooks). */
