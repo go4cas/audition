@@ -99,7 +99,7 @@ export default function run() {
             <p class="lede row-tight"><span class="badge">${icon(r.judge === "ai" ? "ai" : "me")}Judge: ${judgeName}</span><span class="badge">${icon(r.method === "compare" ? "judge" : "star")}${METHOD_LABEL[r.method === "compare" ? "compare" : "rate"]}${r.both_orders ? ", both ways" : ""}</span><span class="badge">${icon("time")}Started ${time(r.created)}</span><span class="badge">${plural(taskIds.length, "task")} × ${plural(r.contenders?.length || 0, "contender")}</span>${r.rerun_of ? html`<a class="badge link-plain" href="${APP + "/runs/" + r.rerun_of}">${icon("again")}Again from ${runLabel(d, { id: r.rerun_of })}</a>` : ""}</p></div>
           <div class="row">
             <a class="btn" href="${APP + "/leaderboard/" + r.role}">${icon("leaderboard")}Leaderboard</a>
-            ${() => (v().run.status === "done" ? html`<button class="btn btn--primary" type="button" @click="${again}">${icon("again", "i--spin-on-hover")}Run again</button>` : html`<span data-tip="Available when every output is in and judged" tabindex="0"><button class="btn" type="button" disabled>${icon("again")}Run again</button></span>`)}
+            ${() => (v().run.status === "done" ? html`<button class="btn btn--primary" type="button" @click="${again}">${icon("again", "i--spin-on-hover")}Run again</button>` : html`<span data-tip="Available when every output is in and judged" data-tip-align="end" tabindex="0"><button class="btn" type="button" disabled>${icon("again")}Run again</button></span>`)}
           </div>
         </div>
 
@@ -136,7 +136,7 @@ export default function run() {
                 ${() => (waiting() ? html`<a class="btn btn--sm btn--primary" href="${APP + "/handoff/" + r.id + "/" + tid}">${icon("paste")}Paste replies</a>` : "")}
                 ${() => (judgeable() ? html`<a class="btn btn--sm" href="${APP + "/judge/" + r.id + "/" + tid}">${icon("judge")}Open judging</a>` : html`<span class="muted small">Judging starts as outputs arrive</span>`)}
               </div></div>
-            <div class="table-wrap"><table>
+            <div class="table-wrap"><table class="table--cards">
               <thead><tr><th>Contender</th><th class="col-state">State</th><th class="num">Tokens</th><th class="num">Time</th><th></th></tr></thead>
               <tbody>${() => rows().map((a) => attemptRow(d, r, a))}</tbody>
             </table></div>
@@ -264,5 +264,5 @@ function attemptRow(d, r, a) {
   const state = a.status === "failed"
     ? html`<span class="row-tight"><button class="info-btn" type="button" popovertarget="${pop}" aria-label="Why it failed">${icon("info")}</button>${chip("error", "Failed", "is-new")}<div class="pop" id="${pop}" popover><div class="pop__head text-error">${icon("error")}This output failed</div><div class="pop__body"><p>It won't be scored. Use <strong>Run again</strong> once the run finishes to try it fresh.</p>${a.error ? html`<code class="xs">${a.error}</code>` : ""}</div></div></span>`
     : outputChip(a.status, r.judge);
-  return html`<tr><td>${html`<span class="who">${avatar(name, "sm")}${name}</span>`}</td><td class="col-state">${state}</td><td class="${"num" + (tokens == null ? " muted" : "")}">${tokens == null ? "–" : num(tokens)}</td><td class="${"num" + (a.duration_ms == null ? " muted" : "")}">${duration(a.duration_ms)}</td><td class="num">${action}</td></tr>`.key(a.id + a.status);
+  return html`<tr><td>${html`<span class="who">${avatar(name, "sm")}${name}</span>`}</td><td class="col-state">${state}</td><td class="${"num" + (tokens == null ? " muted" : "")}" data-label="Tokens">${tokens == null ? "–" : num(tokens)}</td><td class="${"num" + (a.duration_ms == null ? " muted" : "")}" data-label="Time">${duration(a.duration_ms)}</td><td class="num">${action}</td></tr>`.key(a.id + a.status);
 }
