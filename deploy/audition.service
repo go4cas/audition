@@ -15,6 +15,12 @@ Type=simple
 User=audition
 Group=audition
 EnvironmentFile=/etc/audition/audition.env
+# The app: the release's built UI is Vaultbase's public folder, served at the
+# site root, with page navigations to app routes (/runs/123) answered by its
+# index.html (Vaultbase 0.48+, TECH-SPEC Q2). Set here rather than in
+# audition.env so every upgrade and rollback brings the right value along.
+Environment=VAULTBASE_PUBLIC_DIR=/opt/audition/current/ui/dist
+Environment=VAULTBASE_PUBLIC_SPA=1
 # Applies the schema from the current release on every start, exactly as
 # `bun run dev` does. /opt/audition/bin/vaultbase is a symlink to the pinned,
 # checksum-verified binary, and /opt/audition/current to the release in use.

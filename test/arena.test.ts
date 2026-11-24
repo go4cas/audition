@@ -68,9 +68,9 @@ describe("emails to the owner", () => {
     expect(mail.subject).toBe("Audition: Researcher run finished");
     expect(mail.body).toContain("Your Researcher run has 1 output.");
     expect(mail.body).toContain("1 judged.");
-    expect(mail.body).toContain(`Open the run: https://audition.test/api/custom/app/runs/${id}`);
+    expect(mail.body).toContain(`Open the run: https://audition.test/runs/${id}`);
     expect(mail.body).toContain(`Champion change: the leaderboard now suggests ${f.contender.name} and there is no champion yet.`);
-    expect(mail.body).toContain(`https://audition.test/api/custom/app/leaderboard/${f.role.id}`);
+    expect(mail.body).toContain(`https://audition.test/leaderboard/${f.role.id}`);
   }, 60_000);
 
   test("no champion line once the suggested champion is confirmed", async () => {
@@ -138,7 +138,7 @@ describe("repeating a run on a schedule", () => {
       expect((await h.api("admin", "POST", `/api/v1/admin/jobs/${jobId}/run`)).status).toBe(200);
       const mail = await sink.waitFor((m) => m.subject === "Audition: a repeat of Researcher was skipped", 20_000);
       expect(mail.body).toContain("is turned off.");
-      expect(mail.body).toContain(`https://audition.test/api/custom/app/runs/${first}`);
+      expect(mail.body).toContain(`https://audition.test/runs/${first}`);
       expect((await run(first)).run.schedule).toBe("0 7 * * 1");
     } finally {
       await h.store("update", "contenders", { enabled: true }, f.contender.id);

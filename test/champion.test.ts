@@ -158,7 +158,7 @@ test("the daily job alerts once when a trial ends (the workspace's trial_days)",
   expect((await h.api("admin", "POST", `/api/v1/admin/jobs/${id}/run`)).status).toBe(200);
   const mail = await sink.waitFor((m) => m.subject === subject);
   expect(mail.body).toContain(`on trial for 5 days`);
-  expect(mail.body).toContain(`https://audition.test/api/custom/app/leaderboard/${s.role.id}`);
+  expect(mail.body).toContain(`https://audition.test/leaderboard/${s.role.id}`);
   // Ended two days ago: it was in an earlier alert, so not again.
   await h.store("update", "castings", { since: now - 7 * 86400 }, c.id);
   await h.api("admin", "POST", `/api/v1/admin/jobs/${id}/run`);

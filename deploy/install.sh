@@ -329,10 +329,11 @@ setup_proxy() {
       note "2. Your domain > Security > Security rules (or WAF) > Create rule > Custom rule, action Block, expression:"
       note "     (http.host eq \"$DOMAIN\" and starts_with(http.request.uri.path, \"/_/\") and http.request.uri.path ne \"/_/ready\")"
       note "   This keeps the Vaultbase admin off the internet (reach it through an SSH tunnel)."
-      note "3. Your domain > Rules > Create rule > Redirect rule, expression:"
-      note "     (http.host eq \"$DOMAIN\" and http.request.uri.path eq \"/\")"
-      note "   Static, URL https://$DOMAIN/api/custom/app/, status 302. Without it https://$DOMAIN/ answers 404;"
-      note "   the app itself is at https://$DOMAIN/api/custom/app/."
+      note "3. Your domain > Rules > Create rule > Response Header Transform Rule, expression:"
+      note "     (http.host eq \"$DOMAIN\" and not starts_with(http.request.uri.path, \"/api/\") and not starts_with(http.request.uri.path, \"/_/\"))"
+      note "   Set static: Content-Security-Policy = frame-ancestors 'none', X-Frame-Options = DENY."
+      note "   This stops other sites from showing Audition in a frame (a <meta> tag can't)."
+      note "   The app itself is at https://$DOMAIN/."
       PROXY_DONE="tunnel"
       ;;
     none)
@@ -567,6 +568,13 @@ cmd_upgrade() {
   for d in "$PREFIX"/bin/vaultbase-*; do
     [ "$d" = "$VB_BIN" ] || [ "$d" = "$(sed -n 's/^VAULTBASE=//p' "$ROLLBACK/from")" ] || rm -f "$d"
   done
+  # The app moved to the site root (TECH-SPEC Q2): an older Caddy or nginx
+  # site file still redirects / to /api/custom/app/, which now redirects back.
+  case "$(conf_get PROXY)" in caddy|nginx)
+    if grep -rqs "/api/custom/app/" /etc/caddy /etc/nginx "$ETC/audition.caddy" 2>/dev/null; then
+      warn "the $(conf_get PROXY) site file is from an older release. Update it now: sudo bash $0 proxy"
+    fi;;
+  esac
   ok "Audition $VERSION is running. Run the smoke test in docs/RELEASE.md."
 }
 

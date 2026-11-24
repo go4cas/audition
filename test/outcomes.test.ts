@@ -151,7 +151,7 @@ describe("outcome checks", () => {
     expect((await h.api("admin", "POST", `/api/v1/admin/jobs/${id}/run`)).status).toBe(200);
     const mail = await sink.waitFor((m) => m.subject === "Audition: 1 outcome check due");
     expect(mail.body).toContain("- Stock analyst (");
-    expect(mail.body).toContain("Check them here: https://audition.test/api/custom/app/outcomes");
+    expect(mail.body).toContain("Check them here: https://audition.test/outcomes");
     // A check that came due two days ago was in an earlier email: not again.
     await makeDue(c!.id, 2 * DAY_S);
     const dueMails = () => sink.mails.filter((m) => /outcome checks? due/.test(m.subject)).length;

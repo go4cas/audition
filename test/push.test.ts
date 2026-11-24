@@ -70,7 +70,7 @@ describe("with a push provider turned on in the admin", () => {
     expect(row.title).toBe("Researcher run finished");
     expect(row.body).toContain("1 output.");
     expect(row.type).toBe("run-finished");
-    expect(row.data.url).toMatch(/^https:\/\/audition\.test\/api\/custom\/app\/(runs|leaderboard)\//);
+    expect(row.data.url).toMatch(/^https:\/\/audition\.test\/(runs|leaderboard)\//);
     expect(row.read_at ?? null).toBeFalsy();
   }, 60_000);
 
@@ -79,7 +79,7 @@ describe("with a push provider turned on in the admin", () => {
     const id = r.body.data.run.id;
     const row = await until(async () => ((await inbox()).body.data ?? []).find((n: any) => n.data?.page === `/runs/${id}`), "inbox row", 30_000);
     expect(row.title).toBe("Researcher outputs are ready to judge");
-    expect(row.data.url).toBe(`https://audition.test/api/custom/app/runs/${id}`);
+    expect(row.data.url).toBe(`https://audition.test/runs/${id}`);
   }, 60_000);
 
   test("the owner can mark an alert read; nobody else sees the inbox", async () => {

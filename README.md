@@ -15,7 +15,7 @@ bun install
 bun run dev
 ```
 
-`bun run dev` downloads Vaultbase and checks its checksum, builds the UI, starts the server, creates your sign-ins and seeds four example workspaces. On the first run it prints the owner's email and password (also saved in `.vaultbase/credentials.json`, which only you can read) and the address to open, normally <http://127.0.0.1:8091/api/custom/app/>.
+`bun run dev` downloads Vaultbase and checks its checksum, builds the UI, starts the server, creates your sign-ins and seeds four example workspaces. On the first run it prints the owner's email and password (also saved in `.vaultbase/credentials.json`, which only you can read) and the address to open, normally <http://127.0.0.1:8091/>.
 
 `bun run stop` stops the server. Your data stays in `.vaultbase/data` for the next `bun run dev`, which first migrates it when a new version renames something (for example stages became groups on Nov 23, 2026).
 

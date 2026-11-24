@@ -7,7 +7,7 @@ import { boot, type Harness } from "./harness.ts";
 import { ROOT } from "../scripts/lib/vaultbase.ts";
 import { seedReference } from "../seed/reference.ts";
 
-const APP = "/api/custom/app";
+const APP = "";
 const SHOTS = process.env.AUDITION_SHOTS; // a folder: save screenshots for the PR
 let h: Harness, browser: Browser, owner: string;
 const errors: string[] = [];
@@ -139,17 +139,16 @@ test("with OneSignal on, the owner turns alerts on for this device and off again
   const p = await ctx.newPage();
   p.setDefaultTimeout(20_000);
   p.on("pageerror", (e) => errors.push(String(e)));
-  const csp: string[] = [];
-  p.on("response", (r) => { if (r.url().endsWith(`${APP}/alerts`)) csp.push(r.headers()["content-security-policy"] ?? ""); });
   await p.goto(`${h.url}${APP}/alerts`);
   await p.locator('[data-push-action="on"]').waitFor();
+  const csp = [await p.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute("content")];
   expect(csp[0]).toContain("script-src 'self' https://cdn.onesignal.com https://api.onesignal.com https://onesignal.com;"); // the SDK loads its config by JSONP
   expect(await p.evaluate(() => (window as any).__os)).toBeUndefined(); // no SDK until asked
   if (SHOTS) { await p.waitForTimeout(800); await p.screenshot({ path: join(SHOTS, "alerts-device-1280.png") }); }
 
   await p.locator('[data-push-action="on"]').click();
   await p.locator('[data-push-action="off"]').waitFor();
-  expect(await p.evaluate(() => (window as any).__os)).toEqual(["init:test-app:api/custom/app/OneSignalSDKWorker.js:/api/custom/app/", `login:${owner}`, "optIn"]);
+  expect(await p.evaluate(() => (window as any).__os)).toEqual(["init:test-app:OneSignalSDKWorker.js:/", `login:${owner}`, "optIn"]);
   expect(await p.evaluate(() => (window as any).__asked)).toBe(true); // asked during the tap, before the SDK
 
   // A later visit from this device starts the SDK again on its own.
@@ -177,7 +176,7 @@ test("nav links carry the app base, and Waiting for you opens Home at Up next", 
     expect(hrefs.length).toBeGreaterThan(2);
     for (const href of hrefs) expect(href!.startsWith(APP + "/")).toBe(true);
     await p.locator("[data-waiting-link]:visible").click();
-    await p.waitForURL(/\/api\/custom\/app\/\?waiting=1$/);
+    await p.waitForURL((u) => u.pathname === "/" && u.search === "?waiting=1");
     await p.locator("#up-next").waitFor();
     if (width === 1280) {
       await p.locator(".topbar nav").getByText("Contenders").click();

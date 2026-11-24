@@ -54,7 +54,10 @@ describe("build", () => {
       const src = readFileSync(file, "utf8");
       for (const m of src.matchAll(/(?:^|[;}])\s*import\s*(?:[^"'()]*?from\s*)?["'](\.[^"']+)["']/g)) walk(join(file, "..", m[1]!));
     };
-    walk(join(dist, "main.js"));
+    // main.js carries its content hash in its name (main-<hash>.js, NOTES SR5).
+    const mainJs = readdirSync(dist).find((f) => /^main-[A-Za-z0-9]+\.js$/.test(f))!;
+    expect(mainJs).toBeTruthy();
+    walk(join(dist, mainJs));
     const first = [...firstLoad].reduce((n, f) => n + statSync(f).size, 0);
     console.log(`UI build, minified: first-load JS ${kb(first)} in ${firstLoad.size} files, all JS ${kb(size(".js"))} (Arrow.js package files: ${kb(arrow)}), CSS ${kb(size(".css"))}, HTML ${kb(size(".html"))}`);
     // TECH-SPEC T4 Done-when 3: under 150 KB of minified first-load JS (CSS not
@@ -69,9 +72,9 @@ describe("build", () => {
       for (const f of firstLoad) expect(readFileSync(f, "utf8")).not.toContain(marker);
     }
     // The bundle is minified and ships a linked source map.
-    const main = readFileSync(join(dist, "main.js"), "utf8");
-    expect(main).toContain("//# sourceMappingURL=main.js.map");
-    expect(JSON.parse(readFileSync(join(dist, "main.js.map"), "utf8")).sources.length).toBeGreaterThan(1);
+    const main = readFileSync(join(dist, mainJs), "utf8");
+    expect(main).toContain(`//# sourceMappingURL=${mainJs}.map`);
+    expect(JSON.parse(readFileSync(join(dist, `${mainJs}.map`), "utf8")).sources.length).toBeGreaterThan(1);
   });
 });
 

@@ -21,7 +21,7 @@ The install is contained, so it can share a server with other apps (docs/VPS-INS
 | `/etc/systemd/system/audition.service` | The service ([deploy/audition.service](../deploy/audition.service)): hardened, with memory and CPU caps | root |
 | One proxy site file | `audition.caddy` in the folder your Caddyfile imports, or `sites-available/audition.conf` for nginx | root |
 
-The installer installs no packages, edits no shared config file, and doesn't touch the firewall. Vaultbase listens on 127.0.0.1 only, on 8091 or the next free port. The app is at `https://<your domain>/` (the proxy, or a Cloudflare redirect rule behind a tunnel, sends `/` to `/api/custom/app/`). The Vaultbase admin (`/_/`) is not public: you reach it through an SSH tunnel (see [The Vaultbase admin](#the-vaultbase-admin)).
+The installer installs no packages, edits no shared config file, and doesn't touch the firewall. Vaultbase listens on 127.0.0.1 only, on 8091 or the next free port. The app is at `https://<your domain>/`: Vaultbase serves the release's built UI as its public folder (`VAULTBASE_PUBLIC_DIR`, set in the systemd unit; TECH-SPEC Q2), and old `/api/custom/app/…` links redirect to the same page. The Vaultbase admin (`/_/`) is not public: you reach it through an SSH tunnel (see [The Vaultbase admin](#the-vaultbase-admin)).
 
 ## Install
 
@@ -63,7 +63,7 @@ Options, to skip the questions or change a default: `--domain`, `--email`, `--po
 - **A Cloudflare Tunnel** (`cloudflared` running, nothing on 80/443): nothing goes on the server, and no port or firewall rule is opened. The installer prints three steps for the Cloudflare dashboard:
   1. Zero Trust, Networks, Tunnels, your tunnel, Routes, **Add route**, **Published application** (older dashboards: **Public hostname**, Add): the domain, service URL `http://127.0.0.1:<port>`. Cloudflare adds the DNS record and serves HTTPS.
   2. Your domain, Security, **Security rules** (older dashboards: WAF, Custom rules), Create rule, **Custom rule**, action **Block**, expression `(http.host eq "<your domain>" and starts_with(http.request.uri.path, "/_/") and http.request.uri.path ne "/_/ready")`. With no local proxy this rule is what keeps the Vaultbase admin off the internet. The `http.host` part keeps it from touching other sites on the same zone.
-  3. Your domain, Rules, Create rule, **Redirect rule**, expression `(http.host eq "<your domain>" and http.request.uri.path eq "/")`, Static, URL `https://<your domain>/api/custom/app/`, status 302. Caddy and nginx do this redirect in their site file; behind a tunnel nothing else does, and `https://<your domain>/` answers 404 without it.
+  3. Your domain, Rules, Create rule, **Response Header Transform Rule** (older dashboards: Transform Rules, Modify Response Header), expression `(http.host eq "<your domain>" and not starts_with(http.request.uri.path, "/api/") and not starts_with(http.request.uri.path, "/_/"))`, then **Set static** `Content-Security-Policy` to `frame-ancestors 'none'` and **Set static** `X-Frame-Options` to `DENY`. This stops other sites from showing Audition inside a frame. The app's own CSP travels in `index.html`, but a `<meta>` tag can't refuse framing, and Vaultbase's public folder sends no such header (NOTES SR2). Caddy and nginx add the same headers in their site file. (Up to v0.6.x this step was a redirect rule from `/` to `/api/custom/app/`; delete it, see [Moving the app to the site root](#moving-the-app-to-the-site-root).)
 
   `cloudflared` connects from 127.0.0.1, which `audition.env` trusts, and Cloudflare passes the visitor's address on in `X-Forwarded-For`, so Vaultbase's rate limits should see it. Check on the first install: sign-ins in the admin's logs should show your own address, not 127.0.0.1.
 - **Anything else** (Traefik, a container): it sets up no proxy and prints where to point it (`http://127.0.0.1:<port>`); the bundle's `deploy/Caddyfile` and `deploy/nginx.conf` are ready-made site files.
@@ -93,7 +93,7 @@ Do this after every install, upgrade and restore.
 
 - [ ] `sudo bash install.sh status` says active and ready, with the pinned Vaultbase version.
 - [ ] `vb doctor` says clean.
-- [ ] `https://<your domain>/` opens the sign-in page; the owner signs in.
+- [ ] `https://<your domain>/` opens the sign-in page; the owner signs in. An old link, `https://<your domain>/api/custom/app/contenders`, lands on `https://<your domain>/contenders`.
 - [ ] Home lists the workspaces; a leaderboard opens.
 - [ ] Start a run: any role, one task, `Mock Steady`, judged by Me. It finishes; judge it; it shows on the leaderboard.
 - [ ] While that run is live, the browser's dev tools (Network, WS) show an open `/realtime` socket. If it fails, the run page still works by polling: check that Cloudflare's WebSockets setting is on and Caddy passes `/realtime` through (NOTES "Realtime run page").
@@ -213,6 +213,18 @@ Fetch the new `install.sh` first, so the upgrade runs the release's own installe
 
 Running the installer again on a server that has Audition upgrades it. It downloads and checks the new bundle (and the new Vaultbase binary, when the pin changed), stops the service, takes a **cold copy of the whole data folder** into `/var/lib/audition-rollback` (the database, the files and both keys), switches `/opt/audition/current` and the binary symlink, **migrates the data** for the new release while the service is still stopped (`audition-setup migrate`: renames the schema can't do, such as stages → groups; TECH-SPEC §1, "Data migrations"; it prints "Data: nothing to migrate." when there are none), starts the service, and applies Audition's Vaultbase settings again (signed in as the admin from `/etc/audition/admin-credentials`), so a setting a release adds takes effect (guest voters, v0.5.0: anonymous sessions and rate limits). Vaultbase upgrades its data folder when it starts and can't downgrade, so that copy is the rollback, not a Vaultbase backup. Then run the smoke test. Hook files only change while the service is stopped.
 
+### Moving the app to the site root
+
+The first upgrade to a release after v0.6.x moves the app from `https://<your domain>/api/custom/app/` to `https://<your domain>/` (Vaultbase 0.48's public folder, TECH-SPEC Q2). Old links keep working: the server redirects them to the same page. Behind a Cloudflare Tunnel, two dashboard changes go with it. **With Caddy or nginx**, run `sudo bash install.sh proxy` right after the upgrade instead: the old site file redirects `/` to `/api/custom/app/`, which now redirects back, and the new one drops that and adds the frame headers.
+
+1. **Delete the old redirect rule first.** Your domain, Rules, Redirect rules: the rule with `http.request.uri.path eq "/"` that sends `/` to `/api/custom/app/`. Left in place, it and the new server would send the browser back and forth between `/` and `/api/custom/app/`. Until the upgrade finishes, `https://<your domain>/` answers 404; the old address still works.
+2. **Upgrade** as above (`--version` with the new tag).
+3. **Add the response header rule** (step 3 of the tunnel steps in [Install](#install)). Check it: `curl -sI https://<your domain>/ | grep -i -e x-frame-options -e content-security-policy` shows both.
+4. **Push alerts.** OneSignal's Site URL stays the same (just the domain). The app moves OneSignal's worker from `/api/custom/app/` to `/` on its own. On each device that had alerts on, open Audition once: if Alerts shows them off, tap **Turn on alerts here** again (NOTES SR4).
+5. Run the smoke test.
+
+A **rollback** to v0.6.x needs the redirect rule back (step 1 in reverse); the header rule can stay.
+
 ### Rollback
 
 ```sh
@@ -238,13 +250,13 @@ It stops the service, moves the current data aside to `/var/lib/audition.failed-
 
 ### Guest links and Cloudflare
 
-Guest voters (TECH-SPEC §10b) need no Cloudflare change. The guest page (`/api/custom/app/vote/…`), the guest sign-in (`/api/v1/auth/guests/anonymous`) and the guest routes (`/api/custom/guest/…`) go through like the rest of the app, and the host-scoped WAF rule only blocks `/_/`. Vaultbase's rate limiter (10 guest sign-ins and 240 guest calls a minute per visitor) sees each visitor's address because `audition.env` trusts the tunnel. Optional second layer: a Cloudflare rate-limiting rule on `/api/v1/auth/guests/anonymous` for your host (the free plan allows one). If Cloudflare's Bot Fight Mode or "Under Attack" mode is on, guests may get a challenge page first; that is fine.
+Guest voters (TECH-SPEC §10b) need no Cloudflare change. The guest page (`/vote/…`; links made before the move to the site root, `/api/custom/app/vote/…`, redirect there), the guest sign-in (`/api/v1/auth/guests/anonymous`) and the guest routes (`/api/custom/guest/…`) go through like the rest of the app, and the host-scoped WAF rule only blocks `/_/`. Vaultbase's rate limiter (10 guest sign-ins and 240 guest calls a minute per visitor) sees each visitor's address because `audition.env` trusts the tunnel. Optional second layer: a Cloudflare rate-limiting rule on `/api/v1/auth/guests/anonymous` for your host (the free plan allows one). If Cloudflare's Bot Fight Mode or "Under Attack" mode is on, guests may get a challenge page first; that is fine.
 
 ### Speed and Cloudflare settings
 
 A Lighthouse check of the live server (Nov 23, 2026) found two Cloudflare settings that undo what the app does. Both are dashboard changes for the go4cas.com zone; nothing on the server changes.
 
-1. **Caching, Configuration, Browser Cache TTL: "Respect existing headers".** Audition sends its own cache lifetimes (`routes/app.ts`, `lib/static.ts` `cacheControl`): `index.html` is never cached, the hashed chunks and every `?v=<hash>` file (main.js, the stylesheets, the fonts) are kept for a year, the rest five minutes. Cloudflare's default replaces all of them with 4 hours, so a returning visitor downloads the app again every few hours. This is safe because the file names change with every build, so an upgrade still reaches browsers at once.
+1. **Caching, Configuration, Browser Cache TTL: "Respect existing headers".** Audition's files come with their own cache lifetimes from Vaultbase's public folder: every file whose name carries a content hash (`main-<hash>.js`, the chunks, the stylesheets, the fonts) is kept for a year, and everything else, `index.html` included, is checked again on each use (`no-cache`, usually answered with a quick 304). Cloudflare's default replaces all of them with 4 hours, so a returning visitor downloads the app again every few hours. This is safe because the file names change with every build, so an upgrade still reaches browsers at once.
 2. **Analytics & Logs, Web Analytics: turn off automatic setup for `audition.go4cas.com`** (or exclude that host). Cloudflare injects its analytics script into the page; the app's Content-Security-Policy (no inline or outside scripts) blocks it, which shows as two console errors and lowers Lighthouse's Best practices score. Audition has no use for it. The landing page on GitHub Pages is not affected.
 
 Run Lighthouse in an Incognito window: browser extensions (Adobe Acrobat's, for one) add their own scripts to the page and to the "unused JavaScript" figure. The six third-party cookies it reports come from the OneSignal SDK, which push alerts need (PUSH-ALERTS.md).
@@ -259,7 +271,7 @@ Run Lighthouse in an Incognito window: browser extensions (Adobe Acrobat's, for 
 
 `test/release.test.ts` runs the release on a fresh Vaultbase 0.48.0, laid out like production (the real `vb_hooks/` only, read-only, its own data folder), on every `bun test`:
 
-- `provision` applies the settings and the backup schedule, creates the owner, seeds, and changes nothing on a second run; the app answers at `/api/custom/app/`.
+- `provision` applies the settings and the backup schedule, creates the owner, seeds, and changes nothing on a second run; the app answers at `/`.
 - A Vaultbase backup keeps the uploaded files, and restoring it undoes a change made after it.
 - A cold copy of the data folder starts on its own, with every record, both keys, and the owner's sign-in.
 - Wrong passwords hit Vaultbase's auth rate limit (`429`) within 20 tries (review finding R6).

@@ -72,7 +72,7 @@ test("install steps: admin through the setup key, then the compiled setup tool",
   inst = await startInstance({
     bin, dataDir: join(root, "data"), hooksDir: join(app, "vb_hooks"),
     snapshot: join(app, "schema", "snapshot.json"),
-    env: { AUDITION_UI_DIST: join(app, "ui", "dist") },
+    env: { VAULTBASE_PUBLIC_DIR: join(app, "ui", "dist") },
   });
 
   // As install.sh: Vaultbase writes its setup key when asked for setup status.
@@ -105,8 +105,9 @@ test("install steps: admin through the setup key, then the compiled setup tool",
   const owner = await ownerLogin(inst.url, email, "Owner-install-pass-1");
   const ws = await call(inst.url, "GET", "/api/v1/workspaces", { token: owner });
   expect(ws.body.totalItems).toBe(4);
-  const ui = await fetch(`${inst.url}/api/custom/app/`);
+  const ui = await fetch(`${inst.url}/runs/abc`, { headers: { accept: "text/html" } });
   expect(ui.status).toBe(200);
+  expect(await ui.text()).toContain("<title>Audition</title>");
 
   // install.sh offsite: the same compiled tool turns on Vaultbase's copy to
   // R2 (here a local stand-in), and the first backup reaches the bucket.

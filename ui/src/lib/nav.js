@@ -1,10 +1,11 @@
 // Navigation helpers on top of quiver (docs/PLATFORM-UPGRADES.md parts C and D).
-// The app lives under one fixed base path, served by vb_hooks/routes/app.ts.
+// The app lives at the site root: Vaultbase serves ui/dist as its public
+// folder (vb_public, VAULTBASE_PUBLIC_DIR) with the single-page fallback on.
 // Pages pass base-relative paths ("/runs/123") with an optional query object;
 // APP is the base without its trailing slash, for building link hrefs.
 import { go as quiverGo, useRoute } from "@go4cas/quiver";
 
-export const BASE = "/api/custom/app/";
+export const BASE = "/";
 export const APP = BASE.slice(0, -1);
 
 const withQuery = (path, query) => {
@@ -13,7 +14,7 @@ const withQuery = (path, query) => {
 };
 
 /**
- * A link href for a base-relative path: href("/runs/new", { role }) → "/api/custom/app/runs/new?role=…".
+ * A link href for a base-relative path: href("/runs/new", { role }) → "/runs/new?role=…".
  * Built from BASE, not quiver's url(): url() only knows the base once
  * createApp() has run, and the shell renders its nav links before that, so
  * they came out as "/contenders" (a 404 on the live site).
@@ -33,7 +34,8 @@ export const currentQuery = () => Object.fromEntries(new URLSearchParams(locatio
 export const routeArgs = () => ({ params: useRoute().params(), query: currentQuery() });
 
 /**
- * An old hash link (`/api/custom/app/#/runs/123?task=x`, from before quiver)
+ * An old hash link (`/#/runs/123?task=x`, from before quiver; the server
+ * redirects the older `/api/custom/app/#/…` form here, keeping the hash)
  * as the new path URL, or null when the URL has no `#/` route.
  */
 export function fromHashLink(loc = location) {

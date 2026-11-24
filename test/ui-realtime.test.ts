@@ -8,7 +8,7 @@ import { boot, type Harness } from "./harness.ts";
 import { ROOT } from "../scripts/lib/vaultbase.ts";
 import { seedReference } from "../seed/reference.ts";
 
-const APP = "/api/custom/app";
+const APP = "";
 let h: Harness, browser: Browser;
 const errors: string[] = [];
 

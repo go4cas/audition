@@ -17,7 +17,7 @@ import { seedReference } from "../seed/reference.ts";
 const SCREENS = process.env["UI_SCREENS"];
 const THEMES: ("light" | "dark" | null)[] = process.env["UI_THEMES"] === "both" ? ["light", "dark"] : [null];
 const T = 30_000;
-const APP = "/api/custom/app";
+const APP = "";
 let h: Harness, browser: Browser, p: Page, guestCtx: BrowserContext, g: Page;
 const errors: string[] = [];
 const names: string[] = [];
