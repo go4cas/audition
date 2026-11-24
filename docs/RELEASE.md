@@ -2,7 +2,7 @@
 
 How to put Audition on a server and keep it running: install, the systemd service, backups and restores, and upgrades (of Audition and of Vaultbase). Running it on your own machine is in [OPERATIONS.md](OPERATIONS.md).
 
-Nothing here has been deployed yet. Every step on the server is yours to run, when you decide to.
+Audition is live at **audition.go4cas.com**: installed on Nov 16, 2026 (v0.3.0) on the shared Hostinger VPS in tunnel mode (port 8091, behind the Cloudflare Tunnel), and upgraded with `install.sh` since (v0.7.0 on Vaultbase 0.48.0 as of Nov 24, 2026). The off-server R2 copy of the backups has been on since Nov 18, 2026. Every step on the server is yours to run, when you decide to.
 
 ## What runs where
 

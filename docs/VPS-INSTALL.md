@@ -1,6 +1,6 @@
-# Installing on the shared VPS (proposal)
+# Installing on the shared VPS
 
-Status: built as the one-command installer, `deploy/install.sh` (Cas asked for a simpler VPS install on Nov 13 2026; how to use it is in [RELEASE.md](RELEASE.md)). Nothing has been run on the VPS yet. The sections below are the reasoning; "What was built" maps each point to the installer.
+Status: built as the one-command installer, `deploy/install.sh` (Cas asked for a simpler VPS install on Nov 13 2026; how to use it is in [RELEASE.md](RELEASE.md)). Cas installed it on the VPS on Nov 16, 2026 (v0.3.0, tunnel mode, port 8091), and Audition has been live at audition.go4cas.com since; upgrades use the same installer (see RELEASE.md). The sections below are the reasoning; "What was built" maps each point to the installer.
 
 Audition goes on Cas's existing Hostinger VPS, next to production apps (Market Jury, openGym and others), at **audition.go4cas.com** (Cas, Nov 13 2026). The goal: installing, running, upgrading or removing Audition must not change anything those apps depend on.
 
