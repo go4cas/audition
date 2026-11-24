@@ -11,26 +11,26 @@ Where this document and `SPEC.md` disagree, this PR also edits `SPEC.md`, and th
 | | |
 | --- | --- |
 | Product | Vaultbase, [vaultbase-sh/vaultbase](https://github.com/vaultbase-sh/vaultbase) |
-| Pinned version | **v0.47.0** (released Nov 18, 2026; tag commit `7a72e2b354f9bda9e742a7ca99bb5ee79ad63a2d`). Cas approved the move from 0.46.0 on Nov 19, 2026, for the OneSignal fix (NOTES, "Vaultbase 0.47 upgrade"). Earlier pins: 0.37.x, 0.40.2 (Nov 6, 2026, for the security fixes in 0.38 and 0.39), 0.44.0 (Nov 11, 2026, `docs/PLATFORM-UPGRADES.md` part A, for the upload fix F9 and `helpers.records`), then 0.46.0 (Nov 17, 2026). |
-| Binary | `https://github.com/vaultbase-sh/vaultbase/releases/download/v0.47.0/<asset>` |
+| Pinned version | **v0.48.0** (released Nov 23, 2026; tag commit `77a9f5f92ff4503b7a868e2bfed70fa8600fe0f5`). Cas approved the move from 0.47.0 on Nov 24, 2026, because it ships five of the "Waiting on Vaultbase" asks (NOTES, "Vaultbase 0.48 upgrade"). Earlier pins: 0.37.x, 0.40.2 (Nov 6, 2026, for the security fixes in 0.38 and 0.39), 0.44.0 (Nov 11, 2026, `docs/PLATFORM-UPGRADES.md` part A, for the upload fix F9 and `helpers.records`), 0.46.0 (Nov 17, 2026), then 0.47.0 (Nov 19, 2026, for the OneSignal fix). |
+| Binary | `https://github.com/vaultbase-sh/vaultbase/releases/download/v0.48.0/<asset>` |
 | Checksums | From the release's `SHA256SUMS` file, and checked against a downloaded binary |
 
-SHA-256 for v0.47.0 (from `SHA256SUMS`):
+SHA-256 for v0.48.0 (from `SHA256SUMS`):
 
 | Asset | SHA-256 |
 | --- | --- |
-| `vaultbase-linux-x64` | `1b92aa205fc6cfc7f7a0235571d819d453dc90a921d4257b61210837a05c1610` |
-| `vaultbase-linux-x64-musl` | `50cc731876a843cea69ee8b55b7584b7ee4ad148adb42dd9547b04172f024723` |
-| `vaultbase-linux-arm64` | `6c950791c0dedc52f612c9d84ed946886006824fbb98fa05bd5ffaf23fccf117` |
-| `vaultbase-macos-arm64` | `43edf5e082f7ee0427b4ace6bbbe949109791b7d6608a7c3a912e414df1d65c2` |
-| `vaultbase-macos-x64` | `0dff149803e9bf86a5b155745c901253f523e8187f443192a353af1c90ad19a1` |
-| `vaultbase-windows-x64.exe` | `651097aa984ec313e2fdad7169c4f4e7e05e9d3d2855c9992cba996d6b6998cd` |
+| `vaultbase-linux-x64` | `7344af2e05d9e6186de832f02daf7359121166d47a5813950601dfa8a2b6b594` |
+| `vaultbase-linux-x64-musl` | `6372493af27d8169eda1c18958412be278b27afcbb470e17dd1c5b6e20d0b86c` |
+| `vaultbase-linux-arm64` | `2f432ca0a16b37f43bfa88ddd802a9983670093486b82ee1579aff85cd2a4909` |
+| `vaultbase-macos-arm64` | `98320181315f5c4e1c0e6ee087138e1fcddfe0d9dd6b2440a5a5b106969c4a06` |
+| `vaultbase-macos-x64` | `73e9557cbdd867d620b09297fea5eae9ab526508f411302fdc44623165cd23b7` |
+| `vaultbase-windows-x64.exe` | `78c5a3d4105b052c02b2855273249163a8c8aa67eb08e09418c1b4bf20c578e4` |
 
-The `vaultbase-linux-x64` binary was downloaded by `bun run setup` (126,810,288 bytes) and its SHA-256 matched the line above.
+The `vaultbase-linux-x64` binary was downloaded by `bun run setup` (126,851,248 bytes) and its SHA-256 matched the line above.
 
 **T0 records the pin in the repo** as `vaultbase.lock.json`: version, the release URL, and the SHA-256 for each asset. The download script refuses a binary whose checksum doesn't match. Since 0.39.1, releases also carry a Sigstore bundle (`<asset>.sigstore.json`). Verifying it needs `cosign`, so it is optional, not part of `bun run setup`.
 
-**How this was checked.** `docs.vaultbase.dev` always shows the latest release, not the pinned one, so every claim about behaviour below was read from the source at the release's git tag (file paths are given). The analysis was done at v0.37.0 and re-checked at v0.40.2. The files this design depends on (`code-files.ts`, `hooks.ts`, `hook-helpers-extra.ts`, `routes.ts`, `api-paths.ts`, `migrations.ts`, `hook-egress.ts`, `script-limits.ts`) are identical between the two tags. `src/index.ts` changed by 11 lines: setup-admin email checking, and priming rule case folding at startup. Neither affects Audition. The other behaviours relied on were re-read at v0.40.2 and still hold: encrypted fields decrypted on read (`records.ts`), the upload handler and its MIME allowlist (`api/files.ts`, `core/sec.ts`), and routes that parse only JSON and text bodies. For v0.44.0 the changelog and release notes of 0.41.0 to 0.44.0 and the source diff `v0.40.2..v0.44.0` of these files were read (`docs/PLATFORM-UPGRADES.md`, part A), and `bun test` passes on the binary. For v0.46.0 the changelog and release notes of 0.45.0, 0.45.1 and 0.46.0 were read, with the source diff `v0.44.0..v0.46.0` of these files: only `code-files.ts` (the hook types file), `core/routes.ts` (form bodies, `ctx.ip`, logged status), `core/migrations.ts` and the records code (client ids, idempotency keys) changed. The upload handler and its MIME allowlist did not. For v0.47.0 the changelog and release notes were read, with the whole source diff `v0.46.0..v0.47.0`: outside the admin UI, only `core/notifications.ts` (the OneSignal header) changed.
+**How this was checked.** `docs.vaultbase.dev` always shows the latest release, not the pinned one, so every claim about behaviour below was read from the source at the release's git tag (file paths are given). The analysis was done at v0.37.0 and re-checked at v0.40.2. The files this design depends on (`code-files.ts`, `hooks.ts`, `hook-helpers-extra.ts`, `routes.ts`, `api-paths.ts`, `migrations.ts`, `hook-egress.ts`, `script-limits.ts`) are identical between the two tags. `src/index.ts` changed by 11 lines: setup-admin email checking, and priming rule case folding at startup. Neither affects Audition. The other behaviours relied on were re-read at v0.40.2 and still hold: encrypted fields decrypted on read (`records.ts`), the upload handler and its MIME allowlist (`api/files.ts`, `core/sec.ts`), and routes that parse only JSON and text bodies. For v0.44.0 the changelog and release notes of 0.41.0 to 0.44.0 and the source diff `v0.40.2..v0.44.0` of these files were read (`docs/PLATFORM-UPGRADES.md`, part A), and `bun test` passes on the binary. For v0.46.0 the changelog and release notes of 0.45.0, 0.45.1 and 0.46.0 were read, with the source diff `v0.44.0..v0.46.0` of these files: only `code-files.ts` (the hook types file), `core/routes.ts` (form bodies, `ctx.ip`, logged status), `core/migrations.ts` and the records code (client ids, idempotency keys) changed. The upload handler and its MIME allowlist did not. For v0.47.0 the changelog and release notes were read, with the whole source diff `v0.46.0..v0.47.0`: outside the admin UI, only `core/notifications.ts` (the OneSignal header) changed. For v0.48.0 the changelog and release notes were read, with the whole source diff `v0.47.0..v0.48.0`: the new code is `core/files-helper.ts`, `core/public-dir.ts` and `core/upload-types.ts`, plus changes to `hook-helpers-extra.ts` (bytes replies), `records-helper.ts` (conditional writes), `api/files.ts` and `core/sec.ts` (the allowed-types setting), and the rule checks in `api/records.ts`, `api/batch.ts` and `api/_rules.ts`.
 
 The upgrade notes between 0.37.0 and 0.40.2 that touch Audition:
 
@@ -60,6 +60,13 @@ The upgrade notes between 0.46.0 and 0.47.0 that touch Audition (0.47.0 has no *
 - **0.47.0: OneSignal pushes work with App API keys (`os_v2_app_…`)** (Vaultbase issue #16). They are sent with `Authorization: Key`; legacy REST keys keep `Basic`. Before, every push from Audition's `helpers.notify` failed with 401 (NOTES, "Vaultbase 0.47 upgrade", V1). **Test connection** now reads one row of the app's message list, so it works with an App key too. No Audition code change: `alertOwner()` already calls `helpers.notify`.
 - **0.47.0: an admin Schema page** draws the collections and their relations. Read-only; nothing for Audition to do. `vaultbase.d.ts` did not change.
 
+The upgrade notes between 0.47.0 and 0.48.0 that touch Audition (0.48.0 has no **Security** section):
+
+- **0.48.0: rules that use `@collection.*` or `_via_` now apply on view, update and delete by id** (and in a batch, and for file access), as they do in a list. Before, such a rule refused every single-record request. None of Audition's rules uses either (`schema/snapshot.json`), so nothing changes.
+- **0.48.0: `helpers.records.delete` answers `true` or `false`** (it answered nothing). Audition's two calls (`lib/store.ts`, `lib/guests.ts`) ignore the answer.
+- **0.48.0: a signed-out `403` says `reason: "rule_denied"`** when the rule doesn't read `@request.auth` (it said `not_signed_in`). The UI doesn't read the reason.
+- **0.48.0 adds, without changing anything Audition uses:** bytes replies on `helpers.http` (`responseType: "bytes"`, `getBytes`; discussion #17), `helpers.files.save` (#11), `filter` conditions on `helpers.records.update/delete` (#13), the **Allowed file types** setting (`files.allowed_types`; #12) and the `vb_public/` folder served at the root (#15). Each is adopted in its own thread (SPEC, "Waiting on Vaultbase"). `vb_hooks/vaultbase.d.ts` is the 0.48.0 copy, so the new helpers are typed.
+
 ### Upgrade policy
 
 Vaultbase ships about one release a day and is pre-1.0, where a minor version may change behaviour. Following every release would turn Audition into a Vaultbase-chasing project, and falling far behind would make each upgrade large. The policy:
@@ -81,7 +88,7 @@ T0 builds `vb:bump` and `test/upgrade.test.ts`. The upgrade test can only be mea
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Backend platform | Vaultbase v0.47.0: one binary with SQLite, auth, REST, files, hooks, queues and encrypted fields | Spec decision. It does the backend work, so Audition writes only its own logic. |
+| Backend platform | Vaultbase v0.48.0: one binary with SQLite, auth, REST, files, hooks, queues and encrypted fields | Spec decision. It does the backend work, so Audition writes only its own logic. |
 | Database | SQLite, inside Vaultbase (the default; one file in the data folder) | Single owner, single server. Postgres is not needed. |
 | Server logic | TypeScript files in `vb_hooks/` (hooks, custom routes, queue workers), run by Vaultbase's built-in Bun | Spec rule: logic lives in the repo |
 | Schema | `schema/snapshot.json`, applied by `vaultbase --apply-snapshot` | Q1 |
