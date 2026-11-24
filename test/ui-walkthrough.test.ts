@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { boot, OWNER, type Harness } from "./harness.ts";
-import { ROOT } from "../scripts/lib/vaultbase.ts";
+import { RATE_LIMIT_RULES, ROOT } from "../scripts/lib/vaultbase.ts";
 import { seedReference } from "../seed/reference.ts";
 
 const SCREENS = process.env["UI_SCREENS"];
@@ -26,6 +26,9 @@ beforeAll(async () => {
   const b = Bun.spawnSync(["bun", join(ROOT, "scripts", "build-ui.ts")]);
   if (b.exitCode !== 0) throw new Error("UI build failed: " + b.stderr.toString());
   h = await boot();
+  // One browser plus the test's own admin calls go past the production limit
+  // of 300 API calls in 10 seconds per address (all on 127.0.0.1 here).
+  await h.api("admin", "PATCH", "/api/v1/admin/settings", { "rate_limit.rules": JSON.stringify(RATE_LIMIT_RULES.map((r) => (r.label === "/api/*" ? { ...r, max: 5000 } : r))) });
   await seedReference(h.url, h.adminToken);
   writeFileSync(join(files, "sale-image.png"), PNG);
   writeFileSync(join(files, "notes.md"), "# Notes\n\nNorthwind looks steady.\n");
