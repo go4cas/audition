@@ -3,7 +3,8 @@
 // the checks the files API and the update rules would: owner only, the record
 // must be writable, 25 MB per file, and the Phase 1 types by extension with a
 // magic-byte check (F4). Nothing is attached unless every file passes. The
-// record's field is then set through the records API (lib/files.ts).
+// files are then stored with Vaultbase's helpers.files.save (lib/files.ts),
+// which runs the upload checks again and sets the field via helpers.records.
 //
 // Why not Vaultbase's own upload endpoint, now that F9 is fixed (0.41.1)?
 // Checked for PLATFORM-UPGRADES Q1 (docs/NOTES.md, W1): Bun's multipart

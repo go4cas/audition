@@ -10,12 +10,10 @@
 // discussion #13). The generate worker claims a queued attempt this way, so
 // the claim shows in record history like any other write.
 //
-// One write still uses helpers.sql, on purpose (docs/NOTES.md, F1):
-//   - storing a file made by server code (lib/files.ts): the file and its
-//     vaultbase_files row are written directly. The record's file field is
-//     set through here. (helpers.files.save, Vaultbase 0.48, replaces it in a
-//     follow-up.)
-// test/store.test.ts holds the grep test that keeps it at that one.
+// No write uses helpers.sql any more. Files made by server code go through
+// helpers.files.save (lib/files.ts, Vaultbase 0.48+, discussion #11), which
+// sets the record's file field through helpers.records too.
+// test/store.test.ts holds the grep test that keeps it that way.
 
 export interface Sql {
   query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
