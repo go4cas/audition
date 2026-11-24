@@ -206,7 +206,7 @@ Owner uploads go through Vaultbase's own endpoint (`POST /api/v1/files/:collecti
 
 ```sh
 curl -fsSLO https://github.com/go4cas/audition/releases/latest/download/install.sh
-sudo bash install.sh --version v0.6.0      # the release tag
+sudo bash install.sh --version v0.7.0      # the release tag
 ```
 
 Fetch the new `install.sh` first, so the upgrade runs the release's own installer. This matters for v0.6.0, the release that renames stages to groups: an older installer skips the data migration, and the new schema then starts without the roles' links to their groups (`rollback` brings them back). On a server that can't reach GitHub, copy the new bundle up and run `sudo bash install.sh --bundle audition-<tag>-linux-x64.tar.gz` instead (see [Install](#install)).
@@ -215,7 +215,7 @@ Running the installer again on a server that has Audition upgrades it. It downlo
 
 ### Moving the app to the site root
 
-The first upgrade to a release after v0.6.x moves the app from `https://<your domain>/api/custom/app/` to `https://<your domain>/` (Vaultbase 0.48's public folder, TECH-SPEC Q2). Old links keep working: the server redirects them to the same page. Behind a Cloudflare Tunnel, two dashboard changes go with it. **With Caddy or nginx**, run `sudo bash install.sh proxy` right after the upgrade instead: the old site file redirects `/` to `/api/custom/app/`, which now redirects back, and the new one drops that and adds the frame headers.
+The upgrade to v0.7.0 (the first release after v0.6.x) moves the app from `https://<your domain>/api/custom/app/` to `https://<your domain>/` (Vaultbase 0.48's public folder, TECH-SPEC Q2). Old links keep working: the server redirects them to the same page. Behind a Cloudflare Tunnel, two dashboard changes go with it. **With Caddy or nginx**, run `sudo bash install.sh proxy` right after the upgrade instead: the old site file redirects `/` to `/api/custom/app/`, which now redirects back, and the new one drops that and adds the frame headers.
 
 1. **Delete the old redirect rule first.** Your domain, Rules, Redirect rules: the rule with `http.request.uri.path eq "/"` that sends `/` to `/api/custom/app/`. Left in place, it and the new server would send the browser back and forth between `/` and `/api/custom/app/`. Until the upgrade finishes, `https://<your domain>/` answers 404; the old address still works.
 2. **Upgrade** as above (`--version` with the new tag).
