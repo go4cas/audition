@@ -3,6 +3,7 @@
 // these. They take the hook context, so this file never imports "vaultbase".
 import { isTrusted, updateRecord, type Records, type Sql } from "./store.ts";
 import { addedFilesError } from "./handoff.ts";
+import { replicateModelError } from "./providers/replicate.ts";
 import {
   DEFAULT_FITNESS_WEIGHTS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_MIN_OUTPUTS, DEFAULT_TRIAL_DAYS, DEFAULT_PASS_MARK,
   fitnessWeightsError, normaliseContenderConfig, parseJson, requiredMode, rubricError, type Provider,
@@ -176,6 +177,10 @@ export async function contenderBeforeWrite(ctx: Ctx): Promise<void> {
   }
   if (mode === "api") {
     if (empty(m["model"])) ctx.helpers.abort("Enter the provider's model id.");
+    if (provider === "replicate") {
+      const err = replicateModelError(m["model"]);
+      if (err) ctx.helpers.abort(err);
+    }
     if (empty(m["max_output_tokens"])) r["max_output_tokens"] = DEFAULT_MAX_OUTPUT_TOKENS;
   }
   if (!ctx.existing && empty(r["group"])) r["group"] = (m["model"] as string) || (m["name"] as string);

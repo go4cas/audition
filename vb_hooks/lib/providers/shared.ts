@@ -11,7 +11,11 @@ export interface HttpRequest {
   timeoutMs?: number;
 }
 export interface HttpResponse { status: number; ok: boolean; headers: Record<string, string>; text: string; json?: unknown }
-export interface HttpLike { request(opts: HttpRequest): Promise<HttpResponse> }
+export interface HttpLike {
+  request(opts: HttpRequest): Promise<HttpResponse>;
+  /** GET a reply as raw bytes; throws on a non-2xx status (Vaultbase 0.48, discussion #17). */
+  getBytes?(url: string, headers?: Record<string, string>, opts?: { maxBytes?: number; timeoutMs?: number; retries?: number }): Promise<Uint8Array>;
+}
 
 /** Image types the providers accept as image blocks. SVG is not one of them. */
 export const IMAGE_MIMES = ["image/png", "image/jpeg", "image/gif", "image/webp"];

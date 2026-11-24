@@ -10,8 +10,11 @@ import { APP } from "../../lib/nav.js";
 const PROVIDERS = [
   { value: "anthropic", label: "Anthropic", icon: "key", desc: "Claude models through the Anthropic API" },
   { value: "openai-compatible", label: "OpenAI-compatible", icon: "api", desc: "Any chat-completions API; needs its base URL" },
+  { value: "replicate", label: "Replicate", icon: "image", desc: "Image models such as Flux and Stable Diffusion" },
 ];
-const CONN_ICON = { mock: "api", manual: "paste", anthropic: "key", "openai-compatible": "api" };
+// Providers whose base URL has a default, so the field is optional.
+const DEFAULT_URL = { anthropic: "https://api.anthropic.com", replicate: "https://api.replicate.com/v1" };
+const CONN_ICON = { mock: "api", manual: "paste", anthropic: "key", "openai-compatible": "api", replicate: "image" };
 const CONN_DESC = { mock: "Built-in test provider. Free, instant, made-up answers.", manual: "You copy the prompt into a tool and paste the reply back." };
 
 async function saveKey(conn, key) {
@@ -59,7 +62,7 @@ export default function contenders() {
             <div class="fields-2">
               <div class="field"><label for="cx-name">Name</label><input class="input" id="cx-name" required placeholder="Anthropic" @input="${(e) => { ui.name = e.target.value; }}"></div>
               <div class="field"><label for="cx-provider">Provider</label>${dropdown({ id: "cx-provider", label: "Provider", options: () => PROVIDERS, value: () => ui.provider, onChange: (v) => { ui.provider = v; } })}</div>
-              <div class="field"><label for="cx-url">Base URL <span class="muted">${() => (ui.provider === "anthropic" ? "(optional)" : "")}</span></label><input class="input" id="cx-url" type="url" placeholder="${() => (ui.provider === "anthropic" ? "https://api.anthropic.com" : "https://api.example.com/v1")}" required="${() => ui.provider !== "anthropic"}" @input="${(e) => { ui.base_url = e.target.value; }}"></div>
+              <div class="field"><label for="cx-url">Base URL <span class="muted">${() => (DEFAULT_URL[ui.provider] ? "(optional)" : "")}</span></label><input class="input" id="cx-url" type="url" placeholder="${() => DEFAULT_URL[ui.provider] || "https://api.example.com/v1"}" required="${() => !DEFAULT_URL[ui.provider]}" @input="${(e) => { ui.base_url = e.target.value; }}"></div>
               <div class="field"><label for="cx-key">${icon("key")}API key</label><input class="input" id="cx-key" type="password" autocomplete="off" required @input="${(e) => { ui.key = e.target.value; }}"><span class="hint">Encrypted and only used on the server. It's never shown again.</span></div>
             </div>
             <div class="field"><label for="cx-notes">Notes <span class="muted">(optional)</span></label><input class="input" id="cx-notes" @input="${(e) => { ui.notes = e.target.value; }}"></div>
@@ -67,9 +70,9 @@ export default function contenders() {
           </form>` : "")}
           <ul class="list list--hover">${d.connections.map((c) => {
             const n = d.contenders.filter((x) => x.connection === c.id).length;
-            const needsKey = c.provider === "anthropic" || c.provider === "openai-compatible";
+            const needsKey = c.provider === "anthropic" || c.provider === "openai-compatible" || c.provider === "replicate";
             return html`<li>
-              <span class="avatar" style="${"--h:" + ({ mock: 270, manual: 20, anthropic: 30 }[c.provider] ?? 200)}">${icon(CONN_ICON[c.provider] || "api")}</span>
+              <span class="avatar" style="${"--h:" + ({ mock: 270, manual: 20, anthropic: 30, replicate: 330 }[c.provider] ?? 200)}">${icon(CONN_ICON[c.provider] || "api")}</span>
               <div class="grow"><div class="title">${c.name}</div><div class="muted small row-tight">${needsKey ? html`${PROVIDER_LABEL[c.provider]} · ${c.has_key ? "API key saved" : "No key yet"} <button class="info-btn" type="button" popovertarget="${keyPop}" aria-label="Why is the key hidden?">${icon("help")}</button>` : c.notes || CONN_DESC[c.provider]}</div></div>
               <span class="badge">${plural(n, "contender")}</span>
               ${needsKey && !c.has_key ? chip("warning", "Needs a key") : chip("done", c.provider === "manual" ? "Ready" : "Connected")}
