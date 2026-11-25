@@ -122,9 +122,11 @@ This checks the Replicate adapter (SPEC "Replicate", TECH-SPEC §12b) with a rea
 2. **Add contender** on that connection: Name `Flux Schnell`, Model `black-forest-labs/flux-schnell`, Aspect ratio Square, File type WebP, Price per image `0.003`.
 3. **Start a run** on the Image maker role with the image task, contenders `Flux Schnell` (and `Mock Image` if you like), judged by you or the AI judge.
 
+**Done Nov 25, 2026 on v0.7.2** (live server, VB 0.48.0): Flux Schnell finished in 4 seconds and its picture (`image-1.webp`) showed on the judging screen. The first try on v0.7.1 failed on Replicate's new download host (NOTES RP9). That run was judged by Cas, so the AI-judge line was not tried, and the cost line was not recorded.
+
 Check:
 
-- [ ] The Flux Schnell output ends submitted within a minute and shows one WebP picture with a thumbnail.
+- [x] The Flux Schnell output ends submitted within a minute and shows one WebP picture with a thumbnail.
 - [ ] Its cost is 0.003, tokens are empty, and time is filled in.
 - [ ] With the AI judge, its reasons describe the picture.
 
