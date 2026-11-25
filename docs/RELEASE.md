@@ -206,7 +206,7 @@ Owner uploads go through Vaultbase's own endpoint (`POST /api/v1/files/:collecti
 
 ```sh
 curl -fsSLO https://github.com/go4cas/audition/releases/latest/download/install.sh
-sudo bash install.sh --version v0.7.1      # the release tag
+sudo bash install.sh --version v0.7.2      # the release tag
 ```
 
 Fetch the new `install.sh` first, so the upgrade runs the release's own installer. This matters for v0.6.0, the release that renames stages to groups: an older installer skips the data migration, and the new schema then starts without the roles' links to their groups (`rollback` brings them back). On a server that can't reach GitHub, copy the new bundle up and run `sudo bash install.sh --bundle audition-<tag>-linux-x64.tar.gz` instead (see [Install](#install)).
