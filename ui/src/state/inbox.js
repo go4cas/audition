@@ -87,4 +87,6 @@ export const itemTitle = (g) =>
     : `Judge ${g.n === 1 ? "an output" : g.n + " outputs"}: ${g.taskTitle}`;
 export const itemHref = (g) => (g.kind === "trial" ? `${APP}/leaderboard/${g.roleId}` : g.kind === "outcome" ? `${APP}/outcomes` : g.kind === "paste" ? `${APP}/handoff/${g.run}/${g.task}` : `${APP}/judge/${g.run}/${g.task}`);
 /** The item's kind in words and its icon. */
+/** The Up next button's label. Lighthouse flags a bare "Start" as a link without descriptive text. */
+export const itemAction = (g) => (g.kind === "trial" ? "Decide" : g.kind === "outcome" ? "Check outcome" : g.kind === "paste" ? "Paste replies" : "Start judging");
 export const itemKind = (g) => (g.kind === "trial" ? ["Champion on trial", "champion"] : g.kind === "outcome" ? ["Check the outcome", "time"] : g.kind === "paste" ? ["Copy and paste", "paste"] : ["Judge", "judge"]);

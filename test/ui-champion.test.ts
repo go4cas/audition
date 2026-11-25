@@ -150,7 +150,7 @@ test("crown GPT again by hand; after a few days on trial Home nudges; keep it", 
   await go("/");
   await p.getByText("Keep or restore: GPT is on trial").first().waitFor();
   await shot("champion-trial-home");
-  await p.locator("#up-next").getByRole("link", { name: /Start/ }).click();
+  await p.locator("#up-next").getByRole("link", { name: /Decide/ }).click();
   await p.waitForURL((u) => u.pathname.includes("/leaderboard/"));
   await settle();
   if (process.env["DEBUG_SHOT"]) await p.screenshot({ path: process.env["DEBUG_SHOT"], fullPage: true });
