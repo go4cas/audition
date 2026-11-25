@@ -7,7 +7,8 @@
 //      until the prediction ends (up to 60 s).
 //   2. While it is still starting or processing, GET its urls.get until it
 //      succeeds, fails or is canceled, up to 10 minutes; then cancel it.
-//   3. Download each output link (replicate.delivery) as raw bytes with
+//   3. Download each output link (replicate.delivery, or Replicate's
+//      Cloudflare R2 output bucket) as raw bytes with
 //      helpers.http.getBytes (Vaultbase 0.48, discussion #17). The generate
 //      worker then stores each picture on the attempt with helpers.files.save
 //      (lib/files.ts, discussion #11).
@@ -18,10 +19,17 @@ import { sniffImage } from "./openai-images.ts";
 
 export const REPLICATE_DEFAULT_BASE_URL = "https://api.replicate.com/v1";
 
+/**
+ * Replicate's Cloudflare R2 output bucket: since late 2026 some models answer
+ * with presigned links on ai-gateway-outputs.<account id>.r2.cloudflarestorage.com
+ * instead of replicate.delivery (NOTES RP9). The account id is 32 hex digits.
+ */
+const REPLICATE_R2_HOST = /^ai-gateway-outputs\.[0-9a-f]{32}\.r2\.cloudflarestorage\.com$/;
+
 /** Hosts Replicate serves output files from. Downloads may reach these and nothing else. */
 export function isReplicateFileHost(host: string): boolean {
   const h = host.toLowerCase();
-  return h === "replicate.delivery" || h.endsWith(".replicate.delivery");
+  return h === "replicate.delivery" || h.endsWith(".replicate.delivery") || REPLICATE_R2_HOST.test(h);
 }
 
 /** The biggest picture Audition downloads: the attempts.output_files limit. */

@@ -128,6 +128,8 @@ Check:
 - [ ] Its cost is 0.003, tokens are empty, and time is filled in.
 - [ ] With the AI judge, its reasons describe the picture.
 
+If the output fails with "Refused a download from <host>", Replicate served the picture from a host Audition doesn't know yet (NOTES RP9). Note the host and report it.
+
 ### 6. Afterwards
 
 - Remove the key if you like: on the connection, remove the key. The connection then says "No key yet", and its contenders fail with a clear error until a key is added again.
