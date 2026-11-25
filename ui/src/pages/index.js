@@ -4,7 +4,7 @@ import { me } from "../api.js";
 import { page, empty } from "../components/page.js";
 import { ago, avatar, chip, date, hue as hueOf, icon, initials as initialsOf, plural } from "../lib/ui.js";
 import { championOf, leaderboards, load, runLabel, sortRoles } from "../state/data.js";
-import { inbox, itemHref, itemKind, itemTitle } from "../state/inbox.js";
+import { inbox, itemAction, itemHref, itemKind, itemTitle } from "../state/inbox.js";
 import { APP, currentQuery } from "../lib/nav.js";
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; };
@@ -106,7 +106,7 @@ function upNext() {
           <div class="up-next__title">${itemTitle(first)}</div>
           <div class="up-next__meta"><span>${icon("workspaces")}${first.workspace}</span><span>${icon(itemKind(first)[1])}${itemKind(first)[0]}</span><span>${icon("history")}${first.runLabel} · ${first.role}</span></div>
         </div>
-        <a class="btn btn--primary btn--lg" href="${itemHref(first)}">Start${icon("arrow-right", "i--nudge")}</a>
+        <a class="btn btn--primary btn--lg" href="${itemHref(first)}">${itemAction(first)}${icon("arrow-right", "i--nudge")}</a>
       </div>
     </div>
     ${rest.length ? html`<div class="stack-sm"><div class="section-head"><h2>Also waiting</h2></div><div class="queue stagger">${rest.slice(0, 6).map((g) => html`<a href="${itemHref(g)}">${g.kind === "paste" ? avatar(g.names[0], "") : g.kind === "trial" ? avatar(g.taskTitle, "") : html`<span class="letter-tile letter-tile--sm">A–Z</span>`}<span><strong>${itemTitle(g)}</strong><br><span class="small muted">${g.workspace} · ${g.role} · ${g.runLabel}</span></span>${chip("waiting", g.kind === "paste" ? plural(g.attempts.length, "to paste", "to paste") : g.kind === "outcome" ? "Check" : g.kind === "trial" ? "Decide" : "Judge")}${icon("arrow-right", "go")}</a>`)}</div></div>` : ""}`;
