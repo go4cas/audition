@@ -41,7 +41,8 @@ export function allowedHost(provider: string, baseUrl?: string | null): string |
  * checks every hop against the denylist.
  *
  * Downloads (getBytes) may reach only the hosts `fileHost` allows: a
- * Replicate connection's pictures come from replicate.delivery (§12b).
+ * Replicate connection's pictures come from replicate.delivery or
+ * Replicate's R2 output bucket (§12b).
  * Every other connection downloads nothing.
  */
 export function egressGuard(http: HttpLike, host: string, fileHost: (h: string) => boolean = () => false): HttpLike {

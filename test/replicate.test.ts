@@ -154,8 +154,8 @@ describe("Replicate adapter", () => {
     expect(calls.at(-1)).toMatchObject({ method: "POST", url: `${GET}/cancel` });
   });
 
-  test("egress: downloads only from replicate.delivery over https; calls only to the connection's host", async () => {
-    for (const bad of ["https://evil.example/x.png", "http://replicate.delivery/x.png", "https://replicate.delivery.evil.example/x.png"]) {
+  test("egress: downloads only from replicate.delivery or its R2 bucket over https; calls only to the connection's host", async () => {
+    for (const bad of ["https://evil.example/x.png", "http://replicate.delivery/x.png", "https://replicate.delivery.evil.example/x.png", "https://evil-bucket.0d37909e38d3e99c29fa2cd343ac421a.r2.cloudflarestorage.com/x.png", "https://ai-gateway-outputs.0d37909e38d3e99c29fa2cd343ac421a.r2.cloudflarestorage.com.evil.example/x.png", "http://ai-gateway-outputs.0d37909e38d3e99c29fa2cd343ac421a.r2.cloudflarestorage.com/x.png"]) {
       const { http, calls } = fakeReplicate([{ json: pred("succeeded", [bad]) }], { [bad]: PNG });
       await expect(callProvider(input({ http }))).rejects.toThrow("Refused a download");
       expect(calls.some((c) => c.method === "BYTES")).toBe(false);
@@ -165,6 +165,15 @@ describe("Replicate adapter", () => {
     expect(calls).toHaveLength(1);
     expect(isReplicateFileHost("pbxt.replicate.delivery")).toBe(true);
     expect(isReplicateFileHost("replicate.com")).toBe(false);
+    // Replicate's Cloudflare R2 output bucket (NOTES RP9), presigned links.
+    expect(isReplicateFileHost("ai-gateway-outputs.0d37909e38d3e99c29fa2cd343ac421a.r2.cloudflarestorage.com")).toBe(true);
+    expect(isReplicateFileHost("ai-gateway-outputs.r2.cloudflarestorage.com")).toBe(false);
+    expect(isReplicateFileHost("other.0d37909e38d3e99c29fa2cd343ac421a.r2.cloudflarestorage.com")).toBe(false);
+    const r2 = "https://ai-gateway-outputs.0d37909e38d3e99c29fa2cd343ac421a.r2.cloudflarestorage.com/out-0.webp?X-Amz-Signature=abc";
+    const ok = fakeReplicate([{ json: pred("succeeded", [r2]) }], { [r2]: PNG });
+    const res = await callProvider(input({ http: ok.http }));
+    expect(res.result.files).toHaveLength(1);
+    expect(ok.calls.some((c) => c.method === "BYTES" && c.url === r2)).toBe(true);
     // Other connections may not download anything.
     const other = fakeReplicate([{ json: {} }], { [link(0)]: PNG });
     const { egressGuard } = await import("../vb_hooks/lib/providers/index.ts");

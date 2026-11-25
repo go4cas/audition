@@ -134,7 +134,7 @@ Added Nov 24, 2026, once Vaultbase 0.48 could download files (discussion #17). C
 - **Options.** Aspect ratio, images per output (1 to 4, if the model can), file type (PNG, JPEG or WebP), a "picture input" (the model's input name for an image: the task's first image goes there, for edit and restyle tasks), other inputs as JSON (sent to the model as they are), and a price per image.
 - **How it runs.** Audition asks Replicate to run the model and waits for it, checking every few seconds, for up to 10 minutes. Replicate answers with links; the worker downloads each picture through Vaultbase (`helpers.http.getBytes`) and saves it on the output through Vaultbase (`helpers.files.save`), so it shows on the judge page with a thumbnail, like an OpenAI picture.
 - **Cost.** Replicate charges per picture for most image models and reports no tokens. Set "Price per image" from the model's page and the leaderboard shows cost (pictures × price); without it, cost stays empty. Time is measured as usual.
-- **Guards.** As for other image makers: no judging or composing, and a warning when it gets a text task. Only `replicate.delivery` links are downloaded.
+- **Guards.** As for other image makers: no judging or composing, and a warning when it gets a text task. Only links on Replicate's own file hosts (`replicate.delivery` and its Cloudflare R2 output bucket) are downloaded.
 
 ### The Composer
 
