@@ -59,9 +59,20 @@ export function dropdown({ id, label, options, value, onChange, placeholder = "C
   </div>`;
 }
 
-/** Segmented control with a sliding thumb. options → [{ value, label, icon? }] */
+/**
+ * Segmented control with a sliding thumb. options → [{ value, label, icon? }]
+ * The thumb follows value() even when code changes it (a new role on Start a
+ * run brings its workspace's default judge), not only on a click. Before
+ * this, the thumb stayed put, so the next click looked like it did nothing
+ * (bug found Nov 25, 2026).
+ */
 export function seg({ name, labelId, options, value, onChange, disabled = () => false }) {
-  return html`<div class="seg" role="radiogroup" aria-labelledby="${labelId}">
+  const follow = () => {
+    const v = value();
+    requestAnimationFrame(() => document.querySelectorAll(`.seg[data-seg="${name}"]`).forEach(placeThumb));
+    return String(v);
+  };
+  return html`<div class="seg" role="radiogroup" aria-labelledby="${labelId}" data-seg="${name}" data-value="${follow}">
     ${options.map((o) => html`<input type="radio" name="${name}" id="${name + "-" + o.value}" value="${o.value}" checked="${() => value() === o.value}" disabled="${() => disabled()}" @change="${(e) => { onChange(o.value); placeThumb(e.target.closest(".seg")); }}"><label for="${name + "-" + o.value}">${o.icon ? icon(o.icon) : ""}${o.label}</label>`)}
   </div>`;
 }
