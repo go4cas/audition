@@ -72,7 +72,7 @@ What we took from it: the data-attribute variant pattern, native `<dialog>`, and
 | Card-style checkboxes | `:has(input:checked)` |
 | Tooltips on icon buttons and disabled controls | CSS `[data-tip]::after`, no JS. Hover shows them only under `@media (hover: hover)`; keyboard focus always does. `data-tip-align="end"` opens a tip leftwards for things at the right edge. |
 | Tables on a phone | `table.table--cards`: below 40rem each row becomes a card (name and button on top, the other cells underneath with their `data-label`) |
-| Toasts | about 15 lines of JS |
+| Toasts | about 50 lines of JS (`toast()` in `ui/src/lib/ui.js`). Bottom centre, above the phone tab bar. A done toast goes after 3 s. An error or warning stays 9 s, is read out at once (`role="alert"`) and has a close button; hovering or focusing any toast keeps it open. At most three show. |
 
 These work in current Chrome, Edge, Safari and Firefox. Popover positioning is a few lines of JS; CSS anchor positioning can replace it once every browser supports it.
 
@@ -102,6 +102,7 @@ Each state has its own colour tokens (`--active`, `--active-bg`, `--active-line`
 - **Copy prompt** turns into a green "Copied" tick, flashes the prompt box and moves the step tracker on. Pasting a reply counts the words and enables Submit.
 - **Segmented controls** slide their selection thumb. Checkbox cards pop their tick.
 - **The run screen** fills its progress bar on arrival and finishes one output live, so you can see what realtime updates will feel like.
+- **Errors from an action** (a save, a start, a run the server refuses) show as an error toast, not a notice at the end of the form, so they appear where you are looking, phones included. Inline notices stay for things that describe the page's state: a page that couldn't load, a Composer that failed, a locked task, and the sign-in error next to its fields.
 - **Making a champion** bounces the crown, throws confetti and shows a toast.
 - **The waiting count** bumps when you submit an output.
 - **Screens** rise in, and lists and cards stagger in.

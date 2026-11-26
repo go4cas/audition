@@ -182,7 +182,15 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 /* ---------- Toasts ---------- */
 .toaster { position: fixed; z-index: 40; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column-reverse; gap: 8px; width: min(26rem, calc(100vw - 32px)); pointer-events: none; }
 .toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-md); background: var(--text); color: var(--bg); box-shadow: var(--shadow-pop); font-size: var(--fs-sm); font-weight: 550; animation: toast-in 380ms var(--ease-spring); }
-.toast .i { width: 20px; height: 20px; }
+.toast .i { width: 20px; height: 20px; flex: none; }
+.toast__text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.toast[data-tone="error"] .i, .toast[data-tone="warning"] .i { align-self: flex-start; }
+.toast[data-tone="error"] > .i { color: var(--error-line); }
+.toast[data-tone="warning"] > .i { color: var(--warning-line); }
+.toast__close { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin: -6px -6px -6px 0; border: 0; border-radius: var(--r-sm); background: transparent; color: inherit; opacity: 0.7; cursor: pointer; }
+.toast__close .i { width: 16px; height: 16px; }
+.toast__close:focus-visible { opacity: 1; outline: 2px solid currentColor; outline-offset: -2px; }
+@media (hover: hover) { .toast__close:hover { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); } }
 .toast[data-tone="done"] .i { color: var(--done-line); }
 .toast[data-tone="champion"] .i { color: var(--gold); }
 .toast.is-leaving { animation: toast-out 240ms var(--ease-out) forwards; }
@@ -354,7 +362,8 @@ tr.is-suggested td { background: color-mix(in srgb, var(--gold-soft) 70%, transp
 .seg input:checked + label { color: var(--text); }
 .seg input:checked + label .i { color: var(--accent); }
 .seg input:focus-visible + label { box-shadow: var(--focus); }
-.seg input:disabled + label { cursor: default; }
+.seg input:disabled + label { cursor: default; opacity: var(--disabled-opacity); }
+.seg input:disabled + label:hover { color: var(--text-muted); }
 
 /* Switch */
 .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: var(--fs-sm); font-weight: 550; }
