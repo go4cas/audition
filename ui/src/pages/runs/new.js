@@ -20,14 +20,16 @@ export default function newRun() {
       const d = s.d;
       const roles = query.ws ? d.roles.filter((r) => r.workspace === query.ws) : d.roles;
       const role = d.byId.roles.get(query.role) || sortRoles(d, roles)[0] || null;
-      s.f = reactive({ role: role?.id || null, tasks: [], contenders: [], judge: "me", method: "rate", bothOrders: false, preview: null, previewError: null });
+      s.f = reactive({ role: role?.id || null, tasks: [], contenders: [], judge: "me", method: "rate", bothOrders: false, preview: null });
       s.pickRole(role?.id);
     },
     init: {
       pickRole(id) {
         const s = this, d = s.d, r = d.byId.roles.get(id);
-        s.f.role = id || null;
+        // Tasks before role: the old role's checkboxes must update before the
+        // list drops them, or Arrow runs a watcher it has already released.
         s.f.tasks = r ? latestTasks(d, r.id).map((t) => t.id) : [];
+        s.f.role = id || null;
         const ws = r && d.byId.workspaces.get(r.workspace);
         s.f.judge = ws?.default_judge === "ai" && ws.judge_contender ? "ai" : "me";
         s.f.method = ws?.default_method === "compare" ? "compare" : "rate";
@@ -40,6 +42,9 @@ export default function newRun() {
       const judge = () => ws()?.judge_contender && d.byId.contenders.get(ws().judge_contender);
       const contenders = d.contenders.filter((c) => c.enabled !== false && c.mode !== "runner" && !d.contenders.some((n) => n.previous_version === c.id));
       const roleOpts = sortRoles(d, d.roles).map((r) => ({ value: r.id, label: r.name, icon: "rubric", group: d.byId.workspaces.get(r.workspace)?.name, desc: `${plural(latestTasks(d, r.id).length, "task")}${r.group ? " · " + (d.byId.groups.get(r.group)?.name || "") : ""}` }));
+      // The task list is built once with reactive slots: re-rendered as a whole
+      // template it kept the previous role's tasks (Arrow recycling, NOTES T1).
+      const roleTasks = () => (f.role ? latestTasks(d, f.role) : []);
       const toggle = (list, id, on) => { const i = list.indexOf(id); if (on && i < 0) list.push(id); if (!on && i >= 0) list.splice(i, 1); };
 
       // The summary: the server's preview when it answers, else the same sums locally (TECH-SPEC §8).
@@ -53,14 +58,19 @@ export default function newRun() {
         const judge_calls = f.judge === "ai" && !mockJudge ? judged : 0;
         return { outputs, api_calls: f.tasks.length * api, handoff_outputs: f.tasks.length * manual, judge_calls, total_provider_calls: f.tasks.length * api + judge_calls, warnings: [] };
       };
+      // Why this run can't start, from the server's preview: a toast, once per
+      // new reason, so it shows where the person is looking, phones included
+      // (Cas, Nov 26, 2026). Start run shows it again if they press it anyway.
+      let shownError = null;
+      const showPreviewError = (msg) => { if (msg && msg !== shownError) errorToast(new Error(msg)); shownError = msg || null; };
       let timer = 0, seq = 0;
       const refreshPreview = () => {
         clearTimeout(timer);
         timer = setTimeout(async () => {
           const n = ++seq;
           if (!f.role || !f.tasks.length || !f.contenders.length) { f.preview = null; return; }
-          try { const p = await custom.preview({ role: f.role, tasks: [...f.tasks], contenders: [...f.contenders], judge: f.judge, method: f.method, both_orders: f.method === "compare" && f.judge === "ai" && f.bothOrders }); if (n === seq) { f.preview = p; f.previewError = null; } }
-          catch (e) { if (n === seq) { f.preview = null; f.previewError = e.status === 404 ? null : e.message; } }
+          try { const p = await custom.preview({ role: f.role, tasks: [...f.tasks], contenders: [...f.contenders], judge: f.judge, method: f.method, both_orders: f.method === "compare" && f.judge === "ai" && f.bothOrders }); if (n === seq) { f.preview = p; showPreviewError(null); } }
+          catch (e) { if (n === seq) { f.preview = null; showPreviewError(e.status === 404 ? null : e.message); } }
         }, 150);
       };
       const sum = () => f.preview || local();
@@ -92,7 +102,8 @@ export default function newRun() {
             <div class="field"><label for="nr-role">Role</label>${dropdown({ id: "nr-role", label: "Role", options: () => roleOpts, value: () => f.role, onChange: (v) => { s.pickRole(v); refreshPreview(); } })}</div>
             <fieldset class="stack-sm plain">
               <legend class="eyebrow">${icon("file")}Tasks</legend>
-              ${() => { const tasks = f.role ? latestTasks(d, f.role) : []; return tasks.length ? html`<div class="check-list">${tasks.map((t) => html`<label class="check"><input type="checkbox" checked="${() => f.tasks.includes(t.id)}" @change="${(e) => toggle(f.tasks, t.id, e.target.checked)}"><span class="check__box">${icon("check")}</span><span><strong>${t.title}</strong><br><span class="muted small row-tight">${icon(TYPE_ICON[t.output_type])}${TYPE_LABEL[t.output_type]}${t.compose?.status === "composing" ? html` · ${icon("spinner")}Composer still writing` : t.composed_prompt ? html` · ${icon("sparkle")}Composed prompt` : ""}</span></span></label>`)}</div>` : html`<p class="small muted">This role has no tasks yet. <a href="${APP + "/r/" + f.role + "/tasks/new"}">Add one</a></p>`; }}
+              <div class="check-list" hidden="${() => !roleTasks().length}">${() => roleTasks().map((t) => html`<label class="check"><input type="checkbox" checked="${() => f.tasks.includes(t.id)}" @change="${(e) => toggle(f.tasks, t.id, e.target.checked)}"><span class="check__box">${icon("check")}</span><span><strong>${t.title}</strong><br><span class="muted small row-tight">${icon(TYPE_ICON[t.output_type])}${TYPE_LABEL[t.output_type]}${() => (t.compose?.status === "composing" ? html` · ${icon("spinner")}Composer still writing` : t.composed_prompt ? html` · ${icon("sparkle")}Composed prompt` : html``)}</span></span></label>`.key(t.id))}</div>
+              <p class="small muted" hidden="${() => !!roleTasks().length}">This role has no tasks yet. <a href="${() => APP + "/r/" + f.role + "/tasks/new"}">Add one</a></p>
             </fieldset>
             <fieldset class="stack-sm plain">
               <legend class="eyebrow">${icon("contenders")}Contenders</legend>
@@ -100,18 +111,17 @@ export default function newRun() {
             </fieldset>
             <div class="field">
               <span class="label" id="nr-judge-label">Who judges</span>
-              ${() => seg({ name: "nr-judge", labelId: "nr-judge-label", value: () => f.judge, onChange: (v) => { f.judge = v; refreshPreview(); }, options: [{ value: "me", label: "Me", icon: "me" }, { value: "ai", label: judge() ? "AI · " + judge().name : "AI", icon: "ai" }], disabled: () => false })}
-              ${() => (!judge() ? html`<span class="hint">To let an AI judge, pick one in the <a href="${APP + "/w/" + (ws()?.id || "") + "/settings"}">workspace settings</a>.</span>` : "")}
+              ${seg({ name: "nr-judge", labelId: "nr-judge-label", value: () => f.judge, onChange: (v) => { f.judge = v; refreshPreview(); }, options: [{ value: "me", label: "Me", icon: "me" }, { value: "ai", label: () => (judge() ? "AI · " + judge().name : "AI"), icon: "ai", disabled: () => !judge() }] })}
+              ${() => (!judge() ? html`<span class="hint">To let an AI judge, pick one in the <a href="${APP + "/w/" + (ws()?.id || "") + "/settings"}">workspace settings</a>.</span>` : html``)}
             </div>
             <div class="field">
               <span class="label" id="nr-method-label">How to judge</span>
-              ${() => seg({ name: "nr-method", labelId: "nr-method-label", value: () => f.method, onChange: (v) => { f.method = v; refreshPreview(); }, options: METHOD_OPTIONS })}
+              ${seg({ name: "nr-method", labelId: "nr-method-label", value: () => f.method, onChange: (v) => { f.method = v; refreshPreview(); }, options: METHOD_OPTIONS })}
               <span class="hint">${() => METHOD_HINT[f.method] + (f.method === "compare" ? ` With these contenders: ${plural(pairsOf(f.contenders.length), "pair")} per task.` : "")}</span>
             </div>
             ${() => (f.method === "compare" && f.judge === "ai" ? html`<label class="check self-start"><input type="checkbox" id="nr-both" checked="${() => f.bothOrders}" @change="${(e) => { f.bothOrders = e.target.checked; refreshPreview(); }}"><span class="check__box">${icon("check")}</span><span><strong>Ask the AI judge both ways</strong><br><span class="muted small">Each pair is judged twice, with the sides swapped. If the two answers disagree, it counts as a tie. Fairer, but it doubles the calls to the AI judge.</span></span></label>` : "")}
             ${costNote}
             ${() => (sum().warnings || []).map((w) => html`<div class="notice" data-state="warning">${icon("warning")}<div><strong>${w}</strong> ${/judge/i.test(w) ? "A judge may favour its own family. You can go ahead, or judge this run yourself." : "It still runs, but its output may not be what the task asks for."}</div></div>`)}
-            ${() => (f.previewError ? html`<div class="notice" data-state="error">${icon("error")}<div>${f.previewError}</div></div>` : "")}
           </form>
           <aside class="summary" aria-live="polite">
             <span class="eyebrow">This run makes</span>

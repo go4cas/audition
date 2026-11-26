@@ -82,19 +82,55 @@ export const TYPE_ICON = { text: "text", image: "image", file: "file", code: "co
 export const TYPE_LABEL = { text: "Text", image: "Image", file: "File", code: "Code" };
 
 // ---------- Toasts ----------
+// One place for every short message: bottom centre, above the phone tab bar.
+// "Done" toasts go after a few seconds. Errors and warnings stay longer, are
+// read out at once (role="alert") and have a close button, because the person
+// needs time to read what went wrong (Cas, Nov 26, 2026). Hovering or focusing
+// a toast keeps it open. At most three show; the oldest goes first.
+const TOAST_MS = { done: 3000, error: 9000, warning: 9000 };
+const MAX_TOASTS = 3;
 export function toast(text, tone = "done", iconName = "done") {
   const host = document.getElementById("toaster");
   if (!host) return;
+  const loud = tone === "error" || tone === "warning";
   const t = document.createElement("div");
   t.className = "toast";
   t.dataset.tone = tone;
-  t.setAttribute("role", "status");
+  t.setAttribute("role", loud ? "alert" : "status");
   icon(iconName)(t);
   const span = document.createElement("span");
+  span.className = "toast__text";
   span.textContent = text;
   t.appendChild(span);
+  let gone = false, timer = 0;
+  const leave = () => {
+    if (gone) return;
+    gone = true;
+    clearTimeout(timer);
+    t.classList.add("is-leaving");
+    t.addEventListener("animationend", () => t.remove());
+    setTimeout(() => t.remove(), 400); // no animation (reduced motion): still goes
+  };
+  if (loud) {
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "toast__close";
+    x.setAttribute("aria-label", "Dismiss");
+    icon("close")(x);
+    x.addEventListener("click", leave);
+    t.appendChild(x);
+  }
+  const ms = TOAST_MS[tone] ?? TOAST_MS.done;
+  const arm = () => { clearTimeout(timer); timer = setTimeout(leave, ms); };
+  t.addEventListener("pointerenter", () => clearTimeout(timer));
+  t.addEventListener("pointerleave", arm);
+  t.addEventListener("focusin", () => clearTimeout(timer));
+  t.addEventListener("focusout", arm);
+  t.leave = leave;
   host.appendChild(t);
-  setTimeout(() => { t.classList.add("is-leaving"); t.addEventListener("animationend", () => t.remove()); }, 2600);
+  const live = [...host.children].filter((c) => !c.classList.contains("is-leaving"));
+  live.slice(0, Math.max(0, live.length - MAX_TOASTS)).forEach((c) => c.leave?.());
+  arm();
 }
 export const errorToast = (e) => toast(e && e.message ? e.message : String(e), "error", "error");
 
